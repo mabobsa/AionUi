@@ -452,7 +452,11 @@ try {
     return;
   }
 
-  // 5. Prepare bundled bun/bunx binaries (for packaged runtime usage)
+  // 5. Prepare aionui-backend binary (for packaged runtime usage)
+  const prepareAionuiBackend = require('./prepareAionuiBackend');
+  prepareAionuiBackend();
+
+  // 5a. Prepare bundled bun/bunx binaries (for packaged runtime usage)
   // This only affects packaging assets; runtime integration will be added in a future PR.
   prepareBundledBun();
 
