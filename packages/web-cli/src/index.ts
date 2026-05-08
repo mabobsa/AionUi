@@ -5,18 +5,31 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 // tarball layout:
 //   aionui-web/
-//   ├── bin/aionui-web.js         ← entry
-//   ├── dist/index.js             ← this module (after compile)
+//   ├── aionui-web              ← bun-compiled standalone binary (process.execPath)
+//   ├── package.json             ← for runtime version lookup
 //   ├── bundled-aionui-backend/<plat-arch>/aionui-backend[.exe]
-//   ├── bundled-bun/<plat-arch>/bun[.exe]
-//   └── static/                    ← SPA assets
-// `__dirname` is either `.../aionui-web/dist` (packaged) or `.../packages/web-cli/src` (dev).
-const cliRoot = path.resolve(__dirname, '..');
+//   └── static/                  ← SPA assets
+//
+// Under `bun build --compile`, import.meta.url resolves to a virtual /$bunfs/
+// path, NOT the real tarball location — we MUST use process.execPath to find
+// sibling files. In dev (tsx/node), process.execPath is the node/bun binary,
+// so fall back to import.meta.url there.
+function resolveCliRoot(): string {
+  // Heuristic: if the executable path ends in "aionui-web" or "aionui-web.exe",
+  // treat it as the packaged single-file binary and return its directory.
+  const exe = process.execPath;
+  const exeName = path.basename(exe).toLowerCase();
+  if (exeName === 'aionui-web' || exeName === 'aionui-web.exe') {
+    return path.dirname(exe);
+  }
+  // Dev mode (tsx/node/bun running from source): use import.meta.url
+  const __filename = fileURLToPath(import.meta.url);
+  return path.resolve(path.dirname(__filename), '..');
+}
+
+const cliRoot = resolveCliRoot();
 
 const BACKEND_BINARY = process.platform === 'win32' ? 'aionui-backend.exe' : 'aionui-backend';
 const DEFAULT_PORT = 25808;
