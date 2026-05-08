@@ -280,3 +280,14 @@ Step 4 复跑结果:
 2. **观察 - 旧测试覆盖面**: 删除的 354 个旧测试涵盖了大量 UC-A 之外的领域(如 team/acp/conversation/mcp/pet 等),这些领域不在 N3/N4 的测试重写范围内。整链完成后,这些领域的测试覆盖将暂时为 0,直到后续专项补充。这与总设计 UC-A 范围限定一致,但需在整链合入 dev 前明确告知人类。
 
 3. **packages/web-host 独立测试体系**: web-host 的测试(`*.unit.test.ts`)使用独立 vitest 配置,不受本次清理影响。根目录 `bunx vitest run` 和 web-host 内 `bun run test` 是两个独立测试集,CI 需分别调用。
+
+## Team-lead 裁决记录(2026-05-08)
+
+- **偏离 1(vitest 退出 1)**:**接受**。理由:
+  1. requirements 第 5 行已定决策"不改 `vitest.config.ts`",executor 遵守是正确的
+  2. vitest 4 对空 include 集合默认退出 1,是工具行为变更(requirements 写作时基于旧理解)
+  3. 所有删除/保留/骨架/类型/lint/grep/prek 7 条门禁全部符合预期
+  4. N3 加测试文件后 vitest 自然回到退出 0,对整链 CI 无阻断
+  5. 若最终 N5 整链 CI 因 passWithNoTests 报错,再由 team-lead 统一处理
+- **偏离 2(额外清理 web-host equivalence 注释)**:**接受**。理由:该文件引用了 N1/N2 已删除的 m5-equivalence 测试路径,保留注释会误导后续读者;清理动作范围仅限注释,不动测试语义
+- **放行判定**:UC-F-1/2/3/5 全部满足(UC-F-4 N/A),可进入 N3
