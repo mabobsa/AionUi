@@ -34,7 +34,7 @@ executor-n3 agent 写完 7 个 commit 后在未执行 Phase 8 门禁、未做基
 ### 分支信息
 
 - 分支:`feat/n3-test-rewrite-adapter-common`
-- 最新 SHA(push 后填):见 push log
+- 最新 SHA:`349769374a697876667dccdbaca96b1d2138b689`
 - 基线 SHA:`e4cdff41f`(本地已是最新,`Already up to date`)
 
 ### 自动化门禁输出
