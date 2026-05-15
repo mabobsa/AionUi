@@ -43,7 +43,11 @@
     "selectFolder": "폴더 선택",
     "recentLabel": "최근 사용",
     "chooseDifferentFolder": "다른 폴더 선택",
-    "error": "팀 생성에 실패했습니다"
+    "error": "팀 생성에 실패했습니다",
+    "subtitle": "팀을 조율할 리더 에이전트를 선택하세요",
+    "searchPlaceholder": "에이전트 검색...",
+    "leaderSelected": "리더 선택됨",
+    "noSearchResults": "결과 없음"
   },
   "removeAgent": {
     "confirmTitle": "팀 멤버 제거",

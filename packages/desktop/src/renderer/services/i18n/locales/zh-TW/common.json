@@ -83,5 +83,7 @@
   "import": "匯入",
   "processing": "處理中...",
   "optional": "（選填）",
-  "clear": "清除"
+  "clear": "清除",
+  "enableWordWrap": "啟用自動換行",
+  "disableWordWrap": "禁用自動換行"
 }

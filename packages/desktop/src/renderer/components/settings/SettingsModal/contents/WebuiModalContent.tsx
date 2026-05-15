@@ -18,11 +18,14 @@ import ChannelTelegramLogo from '@/renderer/assets/channel-logos/telegram.svg';
 import ChannelWecomLogo from '@/renderer/assets/channel-logos/wecom.svg';
 import ChannelWeixinLogo from '@/renderer/assets/channel-logos/weixin.svg';
 import { isElectronDesktop } from '@/renderer/utils/platform';
-import { Button, Form, Input, Message, Switch, Tabs, Tooltip } from '@arco-design/web-react';
-import { CheckOne, Communication, Copy, Earth, EditTwo, Refresh } from '@icon-park/react';
+import { Button, Collapse, Form, Input, Message, Switch, Tabs, Tooltip } from '@arco-design/web-react';
+import { CheckOne, Communication, Copy, Down, Earth, EditTwo, Refresh, Up } from '@icon-park/react';
 import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { useSettingsViewMode } from '../settingsViewContext';
+import { useRemoteAccess } from '@renderer/hooks/remote/useRemoteAccess';
+import LoginModal from '@renderer/components/remote/LoginModal';
 
 /**
  * 偏好设置行组件
@@ -65,15 +68,108 @@ const QRCodeSVGLazy = React.lazy(async () => {
 const DESKTOP_WEBUI_ENABLED_KEY = 'webui.desktop.enabled';
 const DESKTOP_WEBUI_ALLOW_REMOTE_KEY = 'webui.desktop.allowRemote';
 
+/** 远程访问状态+操作区，所有状态统一 pill 形态 */
+const RemoteControlArea: React.FC<{
+  remoteState: 'GUEST' | 'INACTIVE' | 'ACTIVE' | 'OFFLINE';
+  isLinking: boolean;
+  loading: boolean;
+  onEnable: () => void;
+  onDisable: () => void;
+  onReconnect: () => void;
+}> = ({ remoteState, isLinking, loading, onEnable, onDisable, onReconnect }) => {
+  const pillBase: React.CSSProperties = {
+    display: 'inline-flex', alignItems: 'center', gap: 5,
+    height: 26, padding: '0 11px', borderRadius: 100,
+    fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap',
+  };
+  const btnBase: React.CSSProperties = {
+    display: 'inline-flex', alignItems: 'center',
+    height: 32, padding: '0 16px', borderRadius: 100,
+    fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap',
+    fontFamily: 'inherit', cursor: loading ? 'not-allowed' : 'pointer',
+    transition: 'background 0.15s', opacity: loading ? 0.5 : 1,
+  };
+
+  if (isLinking) {
+    return (
+      <span style={{ ...pillBase, background: 'rgba(var(--primary-6),0.08)', color: 'rgb(var(--primary-6))' }}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgb(var(--primary-6))', flexShrink: 0, animation: 'pulse 1s infinite' }} />
+        连接中…
+      </span>
+    );
+  }
+
+  if (remoteState === 'ACTIVE') {
+    return (
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ ...pillBase, background: 'rgba(var(--success-6),0.10)', color: 'rgb(var(--success-6))' }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgb(var(--success-6))', flexShrink: 0 }} />
+          已开启
+        </span>
+        <button
+          type='button' disabled={loading} onClick={onDisable}
+          style={{ ...btnBase, border: '1px solid rgba(var(--danger-6),0.35)', background: 'transparent', color: 'rgb(var(--danger-6))' }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(var(--danger-6),0.06)'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+        >关闭</button>
+      </div>
+    );
+  }
+
+  if (remoteState === 'OFFLINE') {
+    return (
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ ...pillBase, background: 'rgba(var(--warning-6),0.10)', color: 'rgb(var(--warning-6))' }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgb(var(--warning-6))', flexShrink: 0 }} />
+          已开启
+        </span>
+        <button
+          type='button' disabled={loading} onClick={onReconnect}
+          style={{ ...btnBase, border: '1px solid rgba(var(--warning-6),0.35)', background: 'transparent', color: 'rgb(var(--warning-6))' }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(var(--warning-6),0.06)'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+        >重连</button>
+      </div>
+    );
+  }
+
+  // INACTIVE
+  return (
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      <span style={{ ...pillBase, background: 'var(--color-fill-2)', color: 'var(--color-text-3)' }}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-text-4)', flexShrink: 0 }} />
+        未开启
+      </span>
+      <button
+        type='button' disabled={loading}
+        onClick={onEnable}
+        style={{ ...btnBase, border: 'none', background: 'rgb(var(--primary-6))', color: '#fff' }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgb(var(--primary-7))'; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgb(var(--primary-6))'; }}
+      >开启</button>
+    </div>
+  );
+};
+
 /**
  * WebUI 设置内容组件
  * WebUI settings content component
  */
 const WebuiModalContent: React.FC = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const viewMode = useSettingsViewMode();
+  const { state: remoteState, username: remoteUsername, networkUrl: remoteNetworkUrl } = useRemoteAccess();
+  // dev 模式下以 mock state 为准，prod 以 allowRemotePreference 为准
+  const effectiveRemoteOn = remoteState === 'ACTIVE' || remoteState === 'OFFLINE';
   const isPageMode = viewMode === 'page';
   const [activeTab, setActiveTab] = useState<'webui' | 'channels'>('webui');
+  // linking 过渡态：开关拨动后短暂显示「建立连接中」动画
+  const [isLinking, setIsLinking] = useState(false);
+  const linkingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [loginModalVisible, setLoginModalVisible] = useState(false);
+  const [qrHighlight, setQrHighlight] = useState(false);
+  const qrSectionRef = useRef<HTMLDivElement>(null);
 
   // 检测是否在 Electron 桌面环境 / Check if running in Electron desktop environment
   const isDesktop = isElectronDesktop();
@@ -83,6 +179,7 @@ const WebuiModalContent: React.FC = () => {
   const [startLoading, setStartLoading] = useState(false);
   const port = WEBUI_DEFAULT_PORT;
   const [webuiEnabled, setWebuiEnabled] = useState(false);
+  const [lanExpanded, setLanExpanded] = useState(false);
   const [allowRemotePreference, setAllowRemotePreference] = useState(false);
   const [cachedIP, setCachedIP] = useState<string | null>(null);
   const [cachedPassword, setCachedPassword] = useState<string | null>(null);
@@ -296,6 +393,14 @@ const WebuiModalContent: React.FC = () => {
   // 处理允许远程访问切换 / Handle allow remote toggle
   // 需要重启服务器才能更改绑定地址 / Need to restart server to change binding address
   const handleAllowRemoteChange = async (checked: boolean) => {
+    // 开启时触发 linking 过渡动画
+    if (checked) {
+      if (linkingTimerRef.current) clearTimeout(linkingTimerRef.current);
+      setIsLinking(true);
+      linkingTimerRef.current = setTimeout(() => setIsLinking(false), 2000);
+    } else {
+      setIsLinking(false);
+    }
     // 保存原始值用于回滚 / Save original value for rollback
     const previousAllowRemote = allowRemotePreference;
     setAllowRemotePreference(checked);
@@ -507,9 +612,9 @@ const WebuiModalContent: React.FC = () => {
     }
   }, [status?.running, status?.allowRemote, status?.networkUrl, status?.localUrl, status?.port, port, t]);
 
-  // 当服务器启动且允许远程访问时自动生成二维码 / Auto-generate QR code when server starts and remote access is allowed
+  // 当服务器启动且允许远程访问时自动生成二维码
   useEffect(() => {
-    if (status?.running && status.allowRemote && !qrUrl) {
+    if (status?.running && effectiveRemoteOn && !qrUrl) {
       void generateQRCode();
     }
     // 清理定时器 / Cleanup timer
@@ -520,9 +625,9 @@ const WebuiModalContent: React.FC = () => {
     };
   }, [status?.allowRemote, status?.running, generateQRCode, qrUrl]);
 
-  // 服务器停止或关闭远程访问时清除二维码 / Clear QR code when server stops or remote access is disabled
+  // 服务器停止或关闭远程时清除二维码
   useEffect(() => {
-    if (!status?.running || !status.allowRemote) {
+    if (!status?.running || !effectiveRemoteOn) {
       setQrUrl(null);
       setQrExpiresAt(null);
       if (qrRefreshTimerRef.current) {
@@ -531,6 +636,25 @@ const WebuiModalContent: React.FC = () => {
       }
     }
   }, [status?.allowRemote, status?.running]);
+
+  // 清理 linking timer
+  useEffect(() => {
+    return () => {
+      if (linkingTimerRef.current) clearTimeout(linkingTimerRef.current);
+    };
+  }, []);
+
+  // 重连：恢复连接后高亮二维码区域并滚动到视图
+  const handleReconnect = useCallback(async () => {
+    await handleAllowRemoteChange(true);
+    // 等状态更新后再高亮
+    setTimeout(() => {
+      setQrHighlight(true);
+      qrSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => setQrHighlight(false), 2000);
+    }, 300);
+    Message.success('已重连，请用手机扫描二维码访问');
+  }, [handleAllowRemoteChange]);
 
   // 格式化过期时间 / Format expiration time
   const formatExpiresAt = (timestamp: number) => {
@@ -571,27 +695,12 @@ const WebuiModalContent: React.FC = () => {
   const webuiPanel = (
     <AionScrollArea className='flex-1 min-h-0 pb-16px' disableOverflow={isPageMode}>
       <div className='space-y-12px px-[12px] md:px-[28px]'>
-        {/* 标题 / Title */}
-        <h2 className='text-20px font-500 text-t-primary m-0'>WebUI</h2>
-
-        {/* 描述说明 / Description */}
-        <div className='space-y-6px'>
-          <p className='m-0 text-13px text-t-secondary leading-relaxed'>{t('settings.webui.description')}</p>
-          <div className='flex flex-wrap gap-x-12px gap-y-6px'>
-            {[
-              t('settings.webui.enable', { defaultValue: 'Enable WebUI' }),
-              t('settings.webui.accessUrl', { defaultValue: 'Access URL' }),
-              t('settings.webui.allowRemote', { defaultValue: 'Allow Remote Access' }),
-            ].map((stepLabel, idx) => (
-              <div key={stepLabel} className='inline-flex items-center gap-6px'>
-                <span className='inline-flex items-center justify-center w-16px h-16px rd-50% text-10px font-600 bg-[rgba(var(--primary-6),0.12)] text-[rgb(var(--primary-6))]'>
-                  {idx + 1}
-                </span>
-                <CheckOne theme='outline' size='12' className='text-[rgb(var(--primary-6))]' />
-                <span className='text-12px text-t-secondary'>{stepLabel}</span>
-              </div>
-            ))}
-          </div>
+        {/* 标题 / Title — 缩进与卡片内容左侧 padding 对齐 */}
+        <div className='px-[12px] md:px-[28px]'>
+          <h2 className='text-20px font-500 text-t-primary m-0'>WebUI</h2>
+          <p className='m-0 mt-4px text-13px text-t-secondary leading-relaxed'>
+            一键开启远程访问，在任意设备打开你的 AionUi
+          </p>
         </div>
 
         {/* Messaging 强引导入口 / Messaging primary entry — disabled, kept for future use
@@ -609,194 +718,320 @@ const WebuiModalContent: React.FC = () => {
           </div>
         */}
 
-        {/* WebUI 服务卡片 / WebUI Service Card */}
+        {/* ── 主卡：远程访问 ── */}
         <div className='px-[12px] md:px-[28px] py-14px bg-2 rd-16px'>
-          {/* WebUI 引导提示 / WebUI hint */}
-          <div className='mb-8px rd-10px border border-line bg-fill-1 px-10px py-8px flex items-start gap-6px'>
-            <Earth theme='outline' size='16' className='mt-1px text-[rgb(var(--primary-6))]' />
-            <div className='text-12px text-t-secondary leading-relaxed'>{t('settings.webui.featureRemoteDesc')}</div>
-          </div>
-
-          {/* 启用 WebUI / Enable WebUI */}
-          <PreferenceRow
-            label={t('settings.webui.enable')}
-            extra={
-              startLoading ? (
-                <span className='text-12px text-warning'>{t('settings.webui.starting')}</span>
-              ) : status?.running ? (
-                <span className='text-12px text-success'>✓ {t('settings.webui.running')}</span>
-              ) : null
-            }
-          >
-            <Switch checked={webuiEnabled} loading={startLoading} onChange={handleToggle} />
-          </PreferenceRow>
-
-          {/* 访问地址（启用 WebUI 后即显示，不依赖后端 running 状态）/ Access URL (shown whenever WebUI is enabled, not tied to backend running state) */}
-          {webuiEnabled && (
-            <PreferenceRow label={t('settings.webui.accessUrl')}>
-              <div className='flex items-center gap-8px min-w-0'>
-                <button
-                  className='text-14px text-primary font-mono hover:underline cursor-pointer bg-transparent border-none p-0 truncate'
-                  onClick={() => shell.openExternal.invoke(getDisplayUrl()).catch(console.error)}
-                >
-                  {getDisplayUrl()}
-                </button>
-                <Tooltip content={t('common.copy')}>
-                  <button
-                    className='p-4px text-t-tertiary hover:text-t-primary cursor-pointer bg-transparent border-none'
-                    onClick={() => handleCopy(getDisplayUrl())}
-                  >
-                    <Copy size={16} />
-                  </button>
-                </Tooltip>
+          {/* 标题行：图标 + 标题 + 描述 + CTA */}
+          <div className='flex items-center justify-between gap-12px'>
+            <div className='flex items-center gap-12px min-w-0 flex-1'>
+              <div
+                className='size-44px rd-12px flex items-center justify-center shrink-0'
+                style={{ background: 'linear-gradient(135deg, rgba(var(--success-6),0.16), rgba(var(--success-6),0.06))', color: 'rgb(var(--success-6))' }}
+              >
+                <Earth theme='outline' size='22' />
               </div>
-            </PreferenceRow>
-          )}
-
-          {/* 允许局域网访问 / Allow LAN Access */}
-          <PreferenceRow
-            label={t('settings.webui.allowRemote')}
-            description={
-              <span className='text-t-secondary'>
-                {t('settings.webui.allowRemoteDesc')}
-                {'  '}
-                <button
-                  className='text-primary hover:underline cursor-pointer bg-transparent border-none p-0 text-12px'
-                  onClick={() =>
-                    shell.openExternal
-                      .invoke('https://github.com/iOfficeAI/AionUi/wiki/Remote-Internet-Access-Guide')
-                      .catch(console.error)
-                  }
-                >
-                  {t('settings.webui.viewGuide')}
-                </button>
-              </span>
-            }
-          >
-            <Switch checked={allowRemotePreference} onChange={handleAllowRemoteChange} />
-          </PreferenceRow>
-        </div>
-
-        {/* 登录信息卡片 / Login Info Card */}
-        <div className='px-[12px] md:px-[28px] py-14px bg-2 rd-16px'>
-          <div className='text-14px font-500 mb-8px text-t-primary'>{t('settings.webui.loginInfo')}</div>
-
-          {/* 账号 / Account */}
-          <div className='flex items-center justify-between gap-12px py-12px'>
-            <span className='text-14px text-t-secondary shrink-0'>{t('settings.webui.username')}:</span>
-            <div className='inline-flex items-center gap-8px rd-100px border border-line bg-fill-1 px-10px py-4px min-w-0'>
-              <span className='text-14px text-t-primary truncate'>{displayUsername}</span>
-              <Tooltip content={t('common.copy')}>
-                <Button
-                  type='text'
-                  size='mini'
-                  className='rd-100px !px-6px inline-flex items-center !h-24px'
-                  onClick={() => handleCopy(displayUsername)}
-                >
-                  <Copy size={14} />
-                </Button>
-              </Tooltip>
-              <Tooltip content={t('settings.webui.editUsernameTooltip')}>
-                <Button
-                  type='text'
-                  size='mini'
-                  className='rd-100px !px-6px inline-flex items-center !h-24px'
-                  onClick={handleResetUsername}
-                >
-                  <EditTwo size={14} />
-                </Button>
-              </Tooltip>
+              <div className='min-w-0 flex-1'>
+                <div className='text-15px font-600 text-t-primary leading-22px'>远程访问</div>
+                <div className='text-12px text-t-tertiary mt-2px leading-18px'>
+                  在任意网络通过专属地址访问，由 Aion 安全中继
+                </div>
+              </div>
+            </div>
+            <div className='shrink-0'>
+              <RemoteControlArea
+                remoteState={remoteState}
+                isLinking={isLinking}
+                loading={startLoading}
+                onEnable={() => void handleAllowRemoteChange(true)}
+                onDisable={() => void handleAllowRemoteChange(false)}
+                onReconnect={() => void handleReconnect()}
+              />
             </div>
           </div>
 
-          {/* 密码 / Password */}
-          <div className='flex items-center justify-between gap-12px py-12px'>
-            <span className='text-14px text-t-secondary shrink-0'>{t('settings.webui.initialPassword')}:</span>
-            <div className='inline-flex items-center gap-8px rd-100px border border-line bg-fill-1 px-10px py-4px min-w-0'>
-              <span className='text-14px text-t-primary truncate'>{displayPassword}</span>
-              <Tooltip content={t('settings.webui.resetPasswordTooltip')}>
-                <Button
-                  type='text'
-                  size='mini'
-                  className='rd-100px !px-6px inline-flex items-center !h-24px'
-                  onClick={handleResetPassword}
-                >
-                  <EditTwo size={14} />
-                </Button>
-              </Tooltip>
-            </div>
-          </div>
+          {/* 状态详情区 */}
+          <div className='mt-14px'>
+              {isLinking ? (
+                /* LINKING 过渡 */
+                <div className='rd-12px border px-14px py-12px flex flex-col gap-8px' style={{ background: 'rgba(var(--primary-6),0.04)', borderColor: 'rgba(var(--primary-6),0.12)' }}>
+                  <div className='flex items-center gap-8px text-13px' style={{ color: 'rgb(var(--success-6))' }}>
+                    <span>✓</span><span>账号登录成功 · {remoteUsername}</span>
+                  </div>
+                  <div className='flex items-center gap-8px text-13px' style={{ color: 'rgb(var(--primary-6))' }}>
+                    <Refresh size={13} className='animate-spin shrink-0' /><span>正在建立连接，请稍候…</span>
+                  </div>
+                </div>
 
-          {/* 二维码登录（仅服务器运行且允许远程访问时显示）/ QR Code Login (only when server running and remote access allowed) */}
-          {status?.running && status.allowRemote && (
-            <>
-              <div className='border-t border-line my-12px' />
-              <div className='text-14px font-500 mb-4px text-t-primary'>{t('settings.webui.qrLogin')}</div>
-              <div className='text-12px text-t-tertiary mb-12px'>{t('settings.webui.qrLoginHint')}</div>
-
-              <div className='flex flex-col items-center gap-12px'>
-                {/* 二维码显示区域 / QR Code display area */}
-                <div className='p-12px bg-fill-1 border border-line rd-10px'>
-                  {qrLoading ? (
-                    <div className='w-140px h-140px flex items-center justify-center'>
-                      <span className='text-14px text-t-tertiary'>{t('common.loading')}</span>
+              ) : remoteState === 'GUEST' || remoteState === 'INACTIVE' ? (
+                /* INACTIVE — 卖点列表（缩进对齐到主标题文字起点 = 44 + 12 = 56px） */
+                <div className='flex flex-col gap-8px pl-56px'>
+                  {[
+                    { icon: '📱', text: '手机、平板直接用浏览器打开，无需安装 App' },
+                    { icon: '⚡', text: '局域网内扫码自动登录，不用输密码' },
+                    { icon: '🔒', text: '不用配 SSH / 内网穿透，零配置开启' },
+                  ].map(({ icon, text }) => (
+                    <div key={text} className='flex items-center gap-8px text-12px text-t-secondary leading-18px'>
+                      <span className='shrink-0 text-13px'>{icon}</span>
+                      <span>{text}</span>
                     </div>
-                  ) : qrUrl ? (
-                    <div className='p-8px bg-white rd-8px'>
-                      <Suspense
-                        fallback={
-                          <div className='w-140px h-140px flex items-center justify-center'>
-                            <span className='text-14px text-t-tertiary'>{t('common.loading')}</span>
-                          </div>
-                        }
+                  ))}
+                </div>
+
+              ) : remoteState === 'ACTIVE' ? (
+                /* ACTIVE — 远程 QR 卡（含 QR + 专属地址）*/
+                status?.running && effectiveRemoteOn ? (
+                  <div
+                    ref={qrSectionRef}
+                    className='rd-10px border border-line bg-fill-1 px-12px py-12px flex flex-col items-center gap-10px'
+                    style={{
+                      transition: 'box-shadow 0.3s, background 0.3s',
+                      ...(qrHighlight ? {
+                        background: 'rgba(var(--success-6),0.06)',
+                        boxShadow: '0 0 0 2px rgba(var(--success-6),0.3) inset',
+                      } : {}),
+                    }}
+                  >
+                    {/* Header: 标题 + 徽章 */}
+                    <div className='w-full flex items-center justify-between'>
+                      <div className='flex flex-col gap-2px min-w-0'>
+                        <span className='text-13px font-500 text-t-primary'>外网扫码访问</span>
+                        <span className='text-12px text-t-tertiary'>任意网络下手机扫码即可打开，由 Aion 安全中继</span>
+                      </div>
+                      <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 100, border: '1px solid rgba(var(--success-6),.3)', background: 'rgba(var(--success-6),.06)', color: 'rgb(var(--success-6))', fontWeight: 500, flexShrink: 0 }}>远程模式</span>
+                    </div>
+
+                    {/* QR 码 */}
+                    {qrLoading ? (
+                      <div className='w-140px h-140px flex items-center justify-center bg-bg-1 rd-8px border border-line'>
+                        <Refresh size={20} className='animate-spin text-t-tertiary' />
+                      </div>
+                    ) : qrUrl ? (
+                      <div className='p-8px bg-white rd-8px border border-line'>
+                        <Suspense fallback={<div className='w-140px h-140px flex items-center justify-center'><Refresh size={16} className='animate-spin text-t-tertiary' /></div>}>
+                          <QRCodeSVGLazy value={qrUrl} size={140} level='M' />
+                        </Suspense>
+                      </div>
+                    ) : (
+                      <button
+                        type='button'
+                        onClick={() => void generateQRCode()}
+                        className='w-156px h-156px flex flex-col items-center justify-center gap-6px bg-bg-1 rd-8px border border-line cursor-pointer text-t-tertiary hover:text-t-secondary transition-colors'
                       >
-                        <QRCodeSVGLazy value={qrUrl} size={140} level='M' />
-                      </Suspense>
+                        <Refresh size={20} />
+                        <span className='text-12px'>点击生成二维码</span>
+                      </button>
+                    )}
+
+                    {/* 有效期 + 复制 + 刷新 */}
+                    <div className='flex items-center gap-8px'>
+                      {qrExpiresAt && <span className='text-12px text-t-tertiary'>{t('settings.webui.qrExpires', { time: formatExpiresAt(qrExpiresAt) })}</span>}
+                      {qrUrl && (
+                        <Tooltip content={t('settings.webui.copyQrLink')}>
+                          <button className='p-3px bg-transparent border-none text-t-tertiary hover:text-t-primary cursor-pointer' onClick={() => handleCopy(qrUrl)}><Copy size={13} /></button>
+                        </Tooltip>
+                      )}
+                      <Tooltip content={t('settings.webui.refreshQr')}>
+                        <button className='p-3px bg-transparent border-none text-t-tertiary hover:text-t-primary cursor-pointer' onClick={() => void generateQRCode()} disabled={qrLoading}><Refresh size={13} className={qrLoading ? 'animate-spin' : ''} /></button>
+                      </Tooltip>
                     </div>
-                  ) : (
-                    <div className='w-140px h-140px flex items-center justify-center'>
-                      <span className='text-14px text-t-tertiary'>{t('settings.webui.qrGenerateFailed')}</span>
+
+                    {/* 直接打开：URL 行（次要入口）*/}
+                    {remoteNetworkUrl && (
+                      <div className='w-full pt-10px border-t border-line flex items-center justify-between gap-8px'>
+                        <span className='text-12px text-t-tertiary shrink-0'>或直接打开</span>
+                        <div className='inline-flex items-center gap-6px rd-100px border border-line bg-bg-1 px-10px py-3px min-w-0'>
+                          <button
+                            className='text-12px font-mono truncate bg-transparent border-none p-0 cursor-pointer hover:underline'
+                            style={{ color: 'rgb(var(--primary-6))' }}
+                            onClick={() => shell.openExternal.invoke(remoteNetworkUrl).catch(console.error)}
+                          >
+                            {remoteNetworkUrl}
+                          </button>
+                          <button className='p-2px bg-transparent border-none text-t-tertiary hover:text-t-primary cursor-pointer' onClick={() => { void navigator.clipboard.writeText(remoteNetworkUrl); Message.success(t('common.copySuccess')); }}>
+                            <Copy size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : null
+
+              ) : (
+                /* OFFLINE — 警告卡 + 二维码灰罩 */
+                <div className='rd-12px border overflow-hidden' style={{ borderColor: 'rgba(var(--warning-6),0.3)' }}>
+                  <div className='px-14px py-12px flex items-center gap-8px' style={{ background: 'rgba(var(--warning-6),0.06)' }}>
+                    <span className='text-14px shrink-0'>⚠</span>
+                    <span className='text-13px flex-1' style={{ color: 'rgb(var(--warning-6))' }}>中继断开，点击右上角"重连"即可恢复</span>
+                  </div>
+                  {status?.running && allowRemotePreference && qrUrl && (
+                    <div className='border-t px-14px py-12px flex flex-col items-center gap-10px' style={{ borderColor: 'rgba(var(--danger-6),0.15)' }}>
+                      <div className='p-8px bg-white rd-8px border border-line' style={{ position: 'relative' }}>
+                        <Suspense fallback={null}>
+                          <QRCodeSVGLazy value={qrUrl} size={120} level='M' />
+                        </Suspense>
+                        {/* 灰罩：只说明状态，重连按钮在上方 */}
+                        <div style={{ position: 'absolute', inset: 0, borderRadius: 8, background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(2px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                          <svg width='22' height='22' viewBox='0 0 48 48' fill='none' style={{ opacity: 0.3 }}><circle cx='24' cy='24' r='18' stroke='currentColor' strokeWidth='3'/><path d='M15 15l18 18M33 15L15 33' stroke='currentColor' strokeWidth='3' strokeLinecap='round'/></svg>
+                          <span className='text-12px text-t-tertiary'>重连后可用</span>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
+              )}
+            </div>
+        </div>
 
-                {/* 过期时间、复制链接和刷新按钮 / Expiration time, copy link and refresh button */}
-                <div className='flex items-center gap-8px'>
-                  {qrExpiresAt && (
-                    <span className='text-12px text-t-tertiary'>
-                      {t('settings.webui.qrExpires', { time: formatExpiresAt(qrExpiresAt) })}
-                    </span>
-                  )}
-                  {qrUrl && (
-                    <Tooltip content={t('settings.webui.copyQrLink')}>
-                      <button
-                        className='p-4px bg-transparent border-none text-t-tertiary hover:text-t-primary cursor-pointer'
-                        onClick={() => handleCopy(qrUrl)}
-                      >
-                        <Copy size={16} />
+        {/* ── 副卡：局域网访问（折叠） ── */}
+        <Collapse
+          bordered={false}
+          style={{ background: 'transparent' }}
+          className='webui-lan-collapse'
+          activeKey={lanExpanded ? ['lan-access'] : []}
+          onChange={(_, keys) => setLanExpanded((keys as string[]).includes('lan-access'))}
+        >
+          <Collapse.Item
+            showExpandIcon={false}
+            header={
+              <div className='flex items-center gap-12px w-full'>
+                <div
+                  className='size-44px rd-12px flex items-center justify-center shrink-0'
+                  style={{ background: 'linear-gradient(135deg, rgba(120,140,180,0.16), rgba(120,140,180,0.06))', color: 'rgb(94,120,160)' }}
+                >
+                  <svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.6' strokeLinecap='round' strokeLinejoin='round'>
+                    <path d='M5 12.55a11 11 0 0114 0' />
+                    <path d='M1.42 9a16 16 0 0121.16 0' />
+                    <path d='M8.53 16.11a6 6 0 016.95 0' />
+                    <circle cx='12' cy='20' r='1' />
+                  </svg>
+                </div>
+                <div className='min-w-0 flex-1'>
+                  <div className='flex items-center gap-8px'>
+                    <span className='text-15px font-600 text-t-primary leading-22px'>局域网访问</span>
+                    {status?.running && (
+                      <span className='inline-flex items-center gap-4px text-12px text-t-tertiary'>
+                        <span className='w-6px h-6px rd-50% inline-block' style={{ background: 'rgb(var(--success-6))' }} />
+                        运行中
+                      </span>
+                    )}
+                  </div>
+                  <div className='text-12px text-t-tertiary mt-2px leading-18px'>
+                    同 WiFi 下扫码即用，无需 Aion 账号
+                  </div>
+                </div>
+                <span className='shrink-0 flex items-center justify-center w-22px h-22px text-t-tertiary'>
+                  {lanExpanded ? <Up theme='outline' size='14' fill='currentColor' /> : <Down theme='outline' size='14' fill='currentColor' />}
+                </span>
+              </div>
+            }
+            name='lan-access'
+            className='bg-2 rd-16px overflow-hidden'
+          >
+            <div className='px-[12px] md:px-[28px] pb-14px pt-12px space-y-12px'>
+
+              {/* 局域网访问开关 */}
+              <PreferenceRow
+                label='局域网访问'
+                description={
+                  <span className='text-12px text-t-tertiary'>
+                    开启后，同 WiFi 下的设备可通过 IP 访问
+                  </span>
+                }
+                extra={
+                  startLoading ? (
+                    <span className='text-12px text-warning'>{t('settings.webui.starting')}</span>
+                  ) : null
+                }
+              >
+                <Switch checked={webuiEnabled} loading={startLoading} onChange={handleToggle} />
+              </PreferenceRow>
+
+              {/* 访问地址 */}
+              {webuiEnabled && (
+                <div className='flex items-center justify-between gap-12px py-2px'>
+                  <span className='text-14px text-t-secondary shrink-0'>{t('settings.webui.accessUrl')}</span>
+                  <div className='inline-flex items-center gap-8px rd-100px border border-line bg-fill-1 px-10px py-4px min-w-0'>
+                    <button
+                      className='text-13px text-primary font-mono hover:underline cursor-pointer bg-transparent border-none p-0 truncate'
+                      onClick={() => shell.openExternal.invoke(getDisplayUrl()).catch(console.error)}
+                    >
+                      {getDisplayUrl()}
+                    </button>
+                    <Tooltip content={t('common.copy')}>
+                      <Button type='text' size='mini' className='rd-100px !px-6px inline-flex items-center !h-24px' onClick={() => handleCopy(getDisplayUrl())}>
+                        <Copy size={14} />
+                      </Button>
+                    </Tooltip>
+                  </div>
+                </div>
+              )}
+
+              {/* 局域网 QR 码 — WebUI 跑起来就显示，跟远程状态解耦 */}
+              {status?.running && qrUrl && remoteState !== 'ACTIVE' && (
+                <div className='rd-10px border border-line bg-fill-1 px-12px py-12px flex flex-col items-center gap-8px'>
+                  <div className='w-full flex items-center justify-between'>
+                    <span className='text-13px font-500 text-t-primary'>同 WiFi 下扫码</span>
+                    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 100, border: '1px solid var(--color-fill-3)', background: 'var(--color-bg-1)', color: 'var(--color-text-3)' }}>局域网模式</span>
+                  </div>
+                  <div className='p-8px bg-white rd-8px border border-line'>
+                    <Suspense fallback={<div className='w-120px h-120px flex items-center justify-center'><Refresh size={14} className='animate-spin text-t-tertiary' /></div>}>
+                      <QRCodeSVGLazy value={qrUrl} size={120} level='M' />
+                    </Suspense>
+                  </div>
+                  <div className='flex items-center gap-8px'>
+                    {qrExpiresAt && <span className='text-12px text-t-tertiary'>{t('settings.webui.qrExpires', { time: formatExpiresAt(qrExpiresAt) })}</span>}
+                    <Tooltip content={t('settings.webui.refreshQr')}>
+                      <button className='p-3px bg-transparent border-none text-t-tertiary hover:text-t-primary cursor-pointer' onClick={() => void generateQRCode()} disabled={qrLoading}>
+                        <Refresh size={13} className={qrLoading ? 'animate-spin' : ''} />
                       </button>
                     </Tooltip>
-                  )}
-                  <Tooltip content={t('settings.webui.refreshQr')}>
-                    <button
-                      className='p-4px bg-transparent border-none text-t-tertiary hover:text-t-primary cursor-pointer'
-                      onClick={() => void generateQRCode()}
-                      disabled={qrLoading}
-                    >
-                      <Refresh size={16} className={qrLoading ? 'animate-spin' : ''} />
-                    </button>
-                  </Tooltip>
+                  </div>
+                </div>
+              )}
+
+              {/* 本地账号兜底（浏览器手动登录用）*/}
+              <div className='pt-12px border-t border-line'>
+                <div className='text-12px text-t-tertiary mb-8px'>本地账号兜底 · 浏览器手动登录用</div>
+
+                <div className='flex items-center justify-between gap-12px py-6px'>
+                  <span className='text-13px text-t-secondary shrink-0'>{t('settings.webui.username')}</span>
+                  <div className='inline-flex items-center gap-6px rd-100px border border-line bg-fill-1 px-10px py-3px min-w-0'>
+                    <span className='text-13px text-t-primary truncate'>{displayUsername}</span>
+                    <Tooltip content={t('common.copy')}>
+                      <Button type='text' size='mini' className='rd-100px !px-4px inline-flex items-center !h-20px' onClick={() => handleCopy(displayUsername)}>
+                        <Copy size={12} />
+                      </Button>
+                    </Tooltip>
+                    <Tooltip content={t('settings.webui.editUsernameTooltip')}>
+                      <Button type='text' size='mini' className='rd-100px !px-4px inline-flex items-center !h-20px' onClick={handleResetUsername}>
+                        <EditTwo size={12} />
+                      </Button>
+                    </Tooltip>
+                  </div>
+                </div>
+
+                <div className='flex items-center justify-between gap-12px py-6px'>
+                  <span className='text-13px text-t-secondary shrink-0'>{t('settings.webui.initialPassword')}</span>
+                  <div className='inline-flex items-center gap-6px rd-100px border border-line bg-fill-1 px-10px py-3px min-w-0'>
+                    <span className='text-13px text-t-primary truncate'>{displayPassword}</span>
+                    <Tooltip content={t('settings.webui.resetPasswordTooltip')}>
+                      <Button type='text' size='mini' className='rd-100px !px-4px inline-flex items-center !h-20px' onClick={handleResetPassword}>
+                        <EditTwo size={12} />
+                      </Button>
+                    </Tooltip>
+                  </div>
                 </div>
               </div>
-            </>
-          )}
-        </div>
+
+            </div>
+          </Collapse.Item>
+        </Collapse>
       </div>
     </AionScrollArea>
   );
 
   return (
     <div className='flex flex-col h-full w-full'>
+      <LoginModal visible={loginModalVisible} intent='remote' onClose={() => setLoginModalVisible(false)} />
       <Tabs
         activeTab={activeTab}
         onChange={(key) => setActiveTab((key as 'webui' | 'channels') || 'webui')}

@@ -13,6 +13,7 @@ import {
   LinkCloud,
   Puzzle,
   Robot,
+  Setting,
   Speed,
   System,
 } from '@icon-park/react';
@@ -25,6 +26,7 @@ import { getSiderTooltipProps } from '@/renderer/utils/ui/siderTooltip';
 
 /** Builtin settings tab IDs in display order (must match router paths). */
 export const BUILTIN_TAB_IDS = [
+  'general',
   'agent',
   'model',
   'assistants',
@@ -57,6 +59,8 @@ const GROUP_HEADER_BEFORE: Record<string, string> = {
   about: 'settings.groupAbout',
 };
 
+
+
 type SiderItem = {
   id: string;
   label: string;
@@ -81,6 +85,7 @@ const SettingsSider: React.FC<{ collapsed?: boolean; tooltipEnabled?: boolean }>
   const { menus, groupHeaderAt } = useMemo(() => {
     // Build builtin items
     const builtinMap: Record<string, SiderItem> = {
+      general: { id: 'general', label: t('settings.general'), icon: <Setting />, path: 'general' },
       model: { id: 'model', label: t('settings.model'), icon: <LinkCloud />, path: 'model' },
       assistants: {
         id: 'assistants',
@@ -221,7 +226,9 @@ const SettingsSider: React.FC<{ collapsed?: boolean; tooltipEnabled?: boolean }>
                   }
                 )}
                 onClick={() => {
-                  Promise.resolve(navigate(`/settings/${item.path}`, { replace: true })).catch((error) => {
+                  const path = `/settings/${item.path}`;
+                  sessionStorage.setItem('aion-last-settings-path', path);
+                  Promise.resolve(navigate(path, { replace: true })).catch((error) => {
                     console.error('Navigation failed:', error);
                   });
                 }}

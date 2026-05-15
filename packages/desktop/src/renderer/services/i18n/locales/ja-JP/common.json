@@ -83,5 +83,7 @@
   "import": "インポート",
   "processing": "処理中...",
   "optional": "（任意）",
-  "clear": "クリア"
+  "clear": "クリア",
+  "enableWordWrap": "折り返しを有効にする",
+  "disableWordWrap": "折り返しを無効にする"
 }

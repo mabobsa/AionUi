@@ -14,6 +14,7 @@ const ModeSettings = React.lazy(() => import('@renderer/pages/settings/ModeSetti
 const SystemSettings = React.lazy(() => import('@renderer/pages/settings/SystemSettings'));
 const WebuiSettings = React.lazy(() => import('@renderer/pages/settings/WebuiSettings'));
 const PetSettings = React.lazy(() => import('@renderer/pages/settings/PetSettings'));
+const GeneralSettings = React.lazy(() => import('@renderer/pages/settings/GeneralSettings'));
 const ExtensionSettingsPage = React.lazy(() => import('@renderer/pages/settings/ExtensionSettingsPage'));
 const LoginPage = React.lazy(() => import('@renderer/pages/login'));
 const ComponentsShowcase = React.lazy(() => import('@renderer/pages/TestShowcase'));
@@ -67,13 +68,14 @@ const PanelRoute: React.FC<{ layout: React.ReactElement }> = ({ layout }) => {
           {/* Legacy routes — redirect to the merged /settings/capabilities page */}
           <Route path='/settings/skills-hub' element={<Navigate to='/settings/capabilities?tab=skills' replace />} />
           <Route path='/settings/tools' element={<Navigate to='/settings/capabilities?tab=tools' replace />} />
+          <Route path='/settings/general' element={withRouteFallback(GeneralSettings)} />
           <Route path='/settings/display' element={withRouteFallback(DisplaySettings)} />
           <Route path='/settings/webui' element={withRouteFallback(WebuiSettings)} />
           <Route path='/settings/pet' element={withRouteFallback(PetSettings)} />
           <Route path='/settings/system' element={withRouteFallback(SystemSettings)} />
           <Route path='/settings/about' element={withRouteFallback(SystemSettings)} />
           <Route path='/settings/ext/:tabId' element={withRouteFallback(ExtensionSettingsPage)} />
-          <Route path='/settings' element={<Navigate to='/settings/model' replace />} />
+          <Route path='/settings' element={<Navigate to='/settings/general' replace />} />
           <Route path='/test/components' element={withRouteFallback(ComponentsShowcase)} />
           <Route path='/scheduled' element={withRouteFallback(ScheduledTasksPage)} />
           <Route path='/scheduled/:job_id' element={withRouteFallback(TaskDetailPage)} />

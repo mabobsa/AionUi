@@ -69,7 +69,8 @@ const Sider: React.FC<SiderProps> = ({ onSessionClick, collapsed = false }) => {
         console.error('Navigation failed:', error);
       });
     } else {
-      Promise.resolve(navigate('/settings/model')).catch((error) => {
+      const lastSettingsPath = sessionStorage.getItem('aion-last-settings-path') || '/settings/general';
+      Promise.resolve(navigate(lastSettingsPath)).catch((error) => {
         console.error('Navigation failed:', error);
       });
     }

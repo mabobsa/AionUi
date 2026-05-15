@@ -87,5 +87,7 @@
   "unit": {
     "minute_short": "m",
     "second_short": "s"
-  }
+  },
+  "enableWordWrap": "Enable word wrap",
+  "disableWordWrap": "Disable word wrap"
 }

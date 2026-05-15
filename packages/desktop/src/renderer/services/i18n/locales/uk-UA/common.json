@@ -88,5 +88,7 @@
   "unit": {
     "minute_short": "хв",
     "second_short": "с"
-  }
+  },
+  "enableWordWrap": "Увімкнути перенос рядків",
+  "disableWordWrap": "Вимкнути перенос рядків"
 }

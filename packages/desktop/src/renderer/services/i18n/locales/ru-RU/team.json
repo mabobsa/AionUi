@@ -43,7 +43,11 @@
     "selectFolder": "Выбрать папку",
     "recentLabel": "Недавние",
     "chooseDifferentFolder": "Выбрать другую папку",
-    "error": "Не удалось создать команду"
+    "error": "Не удалось создать команду",
+    "subtitle": "Выберите лидера для координации вашей команды",
+    "searchPlaceholder": "Поиск агентов...",
+    "leaderSelected": "Лидер выбран",
+    "noSearchResults": "Результаты не найдены"
   },
   "removeAgent": {
     "confirmTitle": "Удалить участника команды",

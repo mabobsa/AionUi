@@ -911,5 +911,20 @@
     "version": "Sürüm",
     "path": "Yol",
     "providerNote": "Sağlayıcı ve API anahtarı ayarları Modeller sayfasında yönetilir. Aion CLI destekler: Anthropic, OpenAI, AWS Bedrock."
-  }
+  },
+  "general": "Genel",
+  "general.accountPlaceholder": "Giriş yapılmadı",
+  "general.accountSubPlaceholder": "Ödeme ve uzak özellikler için giriş yapın",
+  "general.loginAction": "Giriş yap",
+  "general.accountRemoteTrial": "Doğrudan uzak erişimi deneyin",
+  "general.notificationPreferences": "Bildirim tercihleri",
+  "general.taskCompletionNotification": "Görev tamamlama bildirimleri",
+  "general.remoteOff": "Kapalı",
+  "webui.remote.use": "去使用",
+  "webui.remote.disable": "关闭",
+  "webui.remote.reconnect": "重新连接",
+  "webui.remote.linking": "连接中…",
+  "webui.remote.active": "已开启",
+  "webui.remote.guestHint": "登录账号即可开启",
+  "webui.remote.inactiveHint": "账号 {{username}} · 点击右侧开启"
 }

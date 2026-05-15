@@ -912,5 +912,20 @@
     "version": "版本",
     "path": "路径",
     "providerNote": "服务商和 API 密钥设置在模型页面管理。Aion CLI 支持：Anthropic、OpenAI、AWS Bedrock。"
-  }
+  },
+  "general": "通用",
+  "general.accountPlaceholder": "未登录",
+  "general.accountSubPlaceholder": "登录账号解锁付费与远程功能",
+  "general.loginAction": "登录",
+  "general.accountRemoteTrial": "可体验远程直连",
+  "general.notificationPreferences": "通知偏好",
+  "general.taskCompletionNotification": "任务完成通知",
+  "general.remoteOff": "未开启",
+  "webui.remote.use": "去使用",
+  "webui.remote.disable": "关闭",
+  "webui.remote.reconnect": "重新连接",
+  "webui.remote.linking": "连接中…",
+  "webui.remote.active": "已开启",
+  "webui.remote.guestHint": "登录账号即可开启",
+  "webui.remote.inactiveHint": "账号 {{username}} · 点击右侧开启"
 }

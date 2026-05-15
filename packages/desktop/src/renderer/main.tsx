@@ -142,14 +142,25 @@ const Main = () => {
     return null;
   }
 
+  const DevRemoteConsole = process.env.NODE_ENV === 'development'
+    ? React.lazy(() => import('./components/remote/DevRemoteConsole'))
+    : null;
+
   return (
-    <Router
-      layout={
-        <ConversationHistoryProvider>
-          <Layout sider={<Sider />} />
-        </ConversationHistoryProvider>
-      }
-    />
+    <>
+      <Router
+        layout={
+          <ConversationHistoryProvider>
+            <Layout sider={<Sider />} />
+          </ConversationHistoryProvider>
+        }
+      />
+      {DevRemoteConsole && (
+        <React.Suspense fallback={null}>
+          <DevRemoteConsole />
+        </React.Suspense>
+      )}
+    </>
   );
 };
 

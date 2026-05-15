@@ -43,7 +43,11 @@
     "selectFolder": "选择项目文件夹",
     "recentLabel": "最近使用",
     "chooseDifferentFolder": "选择其他目录",
-    "error": "创建团队失败"
+    "error": "创建团队失败",
+    "subtitle": "选择一个 Leader Agent 来协调你的团队",
+    "searchPlaceholder": "搜索 Agent...",
+    "leaderSelected": "已选为队长",
+    "noSearchResults": "没有匹配的 Agent"
   },
   "removeAgent": {
     "confirmTitle": "移除团队成员",

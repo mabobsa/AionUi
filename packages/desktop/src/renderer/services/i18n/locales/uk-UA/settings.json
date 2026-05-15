@@ -829,5 +829,20 @@
     "version": "Версія",
     "path": "Шлях",
     "providerNote": "Налаштування провайдера та API-ключів керуються на сторінці моделей. Aion CLI підтримує: Anthropic, OpenAI, AWS Bedrock."
-  }
+  },
+  "general": "Загальні",
+  "general.accountPlaceholder": "Не авторизовано",
+  "general.accountSubPlaceholder": "Увійдіть для доступу до платних і віддалених функцій",
+  "general.loginAction": "Увійти",
+  "general.accountRemoteTrial": "Спробуйте прямий віддалений доступ",
+  "general.notificationPreferences": "Параметри сповіщень",
+  "general.taskCompletionNotification": "Сповіщення про завершення завдань",
+  "general.remoteOff": "Вимк.",
+  "webui.remote.use": "去使用",
+  "webui.remote.disable": "关闭",
+  "webui.remote.reconnect": "重新连接",
+  "webui.remote.linking": "连接中…",
+  "webui.remote.active": "已开启",
+  "webui.remote.guestHint": "登录账号即可开启",
+  "webui.remote.inactiveHint": "账号 {{username}} · 点击右侧开启"
 }

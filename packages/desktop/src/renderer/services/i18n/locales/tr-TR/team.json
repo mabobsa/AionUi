@@ -43,7 +43,11 @@
     "selectFolder": "Klasör seç",
     "recentLabel": "Son kullanılan",
     "chooseDifferentFolder": "Farklı klasör seç",
-    "error": "Takım oluşturulamadı"
+    "error": "Takım oluşturulamadı",
+    "subtitle": "Takımınızı koordine edecek bir lider ajan seçin",
+    "searchPlaceholder": "Agent ara...",
+    "leaderSelected": "Lider seçildi",
+    "noSearchResults": "Sonuç bulunamadı"
   },
   "removeAgent": {
     "confirmTitle": "Takım Üyesini Kaldır",

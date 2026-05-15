@@ -245,7 +245,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
   const logout = useCallback(async () => {
     if (isDesktopRuntime) {
       setUser(null);
-      setStatus('authenticated');
+      setStatus('unauthenticated');
       setReady(true);
       return;
     }

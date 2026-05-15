@@ -913,5 +913,20 @@
     "skills": "Навыки",
     "tools": "Инструменты"
   },
-  "capabilities": "Возможности"
+  "capabilities": "Возможности",
+  "general": "Основные",
+  "general.accountPlaceholder": "Не авторизован",
+  "general.accountSubPlaceholder": "Войдите, чтобы получить доступ к платным и удалённым функциям",
+  "general.loginAction": "Войти",
+  "general.accountRemoteTrial": "Попробуйте прямой удалённый доступ",
+  "general.notificationPreferences": "Настройки уведомлений",
+  "general.taskCompletionNotification": "Уведомления о завершении задач",
+  "general.remoteOff": "Выкл.",
+  "webui.remote.use": "去使用",
+  "webui.remote.disable": "关闭",
+  "webui.remote.reconnect": "重新连接",
+  "webui.remote.linking": "连接中…",
+  "webui.remote.active": "已开启",
+  "webui.remote.guestHint": "登录账号即可开启",
+  "webui.remote.inactiveHint": "账号 {{username}} · 点击右侧开启"
 }

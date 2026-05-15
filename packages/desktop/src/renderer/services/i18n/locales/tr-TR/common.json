@@ -83,5 +83,7 @@
   "import": "İçe Aktar",
   "processing": "İşleniyor...",
   "optional": "(isteğe bağlı)",
-  "clear": "Temizle"
+  "clear": "Temizle",
+  "enableWordWrap": "Sözcük kaydırmayı etkinleştir",
+  "disableWordWrap": "Sözcük kaydırmayı devre dışı bırak"
 }

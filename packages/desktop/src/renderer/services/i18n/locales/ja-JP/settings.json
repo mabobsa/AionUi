@@ -913,5 +913,20 @@
     "version": "バージョン",
     "path": "パス",
     "providerNote": "プロバイダーとAPIキーの設定はモデルページで管理します。Aion CLIは以下をサポート：Anthropic、OpenAI、AWS Bedrock。"
-  }
+  },
+  "general": "一般",
+  "general.accountPlaceholder": "未ログイン",
+  "general.accountSubPlaceholder": "ログインして課金・リモート機能を解除",
+  "general.loginAction": "ログイン",
+  "general.accountRemoteTrial": "リモート直結を試す",
+  "general.notificationPreferences": "通知設定",
+  "general.taskCompletionNotification": "タスク完了通知",
+  "general.remoteOff": "オフ",
+  "webui.remote.use": "去使用",
+  "webui.remote.disable": "关闭",
+  "webui.remote.reconnect": "重新连接",
+  "webui.remote.linking": "连接中…",
+  "webui.remote.active": "已开启",
+  "webui.remote.guestHint": "登录账号即可开启",
+  "webui.remote.inactiveHint": "账号 {{username}} · 点击右侧开启"
 }

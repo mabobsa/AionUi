@@ -20,6 +20,8 @@ import GuidModelSelector from './components/GuidModelSelector';
 import MentionDropdown, { MentionSelectorBadge } from './components/MentionDropdown';
 import QuickActionButtons from './components/QuickActionButtons';
 import SkillsMarketBanner from './components/SkillsMarketBanner';
+import RemoteAccessBanner from './components/RemoteAccessBanner';
+import HomeRemoteChip from '@renderer/components/remote/HomeRemoteChip';
 import FeedbackReportModal from '@/renderer/components/settings/SettingsModal/contents/FeedbackReportModal';
 import { useGuidAgentSelection } from './hooks/useGuidAgentSelection';
 import { useGuidInput } from './hooks/useGuidInput';
@@ -545,6 +547,7 @@ const GuidPage: React.FC = () => {
     <ConfigProvider getPopupContainer={() => guidContainerRef.current || document.body}>
       <div ref={guidContainerRef} className={styles.guidContainer}>
         <SkillsMarketBanner />
+        <RemoteAccessBanner />
         <div className={styles.guidLayout}>
           <div className={styles.heroHeader}>
             {agentSelection.is_presetAgent ? (
@@ -651,7 +654,9 @@ const GuidPage: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <p className='text-2xl font-semibold mb-0 text-0 text-center'>{heroTitle}</p>
+              <div className='relative flex items-center justify-center'>
+                <p className='text-2xl font-semibold mb-0 text-0 text-center'>{heroTitle}</p>
+              </div>
             )}
           </div>
 

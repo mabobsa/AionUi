@@ -388,7 +388,9 @@ const ChatConversation: React.FC<{
       }
       conversation_id={conversation?.id}
     >
-      {conversationNode}
+      <>
+        {conversationNode}
+      </>
     </ChatLayout>
   );
 };

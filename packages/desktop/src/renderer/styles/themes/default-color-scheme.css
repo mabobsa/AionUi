@@ -61,6 +61,9 @@
   --fill: #f7f8fa; /* 填充色 */
   --inverse: #ffffff; /* 反色（黑白切换）*/
 
+  /* Shadow tokens - Light Mode */
+  --shadow-popover: 0 10px 32px rgba(0, 0, 0, 0.10), 0 2px 6px rgba(0, 0, 0, 0.06);
+
   /* Custom Colors - Light Mode */
   --dialog-fill-0: #ffffff; /* 对话框填充色 */
   --text-0: #000000; /* 纯黑文字色 */
@@ -131,6 +134,9 @@
   /* Special Colors - Dark Mode */
   --fill: #1a1a1a; /* 填充色 */
   --inverse: #ffffff; /* 反色（黑白切换）*/
+
+  /* Shadow tokens - Dark Mode */
+  --shadow-popover: 0 16px 48px rgba(0, 0, 0, 0.45), 0 4px 12px rgba(0, 0, 0, 0.25);
 
   /* Custom Colors - Dark Mode */
   --dialog-fill-0: #333333; /* 对话框填充色 */

@@ -43,7 +43,11 @@
     "selectFolder": "選擇專案資料夾",
     "recentLabel": "最近使用",
     "chooseDifferentFolder": "選擇其他目錄",
-    "error": "建立團隊失敗"
+    "error": "建立團隊失敗",
+    "subtitle": "選擇一個 Leader Agent 來協調你的團隊",
+    "searchPlaceholder": "搜尋 Agent...",
+    "leaderSelected": "已選為隊長",
+    "noSearchResults": "沒有符合的 Agent"
   },
   "removeAgent": {
     "confirmTitle": "移除團隊成員",
