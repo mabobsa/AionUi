@@ -109,7 +109,7 @@ describe('normalizeAgentStreamError', () => {
         resolution: {
           kind: 'wait_for_current_response',
         },
-      }),
+      })
     ).toEqual({
       message: 'Agent is still responding',
       resolution: {
@@ -126,7 +126,7 @@ describe('normalizeAgentStreamError', () => {
           kind: 'check_provider_credentials',
           target: 'unexpected_settings',
         },
-      }),
+      })
     ).toEqual({
       message: 'Provider authentication failed',
       resolution: {
@@ -141,7 +141,7 @@ describe('normalizeAgentStreamError', () => {
           kind: 'open_secret_panel',
           target: 'provider_settings',
         },
-      }),
+      })
     ).toBeUndefined();
   });
 });
