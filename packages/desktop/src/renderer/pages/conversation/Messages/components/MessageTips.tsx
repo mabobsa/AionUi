@@ -65,7 +65,7 @@ const MessageTips: React.FC<{ message: IMessageTips }> = ({ message }) => {
   const { json, data } = useFormatContent(content);
 
   const displayContent = json ? '' : content;
-  const shouldShowFeedback = type === 'error' && (structuredError?.feedback_recommended ?? true);
+  const shouldShowFeedback = type === 'error';
 
   if (structuredError) {
     const code = structuredError.code;

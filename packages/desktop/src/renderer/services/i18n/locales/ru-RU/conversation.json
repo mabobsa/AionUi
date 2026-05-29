@@ -97,27 +97,27 @@
     "retryable": "Retryable",
     "notRetryable": "Needs configuration",
     "ownership": {
-      "aionui": "AionUi",
+      "aionui": "App",
       "user_agent": "Agent",
       "user_llm_provider": "Model provider",
       "unknown_upstream": "Upstream"
     },
     "codes": {
       "AIONUI_STREAM_BROKEN": {
-        "title": "AionUi lost the response stream",
+        "title": "Response stream was interrupted",
         "body": "The app accepted your message but the response stream ended unexpectedly. Please retry; if it happens again, send feedback."
       },
       "AIONUI_STATE_INCONSISTENT": {
-        "title": "AionUi session state is inconsistent",
+        "title": "Conversation state is out of sync",
         "body": "The conversation state is out of sync. Restart this chat or reload the app before retrying."
       },
       "AIONUI_PERMISSION_ERROR": {
-        "title": "AionUi could not access the requested resource",
+        "title": "Could not access the requested resource",
         "body": "A local permission or filesystem check failed. Check the project path and app permissions, then retry."
       },
       "AIONUI_INTERNAL_ERROR": {
-        "title": "AionUi hit an internal error",
-        "body": "This looks like an app-side problem. Please retry once; if it repeats, send feedback."
+        "title": "Request failed in the app",
+        "body": "The request failed while the app was processing it. Please retry once; if it repeats, send feedback."
       },
       "USER_AGENT_NOT_INSTALLED": {
         "title": "The selected agent is not installed",
@@ -177,7 +177,7 @@
       },
       "UNKNOWN_UPSTREAM_ERROR": {
         "title": "The upstream agent or provider failed",
-        "body": "AionUi received an upstream error but could not classify it confidently. Review the details below or send feedback."
+        "body": "The app received an upstream error but could not classify it confidently. Review the details below or send feedback."
       }
     }
   },

@@ -97,27 +97,27 @@
     "retryable": "可重试",
     "notRetryable": "需先处理配置",
     "ownership": {
-      "aionui": "AionUi",
+      "aionui": "应用",
       "user_agent": "Agent",
       "user_llm_provider": "模型服务商",
       "unknown_upstream": "上游"
     },
     "codes": {
       "AIONUI_STREAM_BROKEN": {
-        "title": "AionUi 响应流异常中断",
+        "title": "响应流异常中断",
         "body": "消息已发送，但响应流异常结束。请先重试；如果反复出现，可以提交反馈。"
       },
       "AIONUI_STATE_INCONSISTENT": {
-        "title": "AionUi 会话状态不一致",
+        "title": "会话状态不一致",
         "body": "当前对话状态和后台记录不同步。请重新打开应用或新建会话后再试。"
       },
       "AIONUI_PERMISSION_ERROR": {
-        "title": "AionUi 无法访问所需资源",
+        "title": "无法访问所需资源",
         "body": "本地权限或文件访问检查失败。请确认项目路径和应用权限后重试。"
       },
       "AIONUI_INTERNAL_ERROR": {
-        "title": "AionUi 内部错误",
-        "body": "这更像是应用侧问题。请先重试一次；如果仍然出现，可以提交反馈。"
+        "title": "应用处理失败",
+        "body": "本次请求在应用处理过程中失败。请先重试一次；如果仍然出现，可以提交反馈。"
       },
       "USER_AGENT_NOT_INSTALLED": {
         "title": "所选 Agent 未安装",
@@ -177,7 +177,7 @@
       },
       "UNKNOWN_UPSTREAM_ERROR": {
         "title": "上游 Agent 或模型服务商出错",
-        "body": "AionUi 收到了上游错误，但暂时无法准确分类。可以查看下方详情或提交反馈。"
+        "body": "收到上游错误，但暂时无法准确分类。可以查看下方详情或提交反馈。"
       }
     }
   },
