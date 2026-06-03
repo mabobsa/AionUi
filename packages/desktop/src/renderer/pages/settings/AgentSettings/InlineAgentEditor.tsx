@@ -13,7 +13,6 @@ import EmojiPicker from '@/renderer/components/chat/EmojiPicker';
 import CodeMirror from '@uiw/react-codemirror';
 import { json } from '@codemirror/lang-json';
 import { useThemeContext } from '@/renderer/hooks/context/ThemeContext';
-import { registerRuntimeRetry } from '@/renderer/runtime/runtimeStatusStore';
 import { uuid } from '@/common/utils';
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -246,7 +245,6 @@ const InlineAgentEditor: React.FC<InlineAgentEditorProps> = ({ agent, onSave, on
   const handleTestConnection = useCallback(async () => {
     setTestStatus('testing');
     setTestErrorDetail('');
-    registerRuntimeRetry({ kind: 'custom_agent', id: runtimeScopeId }, () => handleTestConnection());
     try {
       const parsedArgs = parseArgsString(argsString);
       const envObj = envVarsToObject(envVars);

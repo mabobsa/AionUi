@@ -1,5 +1,4 @@
 import { ipcBridge } from '@/common';
-import { registerRuntimeRetry } from '@/renderer/runtime/runtimeStatusStore';
 
 export type WarmupConversationPhase = 'idle' | 'preparing' | 'ready' | 'error';
 
@@ -57,7 +56,6 @@ export function warmupConversation(conversation_id: string): Promise<void> {
     return existing;
   }
 
-  registerRuntimeRetry({ kind: 'conversation', id: conversation_id }, () => warmupConversation(conversation_id));
 
   const previous = getWarmupConversationStatus(conversation_id);
   const nextAttempt = previous.attempt + 1;

@@ -1,5 +1,5 @@
 import { Button } from '@arco-design/web-react';
-import { CheckOne, CloseSmall, LoadingOne, Refresh } from '@icon-park/react';
+import { Attention, CheckOne, LoadingOne, Refresh } from '@icon-park/react';
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { useTranslation } from 'react-i18next';
@@ -49,7 +49,7 @@ const GlobalRuntimeStatus: React.FC = () => {
             {active ? (
               <LoadingOne className='animate-spin' size={16} />
             ) : failed ? (
-              <CloseSmall size={16} />
+              <Attention theme='filled' size={16} />
             ) : (
               <CheckOne theme='filled' size={16} />
             )}
