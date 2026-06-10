@@ -3,7 +3,7 @@
  */
 import type { Page } from '@playwright/test';
 import { expect } from '../fixtures';
-import { navigateTo } from './navigation';
+import { goToAssistantSettings as goToAssistantSettingsRoute } from './navigation';
 
 const ASSISTANT_EDITOR = '[data-testid="assistant-editor-page"], [data-testid="assistant-edit-drawer"]';
 
@@ -11,7 +11,7 @@ const ASSISTANT_EDITOR = '[data-testid="assistant-editor-page"], [data-testid="a
 
 /** Navigate to the assistant settings page via UI clicks. */
 export async function goToAssistantSettings(page: Page): Promise<void> {
-  await navigateTo(page, '#/settings/assistants');
+  await goToAssistantSettingsRoute(page);
 }
 
 /** Open the assistant editor surface by clicking on an assistant card. */
@@ -50,7 +50,20 @@ export async function fillAssistantDescription(page: Page, description: string):
 
 /** Click the Save/Create button in the assistant editor. */
 export async function saveAssistant(page: Page): Promise<void> {
-  await page.locator('[data-testid="btn-save-assistant"]').click();
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const button = page.locator('[data-testid="btn-save-assistant"]:visible').last();
+    await button.waitFor({ state: 'visible', timeout: 5_000 });
+
+    try {
+      await button.click();
+      return;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!message.includes('detached from the DOM') || attempt === 2) {
+        throw error;
+      }
+    }
+  }
 }
 
 /** Click the Delete button in the assistant editor, then confirm. */
@@ -64,8 +77,6 @@ export async function deleteAssistant(page: Page): Promise<void> {
 
 /** Click the Duplicate link for an assistant. */
 export async function duplicateAssistant(page: Page, assistant_id: string): Promise<void> {
-  const card = page.locator(`[data-testid="assistant-card-${assistant_id}"]`);
-  await card.hover();
   const dupBtn = page.locator(`[data-testid="btn-duplicate-${assistant_id}"]`);
   await dupBtn.click();
   await page.locator(ASSISTANT_EDITOR).waitFor({ state: 'visible', timeout: 5_000 });

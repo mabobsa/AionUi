@@ -133,6 +133,9 @@ describe('useAssistantEditor', () => {
     expect(result.current.editVisible).toBe(false);
     expect(result.current.editName).toBe('');
     expect(result.current.isCreating).toBe(false);
+    expect(result.current.defaultModelMode).toBe('unset');
+    expect(result.current.defaultPermissionMode).toBe('unset');
+    expect(result.current.defaultMcpMode).toBe('unset');
   });
 
   it('handles handleEdit to populate form from active assistant', async () => {
@@ -181,6 +184,9 @@ describe('useAssistantEditor', () => {
     expect(result.current.editVisible).toBe(true);
     expect(result.current.editName).toBe('');
     expect(result.current.editDescription).toBe('');
+    expect(result.current.defaultModelMode).toBe('unset');
+    expect(result.current.defaultPermissionMode).toBe('unset');
+    expect(result.current.defaultMcpMode).toBe('unset');
   });
 
   it('calls handleSave for creating new assistant', async () => {
@@ -231,6 +237,7 @@ describe('useAssistantEditor', () => {
     expect(loadAssistantsMock).toHaveBeenCalled();
     expect(setActiveAssistantIdMock).toHaveBeenCalledWith('new-id');
     expect(swrMutate).toHaveBeenCalledWith('assistants.list');
+    expect(swrMutate).toHaveBeenCalledWith('assistants');
     expect(result.current.editVisible).toBe(false);
   });
 
@@ -271,6 +278,146 @@ describe('useAssistantEditor', () => {
     expect(mockMessage.success).toHaveBeenCalled();
     expect(loadAssistantsMock).toHaveBeenCalled();
     expect(swrMutate).toHaveBeenCalledWith('assistants.list');
+    expect(swrMutate).toHaveBeenCalledWith('assistants');
+    expect(swrMutate).toHaveBeenCalledWith('guid.assistant.detail.a1.en');
+  });
+
+  it('clears model and permission defaults when the main agent changes', async () => {
+    const assistant: AssistantListItem = {
+      id: 'a1',
+      name: 'TestAssistant',
+      description: 'Test desc',
+      avatar: '🤖',
+      preset_agent_type: 'claude',
+      sort_order: 1,
+      source: 'user',
+      enabled: true,
+    };
+
+    const { result } = renderHook(() => useAssistantEditor(defaultParams));
+
+    await act(async () => {
+      await result.current.handleEdit(assistant);
+    });
+
+    expect(result.current.defaultModelMode).toBe('fixed');
+    expect(result.current.defaultModelValue).toBe('gemini-2.5-pro');
+    expect(result.current.defaultPermissionMode).toBe('fixed');
+    expect(result.current.defaultPermissionValue).toBe('acceptEdits');
+
+    act(() => {
+      result.current.setEditAgent('gemini');
+    });
+
+    expect(result.current.editAgent).toBe('gemini');
+    expect(result.current.defaultModelMode).toBe('unset');
+    expect(result.current.defaultModelValue).toBe('');
+    expect(result.current.defaultPermissionMode).toBe('unset');
+    expect(result.current.defaultPermissionValue).toBe('');
+  });
+
+  it('allows builtin assistants to persist main agent plus default model and permission', async () => {
+    const builtinDetail = {
+      ...mockAssistantDetail,
+      source: 'builtin',
+      prompts: {
+        recommended: ['Builtin prompt'],
+        recommended_i18n: {},
+      },
+      defaults: {
+        model: { mode: 'unset' as const, value: undefined },
+        permission: { mode: 'unset' as const, value: undefined },
+        skills: { mode: 'fixed' as const, value: ['skill-one'] },
+        mcps: { mode: 'unset' as const, value: [] },
+      },
+    };
+    (ipcBridge.assistants.get.invoke as any).mockResolvedValue(builtinDetail);
+    (ipcBridge.assistants.update.invoke as any).mockResolvedValue({ id: 'builtin-1' });
+
+    const assistant: AssistantListItem = {
+      id: 'builtin-1',
+      name: 'Builtin',
+      sort_order: 1,
+      source: 'builtin',
+      enabled: true,
+      preset_agent_type: 'claude',
+    };
+
+    const { result } = renderHook(() =>
+      useAssistantEditor({
+        ...defaultParams,
+        activeAssistant: assistant,
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleEdit(assistant);
+    });
+
+    act(() => {
+      result.current.setEditAgent('gemini');
+      result.current.setDefaultModelMode('fixed');
+      result.current.setDefaultModelValue('gemini-2.5-pro');
+      result.current.setDefaultPermissionMode('fixed');
+      result.current.setDefaultPermissionValue('default');
+      result.current.setEditRecommendedPromptsText('Should not be sent');
+      result.current.setSelectedSkills(['skill-two']);
+      result.current.setSelectedMcpIds(['mcp-b']);
+    });
+
+    await act(async () => {
+      await result.current.handleSave();
+    });
+
+    expect(ipcBridge.assistants.update.invoke).toHaveBeenCalledWith({
+      id: 'builtin-1',
+      preset_agent_type: 'gemini',
+      defaults: {
+        model: { mode: 'fixed', value: 'gemini-2.5-pro' },
+        permission: { mode: 'fixed', value: 'default' },
+      },
+    });
+  });
+
+  it('keeps builtin unset defaults distinct from auto when loading detail', async () => {
+    const builtinDetail = {
+      ...mockAssistantDetail,
+      source: 'builtin',
+      defaults: {
+        model: { mode: 'unset' as const, value: undefined },
+        permission: { mode: 'unset' as const, value: undefined },
+        skills: { mode: 'fixed' as const, value: ['skill-one'] },
+        mcps: { mode: 'unset' as const, value: [] },
+      },
+    };
+    (ipcBridge.assistants.get.invoke as any).mockResolvedValue(builtinDetail);
+
+    const assistant: AssistantListItem = {
+      id: 'builtin-1',
+      name: 'Builtin',
+      sort_order: 1,
+      source: 'builtin',
+      enabled: true,
+      preset_agent_type: 'claude',
+    };
+
+    const { result } = renderHook(() =>
+      useAssistantEditor({
+        ...defaultParams,
+        activeAssistant: assistant,
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleEdit(assistant);
+    });
+
+    expect(result.current.defaultModelMode).toBe('unset');
+    expect(result.current.defaultModelValue).toBe('');
+    expect(result.current.defaultPermissionMode).toBe('unset');
+    expect(result.current.defaultPermissionValue).toBe('');
+    expect(result.current.defaultMcpMode).toBe('unset');
+    expect(result.current.selectedMcpIds).toEqual([]);
   });
 
   it('optimistically updates and revalidates the shared assistant list when toggling enabled', async () => {
@@ -302,7 +449,8 @@ describe('useAssistantEditor', () => {
     expect(ipcBridge.assistants.setState.invoke).toHaveBeenCalledWith({ id: 'builtin-1', enabled: false });
     expect(loadAssistantsMock).toHaveBeenCalled();
     expect(refreshAgentDetectionMock).toHaveBeenCalled();
-    expect(swrMutate).toHaveBeenLastCalledWith('assistants.list');
+    expect(swrMutate).toHaveBeenCalledWith('assistants');
+    expect(swrMutate).toHaveBeenCalledWith('guid.assistant.detail.builtin-1.en');
   });
 
   it('revalidates the shared assistant list if toggle enabled fails', async () => {
@@ -325,7 +473,7 @@ describe('useAssistantEditor', () => {
     expect(consoleErrorSpy).toHaveBeenCalled();
     expect(mockMessage.error).toHaveBeenCalled();
     expect(swrMutate).toHaveBeenNthCalledWith(1, 'assistants.list', expect.any(Function), { revalidate: false });
-    expect(swrMutate).toHaveBeenLastCalledWith('assistants.list');
+    expect(swrMutate).toHaveBeenCalledWith('assistants');
 
     consoleErrorSpy.mockRestore();
   });

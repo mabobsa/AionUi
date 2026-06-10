@@ -19,7 +19,6 @@
  */
 import { Message } from '@arco-design/web-react';
 import coworkSvg from '@/renderer/assets/icons/cowork.svg';
-import AionScrollArea from '@/renderer/components/base/AionScrollArea';
 import { useDetectedAgents, useAssistantEditor, useAssistantList } from '@/renderer/hooks/assistant';
 import SettingsPageWrapper from '../components/SettingsPageWrapper';
 import { resolveAvatarImageSrc } from './assistantUtils';
@@ -116,10 +115,10 @@ const AssistantSettings: React.FC = () => {
   }, [assistants, editor, navigationState]);
 
   return (
-    <SettingsPageWrapper>
+    <SettingsPageWrapper className='!h-full !overflow-hidden' contentClassName='!h-full'>
       <div className='flex flex-col h-full w-full'>
         {messageContext}
-        <AionScrollArea className='flex-1 min-h-0 scrollbar-hide' disableOverflow={true}>
+        <div className='flex-1 min-h-0'>
           {showEditor ? (
             <AssistantEditorPage
               isCreating={editor.isCreating}
@@ -178,6 +177,7 @@ const AssistantSettings: React.FC = () => {
               isExtensionAssistant={isExtensionAssistant}
               onEdit={(assistant) => void editor.handleEdit(assistant)}
               onDuplicate={(assistant) => void editor.handleDuplicate(assistant)}
+              onDelete={(assistant) => editor.handleDeleteRequest(assistant)}
               onCreate={() => void editor.handleCreate()}
               onToggleEnabled={(assistant, checked) => void editor.handleToggleEnabled(assistant, checked)}
               onReorder={(activeId, overId) => void reorderAssistants(activeId, overId)}
@@ -208,7 +208,7 @@ const AssistantSettings: React.FC = () => {
             setSelectedSkills={editor.setSelectedSkills}
             message={message}
           />
-        </AionScrollArea>
+        </div>
       </div>
     </SettingsPageWrapper>
   );

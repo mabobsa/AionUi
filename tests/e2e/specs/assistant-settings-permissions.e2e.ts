@@ -12,6 +12,7 @@ import {
   getVisibleAssistantIds,
   BTN_SAVE_ASSISTANT,
   BTN_DELETE_ASSISTANT,
+  ASSISTANT_EDITOR_SURFACE,
 } from '../helpers';
 
 test.describe('Assistant Settings Permissions', () => {
@@ -107,9 +108,8 @@ test.describe('Assistant Settings Permissions', () => {
 
     await openAssistantEditor(page, builtinId);
 
-    // The agent Select (scoped to drawer) should not be disabled
-    const drawer = page.locator('[data-testid="assistant-edit-drawer"]');
-    const agentSelect = drawer.locator('[data-testid="select-assistant-agent"]');
+    const editor = page.locator(ASSISTANT_EDITOR_SURFACE);
+    const agentSelect = editor.locator('[data-testid="select-assistant-agent"]');
     const isDisabled = await agentSelect.locator('.arco-select-view-disabled').count();
     expect(isDisabled).toBe(0);
 

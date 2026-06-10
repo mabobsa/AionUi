@@ -53,6 +53,20 @@ describe('useAssistantList', () => {
     expect(result.current.activeAssistant?.id).toBe('1');
   });
 
+  it('preserves backend order instead of resorting client side', async () => {
+    const mockList: Assistant[] = [
+      { id: 'cowork', name: 'Cowork', sort_order: 2000, source: 'builtin', enabled: true },
+      { id: 'writer', name: 'Writer', sort_order: 1000, source: 'user', enabled: true },
+    ];
+    (ipcBridge.assistants.list.invoke as any).mockResolvedValue(mockList);
+
+    const { result } = renderHook(() => useAssistantList());
+
+    await waitFor(() => expect(result.current.assistants).toHaveLength(2));
+
+    expect(result.current.assistants.map((assistant) => assistant.id)).toEqual(['cowork', 'writer']);
+  });
+
   it('handles empty list', async () => {
     (ipcBridge.assistants.list.invoke as any).mockResolvedValue([]);
 

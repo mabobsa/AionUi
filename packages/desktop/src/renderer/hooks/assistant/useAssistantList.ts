@@ -5,7 +5,6 @@ import {
   applyAssistantSortOrders,
   buildAssistantSortUpdates,
   reorderAssistantList,
-  sortAssistants as sortAssistantsUtil,
 } from '@/renderer/pages/settings/AssistantSettings/assistantUtils';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -30,11 +29,10 @@ export const useAssistantList = () => {
   const loadAssistants = useCallback(async () => {
     try {
       const list = await ipcBridge.assistants.list.invoke();
-      const sorted = sortAssistantsUtil(list);
-      setAssistants(sorted);
+      setAssistants(list);
       setActiveAssistantId((prev) => {
-        if (prev && sorted.some((a) => a.id === prev)) return prev;
-        return sorted[0]?.id ?? null;
+        if (prev && list.some((a) => a.id === prev)) return prev;
+        return list[0]?.id ?? null;
       });
     } catch (error) {
       console.error('Failed to load assistants:', error);

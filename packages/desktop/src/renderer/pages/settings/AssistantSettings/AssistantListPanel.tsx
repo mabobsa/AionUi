@@ -1,6 +1,6 @@
 /**
  * AssistantListPanel — Renders the collapsible list of assistants
- * with avatar, name, enabled switch, and edit/duplicate actions.
+ * with avatar, name, enabled switch, and persistent row actions.
  */
 import type { DragEndEvent } from '@dnd-kit/core';
 import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
@@ -10,7 +10,7 @@ import { DndContext, PointerSensor, closestCenter, useSensor, useSensors } from 
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Button, Switch, Tag } from '@arco-design/web-react';
-import { Drag, Plus, SettingOne } from '@icon-park/react';
+import { Drag, Plus } from '@icon-park/react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -21,6 +21,7 @@ type AssistantListPanelProps = {
   isExtensionAssistant: (assistant: AssistantListItem | null | undefined) => boolean;
   onEdit: (assistant: AssistantListItem) => void;
   onDuplicate: (assistant: AssistantListItem) => void;
+  onDelete: (assistant: AssistantListItem) => void;
   onCreate: () => void;
   onToggleEnabled: (assistant: AssistantListItem, checked: boolean) => void;
   onReorder: (activeId: string, overId: string) => void | Promise<void>;
@@ -39,6 +40,7 @@ type SortableAssistantCardProps = {
   isExtensionAssistant: (assistant: AssistantListItem | null | undefined) => boolean;
   onEdit: (assistant: AssistantListItem) => void;
   onDuplicate: (assistant: AssistantListItem) => void;
+  onDelete: (assistant: AssistantListItem) => void;
   onToggleEnabled: (assistant: AssistantListItem, checked: boolean) => void;
   setActiveAssistantId: (id: string) => void;
   renderSourceTag: (assistant: AssistantListItem) => React.ReactNode;
@@ -54,6 +56,7 @@ const SortableAssistantCard: React.FC<SortableAssistantCardProps> = ({
   isExtensionAssistant,
   onEdit,
   onDuplicate,
+  onDelete,
   onToggleEnabled,
   setActiveAssistantId,
   renderSourceTag,
@@ -62,6 +65,8 @@ const SortableAssistantCard: React.FC<SortableAssistantCardProps> = ({
 }) => {
   const { t } = useTranslation();
   const assistantIsExtension = isExtensionAssistant(assistant);
+  const canDelete = assistant.source === 'user' && !assistantIsExtension;
+  const canDuplicate = assistant.source !== 'user';
   const { attributes, listeners, setActivatorNodeRef, setNodeRef, transform, transition, isDragging } = useSortable({
     id: assistant.id,
     disabled: !sortingEnabled,
@@ -83,7 +88,7 @@ const SortableAssistantCard: React.FC<SortableAssistantCardProps> = ({
       key={assistant.id}
       style={style}
       data-testid={`assistant-card-${assistant.id}`}
-      className={`group flex cursor-pointer items-center justify-between gap-12px rounded-10px border border-solid px-14px py-10px transition-all duration-180 hover:border-[var(--color-primary-light-4)] hover:bg-bg-1 ${highlightedId === assistant.id ? 'border-primary-5 bg-primary-1' : 'border-border-2 bg-bg-0'}`}
+      className={`group flex cursor-pointer items-center justify-between gap-12px rounded-12px border border-solid px-14px py-10px transition-all duration-180 hover:border-border-1 hover:bg-fill-1 ${highlightedId === assistant.id ? 'border-primary-5 bg-primary-1' : 'border-transparent bg-base'}`}
       onClick={() => {
         setActiveAssistantId(assistant.id);
         onEdit(assistant);
@@ -118,15 +123,6 @@ const SortableAssistantCard: React.FC<SortableAssistantCardProps> = ({
         className='ml-12px flex flex-shrink-0 items-center gap-10px text-t-secondary'
         onClick={(e) => e.stopPropagation()}
       >
-        <span
-          className='invisible cursor-pointer text-12px text-primary transition-all group-hover:visible hover:underline'
-          data-testid={`btn-duplicate-${assistant.id}`}
-          onClick={() => {
-            onDuplicate(assistant);
-          }}
-        >
-          {t('settings.duplicateAssistant', { defaultValue: 'Duplicate' })}
-        </span>
         <Switch
           size='small'
           data-testid={`switch-enabled-${assistant.id}`}
@@ -137,15 +133,43 @@ const SortableAssistantCard: React.FC<SortableAssistantCardProps> = ({
           }}
         />
         <Button
-          type='text'
+          type='outline'
           size='small'
-          icon={<SettingOne size={16} />}
-          className='!rounded-8px'
+          className='!h-36px !rounded-10px !border-border-2 !bg-base !px-14px !text-t-primary hover:!border-border-1 hover:!bg-fill-1'
           data-testid={`btn-edit-${assistant.id}`}
           onClick={() => {
             onEdit(assistant);
           }}
-        />
+        >
+          {t('common.edit', { defaultValue: 'Edit' })}
+        </Button>
+        {canDuplicate ? (
+          <Button
+            type='outline'
+            size='small'
+            className='!h-36px !rounded-10px !border-border-2 !bg-base !px-12px !text-t-primary hover:!border-border-1 hover:!bg-fill-1'
+            data-testid={`btn-duplicate-${assistant.id}`}
+            onClick={() => {
+              onDuplicate(assistant);
+            }}
+          >
+            {t('settings.duplicateAssistant', { defaultValue: 'Duplicate' })}
+          </Button>
+        ) : null}
+        {canDelete ? (
+          <Button
+            type='outline'
+            size='small'
+            status='danger'
+            className='!h-36px !rounded-10px !border-danger-2 !bg-base !px-12px'
+            data-testid={`btn-delete-${assistant.id}`}
+            onClick={() => {
+              onDelete(assistant);
+            }}
+          >
+            {t('common.delete', { defaultValue: 'Delete' })}
+          </Button>
+        ) : null}
       </div>
     </div>
   );
@@ -158,6 +182,7 @@ const AssistantListPanel: React.FC<AssistantListPanelProps> = ({
   isExtensionAssistant,
   onEdit,
   onDuplicate,
+  onDelete,
   onCreate,
   onToggleEnabled,
   onReorder,
@@ -212,7 +237,7 @@ const AssistantListPanel: React.FC<AssistantListPanelProps> = ({
         <Tag
           size='small'
           bordered={false}
-          className='!rounded-10px !bg-primary-1 !px-8px !py-1px !text-10px !font-600 !leading-16px !text-primary-6'
+          className='!rounded-10px !bg-fill-1 !px-8px !py-1px !text-10px !font-600 !leading-16px !text-primary-6'
         >
           {t('settings.assistantSourceOfficial', { defaultValue: 'Official' })}
         </Tag>
@@ -226,9 +251,8 @@ const AssistantListPanel: React.FC<AssistantListPanelProps> = ({
     return (
       <Tag
         size='small'
-        color='green'
         bordered={false}
-        className='!rounded-10px !bg-[rgba(var(--success-6),0.12)] !px-8px !py-1px !text-10px !font-600 !leading-16px !text-[rgb(var(--success-6))]'
+        className='!rounded-10px !bg-fill-1 !px-8px !py-1px !text-10px !font-600 !leading-16px !text-[rgb(var(--success-6))]'
       >
         {t('settings.assistantSourceCustom', { defaultValue: 'Custom' })}
       </Tag>
@@ -258,6 +282,7 @@ const AssistantListPanel: React.FC<AssistantListPanelProps> = ({
         isExtensionAssistant={isExtensionAssistant}
         onEdit={onEdit}
         onDuplicate={onDuplicate}
+        onDelete={onDelete}
         onToggleEnabled={onToggleEnabled}
         setActiveAssistantId={setActiveAssistantId}
         renderSourceTag={renderSourceTag}
@@ -267,7 +292,7 @@ const AssistantListPanel: React.FC<AssistantListPanelProps> = ({
     ));
 
     return (
-      <div className='rounded-16px border-2 border-[rgba(var(--primary-6),0.5)] p-8px'>
+      <div className='rounded-12px border border-border-2 bg-2 p-8px md:rounded-16px md:p-10px'>
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSectionDragEnd}>
           <SortableContext
             items={sectionAssistants.map((assistant) => assistant.id)}
@@ -281,7 +306,7 @@ const AssistantListPanel: React.FC<AssistantListPanelProps> = ({
   };
 
   return (
-    <div data-testid='assistant-list-shell' className='flex h-full min-h-0 flex-col overflow-hidden bg-bg-0'>
+    <div data-testid='assistant-list-shell' className='flex h-full min-h-0 flex-col overflow-hidden bg-transparent'>
       <div
         data-testid='assistant-list-header'
         className={`sticky top-0 z-10 border-b border-border-2 bg-bg-0 ${isMobile ? 'px-8px py-12px' : 'px-18px py-18px'}`}
@@ -322,7 +347,7 @@ const AssistantListPanel: React.FC<AssistantListPanelProps> = ({
           {listAssistants.length > 0 ? (
             <div className='space-y-16px'>
               {renderList(listAssistants)}
-              <div className='rounded-16px bg-fill-1 px-24px py-20px text-14px text-t-secondary'>
+              <div className='rounded-12px border border-border-2 bg-2 px-[18px] py-[18px] text-14px text-t-secondary md:rounded-16px md:px-[24px] md:py-[20px]'>
                 {t('settings.assistantListHint', {
                   defaultValue:
                     'Drag the handle on each row to update assistant order. Changes affect the home assistant list immediately.',

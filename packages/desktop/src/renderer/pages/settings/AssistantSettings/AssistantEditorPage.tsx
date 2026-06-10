@@ -21,18 +21,18 @@ type AssistantEditorPageProps = {
   setEditAgent: (value: string) => void;
   editRecommendedPromptsText: string;
   setEditRecommendedPromptsText: (value: string) => void;
-  defaultModelMode: 'auto' | 'fixed';
-  setDefaultModelMode: (value: 'auto' | 'fixed') => void;
+  defaultModelMode: 'unset' | 'auto' | 'fixed';
+  setDefaultModelMode: (value: 'unset' | 'auto' | 'fixed') => void;
   defaultModelValue: string;
   setDefaultModelValue: (value: string) => void;
-  defaultPermissionMode: 'auto' | 'fixed';
-  setDefaultPermissionMode: (value: 'auto' | 'fixed') => void;
+  defaultPermissionMode: 'unset' | 'auto' | 'fixed';
+  setDefaultPermissionMode: (value: 'unset' | 'auto' | 'fixed') => void;
   defaultPermissionValue: string;
   setDefaultPermissionValue: (value: string) => void;
   defaultSkillsMode: 'auto' | 'fixed';
   setDefaultSkillsMode: (value: 'auto' | 'fixed') => void;
-  defaultMcpMode: 'auto' | 'fixed';
-  setDefaultMcpMode: (value: 'auto' | 'fixed') => void;
+  defaultMcpMode: 'unset' | 'auto' | 'fixed';
+  setDefaultMcpMode: (value: 'unset' | 'auto' | 'fixed') => void;
   availableMcpServers: IMcpServer[];
   selectedMcpIds: string[];
   setSelectedMcpIds: (value: string[]) => void;
@@ -110,7 +110,7 @@ const AssistantEditorPage: React.FC<AssistantEditorPageProps> = ({
   const isReadOnlyExtension = !isCreating && activeAssistant !== null && isExtensionAssistant(activeAssistant);
 
   return (
-    <div data-testid='assistant-editor-page' className='flex h-full min-h-0 flex-col overflow-hidden bg-bg-0'>
+    <div data-testid='assistant-editor-page' className='flex h-full min-h-0 flex-col overflow-hidden bg-transparent'>
       <div
         data-testid='assistant-editor-bar'
         className='sticky top-0 z-10 flex h-48px flex-shrink-0 items-center gap-12px border-b border-border-2 bg-bg-0 px-18px'
@@ -160,7 +160,7 @@ const AssistantEditorPage: React.FC<AssistantEditorPageProps> = ({
       </div>
 
       <div data-testid='assistant-editor-body' className='min-h-0 flex-1 overflow-auto px-18px py-18px pb-24px'>
-        <div className='mx-auto w-full max-w-680px'>
+        <div className='mx-auto w-full max-w-760px'>
           <AssistantEditorSections
             isCreating={isCreating}
             editName={editName}

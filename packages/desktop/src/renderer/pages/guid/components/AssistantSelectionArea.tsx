@@ -214,11 +214,6 @@ const AssistantSelectionArea: React.FC<AssistantSelectionAreaProps> = ({
         <div className={styles.assistantCardGrid}>
           {assistants
             .filter((a) => a.enabled !== false)
-            .toSorted((a, b) => {
-              if (a.id === 'cowork') return -1;
-              if (b.id === 'cowork') return 1;
-              return 0;
-            })
             .map((assistant) => {
               const avatarValue = assistant.avatar?.trim();
               const mappedAvatar = avatarValue ? CUSTOM_AVATAR_IMAGE_MAP[avatarValue] : undefined;

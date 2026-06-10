@@ -4,6 +4,7 @@ export {
   goToSettings,
   goToExtensionSettings,
   goToChannelsTab,
+  resetGuidLastSelectedAgent,
   resetChannelsTabCache,
   waitForSettle,
   waitForClassChange,

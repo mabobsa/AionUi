@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { ConfigProvider, Message } from '@arco-design/web-react';
 import AssistantSelectionArea from '@/renderer/pages/guid/components/AssistantSelectionArea';
 
@@ -185,5 +185,68 @@ describe('AssistantSelectionArea', () => {
         openAssistantEditor: true,
       })
     );
+  });
+
+  it('renders homepage assistant cards in backend order without pinning builtin presets', () => {
+    render(
+      <ConfigProvider>
+        <AssistantSelectionArea
+          is_presetAgent={false}
+          selectedAgentInfo={undefined}
+          assistants={[
+            {
+              id: 'writer',
+              source: 'user',
+              name: 'Writer',
+              name_i18n: {},
+              description_i18n: {},
+              enabled: true,
+              sort_order: 1000,
+              preset_agent_type: 'claude',
+              enabled_skills: [],
+              custom_skill_names: [],
+              disabled_builtin_skills: [],
+              context_i18n: {},
+              prompts: [],
+              prompts_i18n: {},
+              models: [],
+            },
+            {
+              id: 'cowork',
+              source: 'builtin',
+              name: 'Cowork',
+              name_i18n: {},
+              description_i18n: {},
+              enabled: true,
+              sort_order: 2000,
+              preset_agent_type: 'claude',
+              enabled_skills: [],
+              custom_skill_names: [],
+              disabled_builtin_skills: [],
+              context_i18n: {},
+              prompts: [],
+              prompts_i18n: {},
+              models: [],
+            },
+          ]}
+          localeKey='en-US'
+          currentEffectiveAgentInfo={{
+            agent_type: 'acp',
+            isFallback: false,
+            originalType: 'acp',
+            isAvailable: true,
+          }}
+          onSelectAssistant={vi.fn()}
+          onSetInput={vi.fn()}
+          onFocusInput={vi.fn()}
+        />
+      </ConfigProvider>
+    );
+
+    const presetCards = screen
+      .getAllByTestId(/preset-pill-/)
+      .map((element) => element.getAttribute('data-testid')?.replace('preset-pill-', ''));
+
+    expect(presetCards).toEqual(['writer', 'cowork']);
   });
 });

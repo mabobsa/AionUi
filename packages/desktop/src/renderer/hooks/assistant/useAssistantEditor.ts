@@ -22,6 +22,10 @@ type UseAssistantEditorParams = {
   message: ReturnType<typeof Message.useMessage>[0];
 };
 
+type AssistantScalarDefaultMode = 'unset' | 'auto' | 'fixed';
+type AssistantSkillsDefaultMode = 'auto' | 'fixed';
+type AssistantMcpDefaultMode = 'unset' | 'auto' | 'fixed';
+
 const isBuiltinAssistant = (assistant: Assistant | null | undefined): boolean => assistant?.source === 'builtin';
 
 const resolveLocalizedRecommendedPrompts = (
@@ -56,14 +60,14 @@ export const useAssistantEditor = ({
   const [editDescription, setEditDescription] = useState('');
   const [editContext, setEditContext] = useState('');
   const [editAvatar, setEditAvatar] = useState('');
-  const [editAgent, setEditAgent] = useState<string>('claude');
+  const [editAgent, setEditAgentState] = useState<string>('claude');
   const [editRecommendedPromptsText, setEditRecommendedPromptsText] = useState('');
-  const [defaultModelMode, setDefaultModelMode] = useState<'auto' | 'fixed'>('auto');
+  const [defaultModelMode, setDefaultModelMode] = useState<AssistantScalarDefaultMode>('unset');
   const [defaultModelValue, setDefaultModelValue] = useState('');
-  const [defaultPermissionMode, setDefaultPermissionMode] = useState<'auto' | 'fixed'>('auto');
+  const [defaultPermissionMode, setDefaultPermissionMode] = useState<AssistantScalarDefaultMode>('unset');
   const [defaultPermissionValue, setDefaultPermissionValue] = useState('');
-  const [defaultSkillsMode, setDefaultSkillsMode] = useState<'auto' | 'fixed'>('fixed');
-  const [defaultMcpMode, setDefaultMcpMode] = useState<'auto' | 'fixed'>('auto');
+  const [defaultSkillsMode, setDefaultSkillsMode] = useState<AssistantSkillsDefaultMode>('fixed');
+  const [defaultMcpMode, setDefaultMcpMode] = useState<AssistantMcpDefaultMode>('unset');
   const [availableMcpServers, setAvailableMcpServers] = useState<IMcpServer[]>([]);
   const [selectedMcpIds, setSelectedMcpIds] = useState<string[]>([]);
   const [isCreating, setIsCreating] = useState(false);
@@ -86,8 +90,16 @@ export const useAssistantEditor = ({
   );
 
   const refreshAssistantCatalog = useCallback(async () => {
-    await Promise.all([loadAssistants(), swrMutate('assistants.list')]);
+    await Promise.all([loadAssistants(), swrMutate('assistants.list'), swrMutate('assistants')]);
   }, [loadAssistants]);
+
+  const refreshAssistantDetailCaches = useCallback(
+    async (assistantId: string | null | undefined) => {
+      if (!assistantId) return;
+      await swrMutate(`guid.assistant.detail.${assistantId}.${localeKey}`);
+    },
+    [localeKey]
+  );
 
   const loadEditorResources = useCallback(
     async (assistantId: string) => {
@@ -113,14 +125,33 @@ export const useAssistantEditor = ({
 
   const resetDefaultConfigState = useCallback(() => {
     setEditRecommendedPromptsText('');
-    setDefaultModelMode('auto');
+    setDefaultModelMode('unset');
     setDefaultModelValue('');
-    setDefaultPermissionMode('auto');
+    setDefaultPermissionMode('unset');
     setDefaultPermissionValue('');
     setDefaultSkillsMode('fixed');
-    setDefaultMcpMode('auto');
+    setDefaultMcpMode('unset');
     setSelectedMcpIds([]);
   }, []);
+
+  const resetModelAndPermissionDefaults = useCallback(() => {
+    setDefaultModelMode('unset');
+    setDefaultModelValue('');
+    setDefaultPermissionMode('unset');
+    setDefaultPermissionValue('');
+  }, []);
+
+  const setEditAgent = useCallback(
+    (nextAgent: string) => {
+      if (editAgent === nextAgent) {
+        return;
+      }
+
+      resetModelAndPermissionDefaults();
+      setEditAgentState(nextAgent);
+    },
+    [editAgent, resetModelAndPermissionDefaults]
+  );
 
   const handleEdit = async (assistant: AssistantListItem) => {
     setIsCreating(false);
@@ -142,12 +173,22 @@ export const useAssistantEditor = ({
       setEditAgent(detail.engine.agent_backend || assistant.preset_agent_type || 'claude');
       setEditContext(detail.rules.content || '');
       setEditRecommendedPromptsText(resolveLocalizedRecommendedPrompts(detail, localeKey).join('\n'));
-      setDefaultModelMode(detail.defaults.model.mode === 'fixed' ? 'fixed' : 'auto');
+      setDefaultModelMode(
+        detail.defaults.model.mode === 'fixed' ? 'fixed' : detail.defaults.model.mode === 'unset' ? 'unset' : 'auto'
+      );
       setDefaultModelValue(detail.defaults.model.value || '');
-      setDefaultPermissionMode(detail.defaults.permission.mode === 'fixed' ? 'fixed' : 'auto');
+      setDefaultPermissionMode(
+        detail.defaults.permission.mode === 'fixed'
+          ? 'fixed'
+          : detail.defaults.permission.mode === 'unset'
+            ? 'unset'
+            : 'auto'
+      );
       setDefaultPermissionValue(detail.defaults.permission.value || '');
       setDefaultSkillsMode(detail.defaults.skills.mode === 'auto' ? 'auto' : 'fixed');
-      setDefaultMcpMode(detail.defaults.mcps.mode === 'fixed' ? 'fixed' : 'auto');
+      setDefaultMcpMode(
+        detail.defaults.mcps.mode === 'fixed' ? 'fixed' : detail.defaults.mcps.mode === 'unset' ? 'unset' : 'auto'
+      );
       setSelectedMcpIds(detail.defaults.mcps.value ?? []);
       setAvailableSkills(skillsList);
       setBuiltinAutoSkills(autoSkills);
@@ -212,12 +253,22 @@ export const useAssistantEditor = ({
       const { detail, skillsList, autoSkills, mcpServers } = await loadEditorResources(assistant.id);
       setEditContext(detail.rules.content || '');
       setEditRecommendedPromptsText(resolveLocalizedRecommendedPrompts(detail, localeKey).join('\n'));
-      setDefaultModelMode(detail.defaults.model.mode === 'fixed' ? 'fixed' : 'auto');
+      setDefaultModelMode(
+        detail.defaults.model.mode === 'fixed' ? 'fixed' : detail.defaults.model.mode === 'unset' ? 'unset' : 'auto'
+      );
       setDefaultModelValue(detail.defaults.model.value || '');
-      setDefaultPermissionMode(detail.defaults.permission.mode === 'fixed' ? 'fixed' : 'auto');
+      setDefaultPermissionMode(
+        detail.defaults.permission.mode === 'fixed'
+          ? 'fixed'
+          : detail.defaults.permission.mode === 'unset'
+            ? 'unset'
+            : 'auto'
+      );
       setDefaultPermissionValue(detail.defaults.permission.value || '');
       setDefaultSkillsMode(detail.defaults.skills.mode === 'auto' ? 'auto' : 'fixed');
-      setDefaultMcpMode(detail.defaults.mcps.mode === 'fixed' ? 'fixed' : 'auto');
+      setDefaultMcpMode(
+        detail.defaults.mcps.mode === 'fixed' ? 'fixed' : detail.defaults.mcps.mode === 'unset' ? 'unset' : 'auto'
+      );
       setSelectedMcpIds(detail.defaults.mcps.value ?? []);
       setAvailableSkills(skillsList);
       setBuiltinAutoSkills(autoSkills);
@@ -315,11 +366,14 @@ export const useAssistantEditor = ({
         .map((prompt) => prompt.trim())
         .filter(Boolean);
       const defaults = {
-        model: defaultModelMode === 'fixed' ? { mode: 'fixed', value: defaultModelValue.trim() } : { mode: 'auto' },
+        model:
+          defaultModelMode === 'fixed'
+            ? { mode: 'fixed', value: defaultModelValue.trim() }
+            : { mode: defaultModelMode },
         permission:
           defaultPermissionMode === 'fixed'
             ? { mode: 'fixed', value: defaultPermissionValue.trim() }
-            : { mode: 'auto' },
+            : { mode: defaultPermissionMode },
         skills: { mode: defaultSkillsMode, value: selectedSkills },
         mcps: { mode: defaultMcpMode, value: selectedMcpIds },
       };
@@ -346,7 +400,20 @@ export const useAssistantEditor = ({
         if (!activeAssistant) return;
 
         const updateRequest: UpdateAssistantRequest = isBuiltinAssistant(activeAssistant)
-          ? { id: activeAssistant.id, preset_agent_type: editAgent }
+          ? {
+              id: activeAssistant.id,
+              preset_agent_type: editAgent,
+              defaults: {
+                model:
+                  defaultModelMode === 'fixed'
+                    ? { mode: 'fixed', value: defaultModelValue.trim() }
+                    : { mode: defaultModelMode },
+                permission:
+                  defaultPermissionMode === 'fixed'
+                    ? { mode: 'fixed', value: defaultPermissionValue.trim() }
+                    : { mode: defaultPermissionMode },
+              },
+            }
           : {
               id: activeAssistant.id,
               name: editName,
@@ -366,6 +433,7 @@ export const useAssistantEditor = ({
         }
 
         await refreshAssistantCatalog();
+        await refreshAssistantDetailCaches(activeAssistant.id);
         message.success(t('common.saveSuccess', { defaultValue: 'Saved successfully' }));
       }
 
@@ -387,6 +455,26 @@ export const useAssistantEditor = ({
     }
 
     if (isExtensionAssistant(activeAssistant)) {
+      message.warning(
+        t('settings.extensionAssistantReadonly', {
+          defaultValue: 'Extension assistants are read-only. You can duplicate it and edit the copy.',
+        })
+      );
+      return;
+    }
+
+    setDeleteConfirmVisible(true);
+  };
+
+  const handleDeleteRequest = (assistant: AssistantListItem) => {
+    setActiveAssistantId(assistant.id);
+
+    if (isBuiltinAssistant(assistant)) {
+      message.warning(t('settings.cannotDeleteBuiltin', { defaultValue: 'Cannot delete builtin assistants' }));
+      return;
+    }
+
+    if (isExtensionAssistant(assistant)) {
       message.warning(
         t('settings.extensionAssistantReadonly', {
           defaultValue: 'Extension assistants are read-only. You can duplicate it and edit the copy.',
@@ -435,10 +523,11 @@ export const useAssistantEditor = ({
       );
       await ipcBridge.assistants.setState.invoke({ id: assistant.id, enabled });
       await refreshAssistantCatalog();
+      await refreshAssistantDetailCaches(assistant.id);
       await refreshAgentDetection();
     } catch (error) {
       console.error('Failed to toggle assistant:', error);
-      await swrMutate('assistants.list');
+      await Promise.all([swrMutate('assistants.list'), swrMutate('assistants')]);
       message.error(t('common.failed', { defaultValue: 'Failed' }));
     }
   };
@@ -498,6 +587,7 @@ export const useAssistantEditor = ({
     handleDuplicate,
     handleSave,
     handleDeleteClick,
+    handleDeleteRequest,
     handleDeleteConfirm,
     handleToggleEnabled,
   };
