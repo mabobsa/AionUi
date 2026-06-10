@@ -452,7 +452,7 @@ const GuidPage: React.FC = () => {
   }, [agentSelection.is_presetAgent, selectedAssistantDescription]);
 
   const currentPresetAgentType = selectedAssistantRecord?.preset_agent_type || 'gemini';
-  // Mirrors AssistantEditDrawer's Main Agent options — detected execution
+  // Mirrors the assistant editor's Main Agent options — detected execution
   // engines from AgentPillBar's data source, so avatars resolve the same way.
   const agentSwitcherItems = useMemo(() => {
     if (!agentSelection.availableAgents) return [];

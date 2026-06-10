@@ -49,6 +49,7 @@ describe('AssistantListPanel', () => {
     onDuplicate: vi.fn(),
     onCreate: vi.fn(),
     onToggleEnabled: vi.fn(),
+    onReorder: vi.fn(),
     setActiveAssistantId: vi.fn(),
   };
 

@@ -7,8 +7,8 @@
 import { test, expect } from '../fixtures';
 import {
   goToAssistantSettings,
-  openAssistantDrawer,
-  closeDrawer,
+  openAssistantEditor,
+  closeAssistantEditor,
   getVisibleAssistantIds,
   BTN_SAVE_ASSISTANT,
   BTN_DELETE_ASSISTANT,
@@ -37,7 +37,7 @@ test.describe('Assistant Settings Permissions', () => {
     });
 
     for (const id of prioritised) {
-      await openAssistantDrawer(page, id);
+      await openAssistantEditor(page, id);
 
       const deleteBtn = page.locator(BTN_DELETE_ASSISTANT);
       const saveBtn = page.locator(BTN_SAVE_ASSISTANT);
@@ -65,11 +65,11 @@ test.describe('Assistant Settings Permissions', () => {
       }
 
       if (detected === type) {
-        await closeDrawer(page);
+        await closeAssistantEditor(page);
         return id;
       }
 
-      await closeDrawer(page);
+      await closeAssistantEditor(page);
     }
     return null;
   }
@@ -84,7 +84,7 @@ test.describe('Assistant Settings Permissions', () => {
       return;
     }
 
-    await openAssistantDrawer(page, builtinId);
+    await openAssistantEditor(page, builtinId);
 
     const nameInput = page.locator('[data-testid="input-assistant-name"]');
     const descInput = page.locator('[data-testid="input-assistant-desc"]');
@@ -92,7 +92,7 @@ test.describe('Assistant Settings Permissions', () => {
     await expect(nameInput).toBeDisabled();
     await expect(descInput).toBeDisabled();
 
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 
   test('builtin — Main Agent editable', async ({ page }) => {
@@ -105,7 +105,7 @@ test.describe('Assistant Settings Permissions', () => {
       return;
     }
 
-    await openAssistantDrawer(page, builtinId);
+    await openAssistantEditor(page, builtinId);
 
     // The agent Select (scoped to drawer) should not be disabled
     const drawer = page.locator('[data-testid="assistant-edit-drawer"]');
@@ -113,7 +113,7 @@ test.describe('Assistant Settings Permissions', () => {
     const isDisabled = await agentSelect.locator('.arco-select-view-disabled').count();
     expect(isDisabled).toBe(0);
 
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 
   test('builtin — no delete button', async ({ page }) => {
@@ -126,12 +126,12 @@ test.describe('Assistant Settings Permissions', () => {
       return;
     }
 
-    await openAssistantDrawer(page, builtinId);
+    await openAssistantEditor(page, builtinId);
 
     const deleteBtn = page.locator(BTN_DELETE_ASSISTANT);
     await expect(deleteBtn).not.toBeVisible();
 
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 
   test('builtin — save button enabled', async ({ page }) => {
@@ -144,12 +144,12 @@ test.describe('Assistant Settings Permissions', () => {
       return;
     }
 
-    await openAssistantDrawer(page, builtinId);
+    await openAssistantEditor(page, builtinId);
 
     const saveBtn = page.locator(BTN_SAVE_ASSISTANT);
     await expect(saveBtn).not.toBeDisabled();
 
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 
   test('extension — name/desc/save all read-only', async ({ page }) => {
@@ -162,7 +162,7 @@ test.describe('Assistant Settings Permissions', () => {
       return;
     }
 
-    await openAssistantDrawer(page, extId);
+    await openAssistantEditor(page, extId);
 
     const nameInput = page.locator('[data-testid="input-assistant-name"]');
     const descInput = page.locator('[data-testid="input-assistant-desc"]');
@@ -172,7 +172,7 @@ test.describe('Assistant Settings Permissions', () => {
     await expect(descInput).toBeDisabled();
     await expect(saveBtn).toBeDisabled();
 
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 
   test('extension — no delete button', async ({ page }) => {
@@ -185,12 +185,12 @@ test.describe('Assistant Settings Permissions', () => {
       return;
     }
 
-    await openAssistantDrawer(page, extId);
+    await openAssistantEditor(page, extId);
 
     const deleteBtn = page.locator(BTN_DELETE_ASSISTANT);
     await expect(deleteBtn).not.toBeVisible();
 
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 
   test('extension — can duplicate', async ({ page }) => {
@@ -209,7 +209,7 @@ test.describe('Assistant Settings Permissions', () => {
 
     await expect(dupBtn).toBeVisible();
 
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 
   test('custom — all fields editable', async ({ page }) => {
@@ -222,7 +222,7 @@ test.describe('Assistant Settings Permissions', () => {
       return;
     }
 
-    await openAssistantDrawer(page, customId);
+    await openAssistantEditor(page, customId);
 
     const nameInput = page.locator('[data-testid="input-assistant-name"]');
     const descInput = page.locator('[data-testid="input-assistant-desc"]');
@@ -234,6 +234,6 @@ test.describe('Assistant Settings Permissions', () => {
     await expect(saveBtn).not.toBeDisabled();
     await expect(deleteBtn).toBeVisible();
 
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 });

@@ -52,7 +52,7 @@ type UseCustomAgentsLoaderResult = {
  *   - `assistants: Assistant[]` — the backend-merged preset catalog
  *     (`GET /api/assistants`). This is the single source of truth for
  *     "what to render in the AssistantSelectionArea pill bar" and what the
- *     editor drawer edits.
+ *     assistant editor edits.
  *   - `customAgents: AgentMetadata[]` — user-defined ACP engine rows
  *     derived from the shared `useAgents()` SWR cache (filtered by
  *     `agent_source === 'custom'`) because they describe a CLI binary to

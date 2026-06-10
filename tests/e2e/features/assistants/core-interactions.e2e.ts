@@ -11,8 +11,8 @@ import {
   fillAssistantName,
   fillAssistantDescription,
   saveAssistant,
-  waitForDrawerClose,
-  closeDrawer,
+  waitForAssistantEditorClose,
+  closeAssistantEditor,
   takeScreenshot,
 } from '../../helpers';
 
@@ -84,7 +84,7 @@ test.describe('Assistant Settings Core Interactions (P0)', () => {
     await takeScreenshot(page, 'assistants/p0-2/02-drawer-opened-via-card-body.png');
 
     // Close drawer for next test
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
 
     // 2. Click Switch → Drawer does not open
     const switchElement = page.locator(`[data-testid="switch-enabled-${assistantId}"]`);
@@ -124,7 +124,7 @@ test.describe('Assistant Settings Core Interactions (P0)', () => {
     await takeScreenshot(page, 'assistants/p0-2/05-drawer-opened-via-duplicate.png');
 
     // Close drawer
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 
   test('P0-3: delete modal shows assistant preview card', async ({ page }) => {
@@ -281,7 +281,7 @@ test.describe('Assistant Settings Core Interactions (P0)', () => {
     await modal.waitFor({ state: 'hidden', timeout: 3_000 });
 
     // Close drawer
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 
   test('P0-6: extension assistant shows skills section', async ({ page }) => {
@@ -323,7 +323,7 @@ test.describe('Assistant Settings Core Interactions (P0)', () => {
       await takeScreenshot(page, 'assistants/p0-6/04-skills-section-shown.png');
 
       // Close drawer
-      await closeDrawer(page);
+      await closeAssistantEditor(page);
     } else {
       // No extension assistant - verify empty state is valid UI
       await takeScreenshot(page, 'assistants/p0-6/01-no-extension-assistant.png');

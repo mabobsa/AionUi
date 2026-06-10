@@ -10,9 +10,9 @@ import {
   clickCreateAssistant,
   fillAssistantName,
   saveAssistant,
-  waitForDrawerClose,
-  closeDrawer,
-  openAssistantDrawer,
+  waitForAssistantEditorClose,
+  closeAssistantEditor,
+  openAssistantEditor,
   deleteAssistant,
   getVisibleAssistantIds,
   SKILLS_SECTION,
@@ -41,7 +41,7 @@ test.describe('Assistant Settings Skills', () => {
     }
 
     // Cancel and cleanup
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 
   test('skill panel shows auto-injected skills section', async ({ page }) => {
@@ -56,7 +56,7 @@ test.describe('Assistant Settings Skills', () => {
     }
 
     // Try the first builtin assistant
-    await openAssistantDrawer(page, ids[0]);
+    await openAssistantEditor(page, ids[0]);
 
     const skillsSection = page.locator(SKILLS_SECTION);
     const hasSkills = await skillsSection.isVisible().catch(() => false);
@@ -64,7 +64,7 @@ test.describe('Assistant Settings Skills', () => {
     // Skills section should be visible for at least one assistant
     // If not, the feature may not be enabled — skip gracefully
     if (!hasSkills) {
-      await closeDrawer(page);
+      await closeAssistantEditor(page);
       test.skip(true, 'Skills section not rendered for this assistant');
       return;
     }
@@ -73,7 +73,7 @@ test.describe('Assistant Settings Skills', () => {
     const collapseItems = skillsSection.locator('.arco-collapse-item');
     expect(await collapseItems.count()).toBeGreaterThanOrEqual(0);
 
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 
   test('toggle builtin skill selection', async ({ page }) => {
@@ -86,7 +86,7 @@ test.describe('Assistant Settings Skills', () => {
 
     const skillsSection = page.locator(SKILLS_SECTION);
     if (!(await skillsSection.isVisible().catch(() => false))) {
-      await closeDrawer(page);
+      await closeAssistantEditor(page);
       test.skip(true, 'Skills section not visible');
       return;
     }
@@ -112,7 +112,7 @@ test.describe('Assistant Settings Skills', () => {
       }
     }
 
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 
   test('disable auto-injected skill and save', async ({ page }) => {
@@ -128,7 +128,7 @@ test.describe('Assistant Settings Skills', () => {
       return;
     }
 
-    await openAssistantDrawer(page, builtinId);
+    await openAssistantEditor(page, builtinId);
 
     const autoInjected = page.locator('.arco-collapse-item').filter({ hasText: /Auto|自动/ });
     if (
@@ -137,7 +137,7 @@ test.describe('Assistant Settings Skills', () => {
         .isVisible()
         .catch(() => false))
     ) {
-      await closeDrawer(page);
+      await closeAssistantEditor(page);
       test.skip(true, 'No auto-injected skills section for this assistant');
       return;
     }
@@ -148,7 +148,7 @@ test.describe('Assistant Settings Skills', () => {
 
     const checkboxes = autoInjected.locator('.arco-checkbox');
     if ((await checkboxes.count()) === 0) {
-      await closeDrawer(page);
+      await closeAssistantEditor(page);
       test.skip(true, 'No auto-injected skill checkboxes');
       return;
     }
@@ -156,20 +156,20 @@ test.describe('Assistant Settings Skills', () => {
     // Wait for checkbox to be visible after collapse expansion, then toggle
     const firstCheckbox = checkboxes.first();
     if (!(await firstCheckbox.isVisible().catch(() => false))) {
-      await closeDrawer(page);
+      await closeAssistantEditor(page);
       test.skip(true, 'Auto-injected skill checkbox not visible after expanding');
       return;
     }
     await firstCheckbox.click();
     const saveBtn = page.locator('[data-testid="btn-save-assistant"]');
     if (await saveBtn.isDisabled()) {
-      await closeDrawer(page);
+      await closeAssistantEditor(page);
       test.skip(true, 'Save button disabled after toggling skill');
       return;
     }
 
     await saveBtn.click();
-    await waitForDrawerClose(page);
+    await waitForAssistantEditorClose(page);
   });
 
   test('add skills button opens modal', async ({ page }) => {
@@ -182,7 +182,7 @@ test.describe('Assistant Settings Skills', () => {
 
     const skillsSection = page.locator(SKILLS_SECTION);
     if (!(await skillsSection.isVisible().catch(() => false))) {
-      await closeDrawer(page);
+      await closeAssistantEditor(page);
       test.skip(true, 'Skills section not visible');
       return;
     }
@@ -205,7 +205,7 @@ test.describe('Assistant Settings Skills', () => {
     }
 
     // Close the drawer
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 
   test('skill selection persists after save and reopen', async ({ page }) => {
@@ -218,7 +218,7 @@ test.describe('Assistant Settings Skills', () => {
 
     const skillsSection = page.locator(SKILLS_SECTION);
     if (!(await skillsSection.isVisible().catch(() => false))) {
-      await closeDrawer(page);
+      await closeAssistantEditor(page);
       test.skip(true, 'Skills section not visible');
       return;
     }
@@ -239,7 +239,7 @@ test.describe('Assistant Settings Skills', () => {
     }
 
     await saveAssistant(page);
-    await waitForDrawerClose(page);
+    await waitForAssistantEditorClose(page);
 
     // Reopen and verify
     let targetId = '';
@@ -252,15 +252,15 @@ test.describe('Assistant Settings Skills', () => {
     }
 
     if (targetId) {
-      await openAssistantDrawer(page, targetId);
+      await openAssistantEditor(page, targetId);
       // Verify drawer opens without error
       const drawer = page.locator('[data-testid="assistant-edit-drawer"]');
       await expect(drawer).toBeVisible({ timeout: 5_000 });
 
       // Cleanup
-      await closeDrawer(page);
+      await closeAssistantEditor(page);
       await page.waitForTimeout(300);
-      await openAssistantDrawer(page, targetId);
+      await openAssistantEditor(page, targetId);
       await deleteAssistant(page);
     }
   });
@@ -277,10 +277,10 @@ test.describe('Assistant Settings Skills', () => {
       return;
     }
 
-    await openAssistantDrawer(page, builtinId);
+    await openAssistantEditor(page, builtinId);
     const saveBtn = page.locator('[data-testid="btn-save-assistant"]');
     await expect(saveBtn).toBeVisible({ timeout: 3_000 });
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 
   test('custom skills collapse renders', async ({ page }) => {
@@ -293,7 +293,7 @@ test.describe('Assistant Settings Skills', () => {
 
     const skillsSection = page.locator(SKILLS_SECTION);
     if (!(await skillsSection.isVisible().catch(() => false))) {
-      await closeDrawer(page);
+      await closeAssistantEditor(page);
       test.skip(true, 'Skills section not visible');
       return;
     }
@@ -304,7 +304,7 @@ test.describe('Assistant Settings Skills', () => {
     // At least one collapse section should exist (Builtin or Custom)
     expect(collapseCount).toBeGreaterThanOrEqual(1);
 
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 
   test('extension assistant drawer opens without error', async ({ page }) => {
@@ -316,12 +316,12 @@ test.describe('Assistant Settings Skills', () => {
     const extId = ids.find((id) => id.startsWith('ext-'));
     test.skip(!extId, 'No extension assistant available');
 
-    await openAssistantDrawer(page, extId!);
+    await openAssistantEditor(page, extId!);
     // Drawer should open and display the save button (may be disabled depending on edit state)
     const saveBtn = page.locator('[data-testid="btn-save-assistant"]');
     await expect(saveBtn).toBeVisible({ timeout: 5_000 });
 
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 
   test('skills counter shows in summary', async ({ page }) => {
@@ -338,6 +338,6 @@ test.describe('Assistant Settings Skills', () => {
     const body = await page.locator('[data-testid="assistant-edit-drawer"]').textContent();
     expect(body).toBeTruthy();
 
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 });

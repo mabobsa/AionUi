@@ -15,7 +15,7 @@ export async function goToAssistantSettings(page: Page): Promise<void> {
 }
 
 /** Open the assistant editor surface by clicking on an assistant card. */
-export async function openAssistantDrawer(page: Page, assistant_id: string): Promise<void> {
+export async function openAssistantEditor(page: Page, assistant_id: string): Promise<void> {
   const card = page.locator(`[data-testid="assistant-card-${assistant_id}"]`);
   await card.click();
   await page.locator(ASSISTANT_EDITOR).waitFor({ state: 'visible', timeout: 5_000 });
@@ -25,7 +25,7 @@ export async function openAssistantDrawer(page: Page, assistant_id: string): Pro
 export async function clickCreateAssistant(page: Page): Promise<void> {
   const editor = page.locator(ASSISTANT_EDITOR);
   if (await editor.isVisible().catch(() => false)) {
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
     await editor.waitFor({ state: 'hidden', timeout: 3_000 }).catch(() => {});
   }
   await page.locator('[data-testid="btn-create-assistant"]').click();
@@ -142,7 +142,7 @@ export async function getVisibleAssistantNames(page: Page): Promise<string[]> {
 }
 
 /** Check if the assistant editor surface is visible. */
-export async function isDrawerVisible(page: Page): Promise<boolean> {
+export async function isAssistantEditorVisible(page: Page): Promise<boolean> {
   return page
     .locator(ASSISTANT_EDITOR)
     .isVisible()
@@ -150,12 +150,12 @@ export async function isDrawerVisible(page: Page): Promise<boolean> {
 }
 
 /** Wait for the assistant editor surface to close (max 5s). */
-export async function waitForDrawerClose(page: Page): Promise<void> {
+export async function waitForAssistantEditorClose(page: Page): Promise<void> {
   await expect(page.locator(ASSISTANT_EDITOR)).not.toBeVisible({ timeout: 5_000 });
 }
 
 /** Force-close the editor via full-page controls or drawer dismissal. */
-export async function closeDrawer(page: Page): Promise<void> {
+export async function closeAssistantEditor(page: Page): Promise<void> {
   const editor = page.locator(ASSISTANT_EDITOR);
   if (!(await editor.isVisible().catch(() => false))) return;
 

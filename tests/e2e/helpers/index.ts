@@ -64,7 +64,7 @@ export { TEAM_SUPPORTED_BACKENDS } from './teamConfig';
 export { createTeam, ensureTeam, deleteTeam, cleanupTeamsByName } from './teamHelpers';
 export {
   goToAssistantSettings,
-  openAssistantDrawer,
+  openAssistantEditor,
   clickCreateAssistant,
   fillAssistantName,
   fillAssistantDescription,
@@ -77,9 +77,9 @@ export {
   selectFilterTab,
   getVisibleAssistantIds,
   getVisibleAssistantNames,
-  isDrawerVisible,
-  waitForDrawerClose,
-  closeDrawer,
+  isAssistantEditorVisible,
+  waitForAssistantEditorClose,
+  closeAssistantEditor,
 } from './assistantSettings';
 export {
   assistantCardById,
@@ -87,7 +87,7 @@ export {
   assistantDuplicateById,
   assistantEditById,
   presetPillById,
-  ASSISTANT_EDIT_DRAWER,
+  ASSISTANT_EDITOR_SURFACE,
   BTN_CREATE_ASSISTANT,
   BTN_SAVE_ASSISTANT,
   BTN_DELETE_ASSISTANT,

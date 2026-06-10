@@ -20,15 +20,15 @@ import {
   selectFilterTab,
   getVisibleAssistantIds,
   getVisibleAssistantNames,
-  isDrawerVisible,
-  waitForDrawerClose,
-  closeDrawer,
-  openAssistantDrawer,
+  isAssistantEditorVisible,
+  waitForAssistantEditorClose,
+  closeAssistantEditor,
+  openAssistantEditor,
   BTN_CREATE_ASSISTANT,
   BTN_SAVE_ASSISTANT,
   BTN_DELETE_ASSISTANT,
   SELECT_ASSISTANT_AGENT,
-  ASSISTANT_EDIT_DRAWER,
+  ASSISTANT_EDITOR_SURFACE,
 } from '../helpers';
 
 test.describe('Assistant Settings CRUD', () => {
@@ -128,7 +128,7 @@ test.describe('Assistant Settings CRUD', () => {
     await saveAssistant(page);
 
     // Drawer should close
-    await waitForDrawerClose(page);
+    await waitForAssistantEditorClose(page);
 
     // New assistant should appear in list
     const names = await getVisibleAssistantNames(page);
@@ -141,7 +141,7 @@ test.describe('Assistant Settings CRUD', () => {
       const card = page.locator(`[data-testid="assistant-card-${id}"]`);
       const cardText = await card.textContent();
       if (cardText?.includes(testName)) {
-        await openAssistantDrawer(page, id);
+        await openAssistantEditor(page, id);
         await deleteAssistant(page);
         break;
       }
@@ -158,7 +158,7 @@ test.describe('Assistant Settings CRUD', () => {
     await saveAssistant(page);
 
     // Drawer should still be open (validation prevents close)
-    const drawerVisible = await isDrawerVisible(page);
+    const drawerVisible = await isAssistantEditorVisible(page);
     expect(drawerVisible).toBeTruthy();
 
     // Close drawer without saving
@@ -177,7 +177,7 @@ test.describe('Assistant Settings CRUD', () => {
     await clickCreateAssistant(page);
     await fillAssistantName(page, originalName);
     await saveAssistant(page);
-    await waitForDrawerClose(page);
+    await waitForAssistantEditorClose(page);
 
     // Find and edit it
     const ids = await getVisibleAssistantIds(page);
@@ -191,10 +191,10 @@ test.describe('Assistant Settings CRUD', () => {
     }
     expect(targetId).toBeTruthy();
 
-    await openAssistantDrawer(page, targetId);
+    await openAssistantEditor(page, targetId);
     await fillAssistantName(page, updatedName);
     await saveAssistant(page);
-    await waitForDrawerClose(page);
+    await waitForAssistantEditorClose(page);
 
     // List should show updated name
     const names = await getVisibleAssistantNames(page);
@@ -202,7 +202,7 @@ test.describe('Assistant Settings CRUD', () => {
     expect(names).not.toContain(originalName);
 
     // Cleanup
-    await openAssistantDrawer(page, targetId);
+    await openAssistantEditor(page, targetId);
     await deleteAssistant(page);
   });
 
@@ -216,7 +216,7 @@ test.describe('Assistant Settings CRUD', () => {
     await clickCreateAssistant(page);
     await fillAssistantName(page, testName);
     await saveAssistant(page);
-    await waitForDrawerClose(page);
+    await waitForAssistantEditorClose(page);
 
     // Find and edit it
     const ids = await getVisibleAssistantIds(page);
@@ -230,7 +230,7 @@ test.describe('Assistant Settings CRUD', () => {
     }
     expect(targetId).toBeTruthy();
 
-    await openAssistantDrawer(page, targetId);
+    await openAssistantEditor(page, targetId);
 
     // Switch main agent via the select dropdown
     const agentSelect = page.locator(SELECT_ASSISTANT_AGENT);
@@ -247,18 +247,18 @@ test.describe('Assistant Settings CRUD', () => {
         await option.click();
         await saveAssistant(page);
         // Edit save does not auto-close the drawer — close it
-        await closeDrawer(page);
+        await closeAssistantEditor(page);
 
         // Reopen and verify agent changed
-        await openAssistantDrawer(page, targetId);
+        await openAssistantEditor(page, targetId);
         const selectText = await agentSelect.textContent();
         expect(selectText?.toLowerCase()).toContain('gemini');
       }
     }
 
     // Cleanup — ensure drawer is fully closed before clicking the card
-    await closeDrawer(page);
-    await openAssistantDrawer(page, targetId);
+    await closeAssistantEditor(page);
+    await openAssistantEditor(page, targetId);
     await deleteAssistant(page);
   });
 
@@ -283,7 +283,7 @@ test.describe('Assistant Settings CRUD', () => {
     await nameInput.clear();
     await nameInput.fill(dupName);
     await saveAssistant(page);
-    await waitForDrawerClose(page);
+    await waitForAssistantEditorClose(page);
 
     // List should have one more assistant
     const idsAfter = await getVisibleAssistantIds(page);
@@ -292,7 +292,7 @@ test.describe('Assistant Settings CRUD', () => {
     // Cleanup: find and delete the duplicate
     for (const id of idsAfter) {
       if (!idsBefore.includes(id)) {
-        await openAssistantDrawer(page, id);
+        await openAssistantEditor(page, id);
         await deleteAssistant(page);
         break;
       }
@@ -309,7 +309,7 @@ test.describe('Assistant Settings CRUD', () => {
     await clickCreateAssistant(page);
     await fillAssistantName(page, testName);
     await saveAssistant(page);
-    await waitForDrawerClose(page);
+    await waitForAssistantEditorClose(page);
 
     const idsBefore = await getVisibleAssistantIds(page);
 
@@ -324,7 +324,7 @@ test.describe('Assistant Settings CRUD', () => {
     }
     expect(targetId).toBeTruthy();
 
-    await openAssistantDrawer(page, targetId);
+    await openAssistantEditor(page, targetId);
     await deleteAssistant(page);
 
     // Wait for deletion
@@ -343,7 +343,7 @@ test.describe('Assistant Settings CRUD', () => {
     await clickCreateAssistant(page);
     await fillAssistantName(page, testName);
     await saveAssistant(page);
-    await waitForDrawerClose(page);
+    await waitForAssistantEditorClose(page);
 
     // Find its ID
     const ids = await getVisibleAssistantIds(page);
@@ -370,7 +370,7 @@ test.describe('Assistant Settings CRUD', () => {
     await page.waitForTimeout(500);
 
     // Cleanup
-    await openAssistantDrawer(page, targetId);
+    await openAssistantEditor(page, targetId);
     await deleteAssistant(page);
   });
 
@@ -442,7 +442,7 @@ test.describe('Assistant Settings CRUD', () => {
     await clickCreateAssistant(page);
     await fillAssistantName(page, testName);
     await saveAssistant(page);
-    await waitForDrawerClose(page);
+    await waitForAssistantEditorClose(page);
 
     let targetId = '';
     for (const id of await getVisibleAssistantIds(page)) {
@@ -467,7 +467,7 @@ test.describe('Assistant Settings CRUD', () => {
     expect(names).toContain(testName);
 
     // Cleanup
-    await openAssistantDrawer(page, targetId);
+    await openAssistantEditor(page, targetId);
     await deleteAssistant(page);
   });
 
@@ -480,7 +480,7 @@ test.describe('Assistant Settings CRUD', () => {
     await clickCreateAssistant(page);
     await fillAssistantName(page, testName);
     await saveAssistant(page);
-    await waitForDrawerClose(page);
+    await waitForAssistantEditorClose(page);
 
     // Reload the page
     await page.reload();
@@ -493,7 +493,7 @@ test.describe('Assistant Settings CRUD', () => {
     for (const id of await getVisibleAssistantIds(page)) {
       const cardText = await page.locator(`[data-testid="assistant-card-${id}"]`).textContent();
       if (cardText?.includes(testName)) {
-        await openAssistantDrawer(page, id);
+        await openAssistantEditor(page, id);
         await deleteAssistant(page);
         break;
       }

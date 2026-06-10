@@ -16,7 +16,7 @@ import {
   deleteAssistant,
   searchAssistants,
   clearSearch,
-  closeDrawer,
+  closeAssistantEditor,
   takeScreenshot,
   httpPost,
   httpInvoke,
@@ -241,8 +241,8 @@ test.describe('Assistant Settings UI States (P1)', () => {
     await expect(drawer).toBeVisible({ timeout: 5_000 });
     await takeScreenshot(page, 'assistants/p1-7/01-drawer-opened.png');
 
-    // Use closeDrawer helper which reliably closes the drawer
-    await closeDrawer(page);
+    // Use closeAssistantEditor helper which reliably closes the drawer
+    await closeAssistantEditor(page);
     await takeScreenshot(page, 'assistants/p1-7/02-drawer-closing.png');
 
     // Verify drawer closed
@@ -262,8 +262,8 @@ test.describe('Assistant Settings UI States (P1)', () => {
     await expect(drawer).toBeVisible({ timeout: 5_000 });
     await takeScreenshot(page, 'assistants/p1-8/01-drawer-opened.png');
 
-    // Use closeDrawer helper which handles cancel/escape
-    await closeDrawer(page);
+    // Use closeAssistantEditor helper which handles cancel/escape
+    await closeAssistantEditor(page);
     await takeScreenshot(page, 'assistants/p1-8/02-drawer-closing.png');
 
     // Verify drawer closes
@@ -312,7 +312,7 @@ test.describe('Assistant Settings UI States (P1)', () => {
     await takeScreenshot(page, 'assistants/p1-9/04-collapsed.png');
 
     // Cleanup
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 
   test('P1-10: rules section edit preview tab switch', async ({ page }) => {
@@ -363,7 +363,7 @@ test.describe('Assistant Settings UI States (P1)', () => {
     await takeScreenshot(page, 'assistants/p1-10/04-edit-restored.png');
 
     // Cleanup
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 
   test('P1-11: rules preview shows empty placeholder', async ({ page }) => {
@@ -391,7 +391,7 @@ test.describe('Assistant Settings UI States (P1)', () => {
     await takeScreenshot(page, 'assistants/p1-11/03-preview-active.png');
 
     // Cleanup
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 
   test('P1-12: main agent dropdown shows extension tag', async ({ page }) => {
@@ -426,7 +426,7 @@ test.describe('Assistant Settings UI States (P1)', () => {
 
     // Cleanup
     await page.keyboard.press('Escape');
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 
   test('P1-13: skills section header shows count and status dot', async ({ page }) => {
@@ -460,7 +460,7 @@ test.describe('Assistant Settings UI States (P1)', () => {
     await takeScreenshot(page, 'assistants/p1-13/04-header-verified.png');
 
     // Cleanup
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 
   test('P1-25: skills modal clears search on close', async ({ page }) => {
@@ -505,7 +505,7 @@ test.describe('Assistant Settings UI States (P1)', () => {
     await page.keyboard.press('Escape');
     await modalAfter.waitFor({ state: 'hidden', timeout: 3_000 }).catch(() => {});
     await page.waitForTimeout(200);
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 
   test('P1-19: custom skills section shows empty state', async ({ page }) => {
@@ -547,7 +547,7 @@ test.describe('Assistant Settings UI States (P1)', () => {
     }
 
     // Cleanup
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 
   test('P1-26: section headers show count', async ({ page }) => {
@@ -600,7 +600,7 @@ test.describe('Assistant Settings UI States (P1)', () => {
     await takeScreenshot(page, 'assistants/p1-14/03-no-pending-badges.png');
 
     // Close drawer
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 
   test('P1-15: no custom badge when no custom skills', async ({ page }) => {
@@ -623,7 +623,7 @@ test.describe('Assistant Settings UI States (P1)', () => {
     await takeScreenshot(page, 'assistants/p1-15/03-no-custom-badges.png');
 
     // Close drawer
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 
   test('P1-16: builtin skill checkbox unchecks without modal', async ({ page }) => {
@@ -684,7 +684,7 @@ test.describe('Assistant Settings UI States (P1)', () => {
       await takeScreenshot(page, 'assistants/p1-16/04-no-builtin-skills.png');
 
       // Test passes - no skills means no checkbox to uncheck, which is valid
-      await closeDrawer(page);
+      await closeAssistantEditor(page);
       return;
     }
 
@@ -755,7 +755,7 @@ test.describe('Assistant Settings UI States (P1)', () => {
     await takeScreenshot(page, 'assistants/p1-16/08-restored.png');
 
     // Close drawer
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 
   test('P1-18: auto-injected section shows when configured', async ({ page }) => {
@@ -784,7 +784,7 @@ test.describe('Assistant Settings UI States (P1)', () => {
     await takeScreenshot(page, 'assistants/p1-18/03-auto-section-with-count.png');
 
     // Close drawer
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 
   test('P1-27: summary skills count tag shows correct initial state', async ({ page }) => {
@@ -831,7 +831,7 @@ test.describe('Assistant Settings UI States (P1)', () => {
     await takeScreenshot(page, 'assistants/p1-27/04-final-state.png');
 
     // Close drawer
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 
   test('P1-22: drawer width responds to viewport size', async ({ page }) => {
@@ -895,7 +895,7 @@ test.describe('Assistant Settings UI States (P1)', () => {
     // Restore viewport and close drawer
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.waitForTimeout(300);
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 
   test('P1-23: session storage intent opens assistant editor', async ({ page }) => {
@@ -957,7 +957,7 @@ test.describe('Assistant Settings UI States (P1)', () => {
     await takeScreenshot(page, 'assistants/p1-23/05-intent-cleared.png');
 
     // Close drawer
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
   });
 
   test('P1-24: mobile layout stacks buttons vertically and full width', async ({ page }) => {
@@ -1023,7 +1023,7 @@ test.describe('Assistant Settings UI States (P1)', () => {
     if (pillCount === 0) {
       await takeScreenshot(page, 'assistants/p1-20/05-no-pills.png');
       await page.keyboard.press('Escape');
-      await closeDrawer(page);
+      await closeAssistantEditor(page);
       // Clean up
       await httpInvoke(page, 'DELETE', '/api/skills/external-paths', { path: tempSkillPath });
       return;
@@ -1056,7 +1056,7 @@ test.describe('Assistant Settings UI States (P1)', () => {
     // Clean up
     await page.keyboard.press('Escape');
     await modal.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
     await httpInvoke(page, 'DELETE', '/api/skills/external-paths', { path: tempSkillPath });
   });
 
@@ -1088,7 +1088,7 @@ test.describe('Assistant Settings UI States (P1)', () => {
       // No added skills found
       await takeScreenshot(page, 'assistants/p1-21/04-no-added-skills.png');
       await page.keyboard.press('Escape');
-      await closeDrawer(page);
+      await closeAssistantEditor(page);
       await httpInvoke(page, 'DELETE', '/api/skills/external-paths', { path: tempSkillPath });
       return;
     }
@@ -1102,7 +1102,7 @@ test.describe('Assistant Settings UI States (P1)', () => {
     // Clean up
     await page.keyboard.press('Escape');
     await modal.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
-    await closeDrawer(page);
+    await closeAssistantEditor(page);
     await httpInvoke(page, 'DELETE', '/api/skills/external-paths', { path: tempSkillPath });
   });
 });

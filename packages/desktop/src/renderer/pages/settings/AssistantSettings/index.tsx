@@ -64,6 +64,7 @@ const AssistantSettings: React.FC = () => {
     activeAssistant,
     isExtensionAssistant,
     loadAssistants,
+    reorderAssistants,
     localeKey,
   } = useAssistantList();
 
@@ -182,6 +183,7 @@ const AssistantSettings: React.FC = () => {
               onDuplicate={(assistant) => void editor.handleDuplicate(assistant)}
               onCreate={() => void editor.handleCreate()}
               onToggleEnabled={(assistant, checked) => void editor.handleToggleEnabled(assistant, checked)}
+              onReorder={(activeId, overId) => void reorderAssistants(activeId, overId)}
               setActiveAssistantId={setActiveAssistantId}
               highlightId={highlightId}
               onHighlightConsumed={handleHighlightConsumed}

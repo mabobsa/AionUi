@@ -9,7 +9,9 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import {
+  buildAssistantSortUpdates,
   isEmoji,
+  reorderAssistantList,
   resolveAvatarImageSrc,
   sortAssistants,
   filterAssistants,
@@ -106,6 +108,59 @@ describe('assistantUtils', () => {
       ];
       const sorted = sortAssistants(list);
       expect(sorted.map((a) => a.id)).toEqual(['a', 'b']); // stable: input order preserved
+    });
+  });
+
+  describe('reorderAssistantList', () => {
+    it('moves the dragged assistant before the target assistant', () => {
+      const list: AssistantListItem[] = [
+        { id: 'a', name: 'A', sort_order: 1, source: 'user', enabled: true },
+        { id: 'b', name: 'B', sort_order: 2, source: 'user', enabled: true },
+        { id: 'c', name: 'C', sort_order: 3, source: 'user', enabled: true },
+      ];
+
+      const reordered = reorderAssistantList(list, 'c', 'a');
+      expect(reordered.map((assistant) => assistant.id)).toEqual(['c', 'a', 'b']);
+    });
+
+    it('returns the original order when ids are missing', () => {
+      const list: AssistantListItem[] = [
+        { id: 'a', name: 'A', sort_order: 1, source: 'user', enabled: true },
+        { id: 'b', name: 'B', sort_order: 2, source: 'user', enabled: true },
+      ];
+
+      expect(reorderAssistantList(list, 'missing', 'b').map((assistant) => assistant.id)).toEqual(['a', 'b']);
+      expect(reorderAssistantList(list, 'a', 'missing').map((assistant) => assistant.id)).toEqual(['a', 'b']);
+    });
+  });
+
+  describe('buildAssistantSortUpdates', () => {
+    it('assigns deterministic sort_order values after reorder', () => {
+      const previous: AssistantListItem[] = [
+        { id: 'a', name: 'A', sort_order: 1, source: 'user', enabled: true },
+        { id: 'b', name: 'B', sort_order: 2, source: 'user', enabled: true },
+        { id: 'c', name: 'C', sort_order: 3, source: 'user', enabled: true },
+      ];
+      const next: AssistantListItem[] = [
+        { id: 'c', name: 'C', sort_order: 3, source: 'user', enabled: true },
+        { id: 'a', name: 'A', sort_order: 1, source: 'user', enabled: true },
+        { id: 'b', name: 'B', sort_order: 2, source: 'user', enabled: true },
+      ];
+
+      expect(buildAssistantSortUpdates(previous, next)).toEqual([
+        { id: 'c', sort_order: 1000 },
+        { id: 'a', sort_order: 2000 },
+        { id: 'b', sort_order: 3000 },
+      ]);
+    });
+
+    it('returns no updates when the effective sort order is unchanged', () => {
+      const previous: AssistantListItem[] = [
+        { id: 'a', name: 'A', sort_order: 1000, source: 'user', enabled: true },
+        { id: 'b', name: 'B', sort_order: 2000, source: 'user', enabled: true },
+      ];
+
+      expect(buildAssistantSortUpdates(previous, previous)).toEqual([]);
     });
   });
 
