@@ -139,8 +139,8 @@ export function presetPillById(id: string): string {
   return `[data-testid="preset-pill-${id}"]`;
 }
 
-/** Assistant edit drawer. */
-export const ASSISTANT_EDIT_DRAWER = '[data-testid="assistant-edit-drawer"]';
+/** Assistant editor surface: full-page editor or legacy drawer wrapper. */
+export const ASSISTANT_EDIT_DRAWER = '[data-testid="assistant-editor-page"], [data-testid="assistant-edit-drawer"]';
 
 /** Create assistant button. */
 export const BTN_CREATE_ASSISTANT = '[data-testid="btn-create-assistant"]';

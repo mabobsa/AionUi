@@ -71,7 +71,7 @@ const AssistantSelectionArea: React.FC<AssistantSelectionAreaProps> = ({
     []
   );
 
-  // Internal useAssistantList owns the drawer editor's working state. Its
+  // Internal useAssistantList owns the assistant editor's working state. Its
   // `assistants` list is the same backend catalog we receive via the
   // `assistants` prop (both sourced from ipcBridge.assistants.list), so we
   // drop it here to avoid a parallel fetch and prop shadow; lookups for the
@@ -95,8 +95,7 @@ const AssistantSelectionArea: React.FC<AssistantSelectionAreaProps> = ({
   const { data: selectedAssistantDetail } = useSWR(
     is_presetAgent && selectedAssistantId ? `guid.assistant.detail.${selectedAssistantId}.${localeKey}` : null,
     async (): Promise<AssistantDetail | null> =>
-      ipcBridge.assistants
-        .get
+      ipcBridge.assistants.get
         .invoke({ id: selectedAssistantId!, locale: localeKey })
         .catch((_error: unknown): AssistantDetail | null => null)
   );

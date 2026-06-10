@@ -110,7 +110,7 @@ const AssistantEditorPage: React.FC<AssistantEditorPageProps> = ({
   const isReadOnlyExtension = !isCreating && activeAssistant !== null && isExtensionAssistant(activeAssistant);
 
   return (
-    <div data-testid='assistant-edit-drawer'>
+    <div data-testid='assistant-editor-page'>
       <div className='flex h-full min-h-0 flex-col bg-fill-2 rounded-24px p-20px' data-testid='assistant-editor-page'>
         <div className='mb-16px flex items-center justify-between gap-12px'>
           <div className='flex items-center gap-8px'>

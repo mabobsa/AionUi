@@ -5,7 +5,7 @@ import type { Page } from '@playwright/test';
 import { expect } from '../fixtures';
 import { navigateTo } from './navigation';
 
-const ASSISTANT_EDITOR = '[data-testid="assistant-edit-drawer"]';
+const ASSISTANT_EDITOR = '[data-testid="assistant-editor-page"], [data-testid="assistant-edit-drawer"]';
 
 // ── Navigation ──────────────────────────────────────────────────────────────
 
@@ -14,7 +14,7 @@ export async function goToAssistantSettings(page: Page): Promise<void> {
   await navigateTo(page, '#/settings/assistants');
 }
 
-/** Open the assistant edit drawer by clicking on an assistant card. */
+/** Open the assistant editor surface by clicking on an assistant card. */
 export async function openAssistantDrawer(page: Page, assistant_id: string): Promise<void> {
   const card = page.locator(`[data-testid="assistant-card-${assistant_id}"]`);
   await card.click();
@@ -48,12 +48,12 @@ export async function fillAssistantDescription(page: Page, description: string):
   await input.fill(description);
 }
 
-/** Click the Save/Create button in the edit drawer. */
+/** Click the Save/Create button in the assistant editor. */
 export async function saveAssistant(page: Page): Promise<void> {
   await page.locator('[data-testid="btn-save-assistant"]').click();
 }
 
-/** Click the Delete button in the edit drawer, then confirm. */
+/** Click the Delete button in the assistant editor, then confirm. */
 export async function deleteAssistant(page: Page): Promise<void> {
   await page.locator('[data-testid="btn-delete-assistant"]').click();
   // Wait for confirm modal (uses wrapClassName='delete-assistant-modal')
@@ -141,7 +141,7 @@ export async function getVisibleAssistantNames(page: Page): Promise<string[]> {
   return names;
 }
 
-/** Check if the assistant edit drawer is visible. */
+/** Check if the assistant editor surface is visible. */
 export async function isDrawerVisible(page: Page): Promise<boolean> {
   return page
     .locator(ASSISTANT_EDITOR)
@@ -149,7 +149,7 @@ export async function isDrawerVisible(page: Page): Promise<boolean> {
     .catch(() => false);
 }
 
-/** Wait for the drawer to close (max 5s). */
+/** Wait for the assistant editor surface to close (max 5s). */
 export async function waitForDrawerClose(page: Page): Promise<void> {
   await expect(page.locator(ASSISTANT_EDITOR)).not.toBeVisible({ timeout: 5_000 });
 }
