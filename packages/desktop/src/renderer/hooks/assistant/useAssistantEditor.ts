@@ -8,6 +8,7 @@ import type {
   PendingSkill,
   SkillInfo,
 } from '@/renderer/pages/settings/AssistantSettings/types';
+import { ensureBackendMcpCatalog } from '@/renderer/hooks/mcp/catalog';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { mutate as swrMutate } from 'swr';
@@ -106,7 +107,7 @@ export const useAssistantEditor = ({
         loadAssistantDetail(assistantId),
         ipcBridge.fs.listAvailableSkills.invoke(),
         ipcBridge.fs.listBuiltinAutoSkills.invoke(),
-        ipcBridge.mcpService.listServers.invoke(),
+        ensureBackendMcpCatalog().then(({ allServers }) => allServers),
       ]);
       return { detail, skillsList, autoSkills, mcpServers };
     },
@@ -216,7 +217,7 @@ export const useAssistantEditor = ({
       const [skillsList, autoSkills, mcpServers] = await Promise.all([
         ipcBridge.fs.listAvailableSkills.invoke(),
         ipcBridge.fs.listBuiltinAutoSkills.invoke(),
-        ipcBridge.mcpService.listServers.invoke(),
+        ensureBackendMcpCatalog().then(({ allServers }) => allServers),
       ]);
       setAvailableSkills(skillsList);
       setBuiltinAutoSkills(autoSkills);

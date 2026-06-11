@@ -183,6 +183,42 @@ describe('AssistantEditorSections', () => {
     ).toBeInTheDocument();
   });
 
+  it('keeps builtin and disabled MCP servers in the default MCP summary', () => {
+    renderWithProviders(
+      <AssistantEditorSections
+        editor={createEditor({
+          isCreating: false,
+          defaults: {
+            mcps: {
+              mode: 'fixed',
+              setMode: vi.fn(),
+              availableServers: [
+                { id: 'mcp-user', name: 'User MCP', enabled: true, builtin: false } as any,
+                { id: 'mcp-disabled', name: 'Disabled MCP', enabled: false, builtin: false } as any,
+                { id: 'mcp-builtin', name: 'Builtin MCP', enabled: false, builtin: true } as any,
+              ],
+              selectedIds: ['mcp-user', 'mcp-disabled', 'mcp-builtin'],
+              setSelectedIds: vi.fn(),
+            },
+          },
+        })}
+        activeAssistant={{
+          id: 'builtin-assistant',
+          source: 'builtin',
+          name: 'Builtin assistant',
+          description: '',
+          avatar: '🤖',
+          enabled: true,
+          sort_order: 1,
+          preset_agent_type: 'claude',
+        }}
+      />
+    );
+
+    const defaultsCard = screen.getByTestId('assistant-card-defaults');
+    expect(within(defaultsCard).getByText('User MCP、Disabled MCP、Builtin MCP')).toBeInTheDocument();
+  });
+
   it('renders recommended prompts as a list with actions', () => {
     renderWithProviders(
       <AssistantEditorSections

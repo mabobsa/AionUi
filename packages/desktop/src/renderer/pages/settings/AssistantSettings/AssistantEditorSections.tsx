@@ -68,6 +68,8 @@ const AssistantEditorSections: React.FC<AssistantEditorSectionsProps> = ({ edito
   const disabledBuiltinSkills = skills.disabledBuiltinSkills;
   const setDisabledBuiltinSkills = skills.setDisabledBuiltinSkills;
   const handleDuplicate = actions.duplicate;
+  const getEditorSelectPopupContainer = (node: HTMLElement) =>
+    node.closest('[data-editor-popup-root]') ?? node.parentElement ?? document.body;
 
   const isBuiltin = activeAssistant?.source === 'builtin';
   const showSkills = isCreating || activeAssistant !== null;
@@ -95,7 +97,6 @@ const AssistantEditorSections: React.FC<AssistantEditorSectionsProps> = ({ edito
     return [];
   }, [currentBackend, editAgent, providerModelOptions]);
   const permissionOptions = getAgentModes(editAgent);
-  const enabledMcpServers = availableMcpServers.filter((server) => server.enabled !== false);
   const recommendedPromptItems = useMemo(
     () =>
       editRecommendedPromptsText
@@ -318,6 +319,7 @@ const AssistantEditorSections: React.FC<AssistantEditorSectionsProps> = ({ edito
           <div className='min-w-0 flex-1'>
             <Select
               className='w-full'
+              getPopupContainer={getEditorSelectPopupContainer}
               value={editAgent}
               onChange={(value) => setEditAgent(value as string)}
               data-testid='select-assistant-agent'
@@ -364,7 +366,7 @@ const AssistantEditorSections: React.FC<AssistantEditorSectionsProps> = ({ edito
         permissionOptions={permissionOptions}
         editableSkillOptions={editableSkillOptions}
         selectedSkillValues={selectedSkillValues}
-        enabledMcpServers={enabledMcpServers}
+        enabledMcpServers={availableMcpServers}
         selectedMcpIds={selectedMcpIds}
         setSelectedMcpIds={setSelectedMcpIds}
         handleSkillSelectionChange={handleSkillSelectionChange}

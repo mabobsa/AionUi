@@ -59,7 +59,11 @@ const AssistantEditorPage: React.FC<AssistantEditorPageProps> = ({ editor, activ
         </div>
       </div>
 
-      <div data-testid='assistant-editor-body' className='min-h-0 flex-1 overflow-auto px-18px py-18px pb-24px'>
+      <div
+        data-testid='assistant-editor-body'
+        data-editor-popup-root
+        className='relative min-h-0 flex-1 overflow-auto px-18px py-18px pb-24px'
+      >
         <div className='mx-auto w-full max-w-760px'>
           <AssistantEditorSections editor={editor} activeAssistant={activeAssistant} />
         </div>

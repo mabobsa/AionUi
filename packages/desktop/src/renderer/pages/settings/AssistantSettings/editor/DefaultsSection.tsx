@@ -9,6 +9,9 @@ import { ConfigRow, ReadonlySelectionField, SectionCard } from './editorSectionP
 type SelectOption = { key: string; value: string; label: string };
 type EditableSkillOption = { value: string; label: string; isAuto?: boolean; disabled?: boolean };
 
+const getEditorSelectPopupContainer = (node: HTMLElement) =>
+  node.closest('[data-editor-popup-root]') ?? node.parentElement ?? document.body;
+
 type DefaultsSectionProps = {
   isBuiltin: boolean;
   isCreating: boolean;
@@ -92,6 +95,7 @@ const DefaultsSection: React.FC<DefaultsSectionProps> = ({
           })}
         >
           <Select
+            getPopupContainer={getEditorSelectPopupContainer}
             value={defaultModelMode === 'fixed' && defaultModelValue ? defaultModelValue : '__AUTO__'}
             onChange={(value) => {
               const nextValue = value as string;
@@ -122,6 +126,7 @@ const DefaultsSection: React.FC<DefaultsSectionProps> = ({
 
         <ConfigRow label={t('settings.assistantDefaultPermissionLabel', { defaultValue: 'Default Permission' })}>
           <Select
+            getPopupContainer={getEditorSelectPopupContainer}
             value={defaultPermissionMode === 'fixed' && defaultPermissionValue ? defaultPermissionValue : '__AUTO__'}
             onChange={(value) => {
               const nextValue = value as string;
@@ -169,6 +174,7 @@ const DefaultsSection: React.FC<DefaultsSectionProps> = ({
           >
             {canEditDefaultSkillsAndMcps ? (
               <Select
+                getPopupContainer={getEditorSelectPopupContainer}
                 mode='multiple'
                 value={defaultSkillsMode === 'fixed' ? selectedSkillValues : []}
                 onChange={(value) => {
@@ -250,6 +256,7 @@ const DefaultsSection: React.FC<DefaultsSectionProps> = ({
         >
           {canEditDefaultSkillsAndMcps ? (
             <Select
+              getPopupContainer={getEditorSelectPopupContainer}
               mode='multiple'
               value={defaultMcpMode === 'fixed' ? selectedMcpIds : []}
               onChange={(value) => {

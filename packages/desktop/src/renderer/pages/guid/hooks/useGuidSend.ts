@@ -14,6 +14,7 @@ import { Message } from '@arco-design/web-react';
 import { useCallback, useRef } from 'react';
 import { type TFunction } from 'i18next';
 import type { NavigateFunction } from 'react-router-dom';
+import { mutate as swrMutate } from 'swr';
 import { getConversationCreateErrorMessage } from '@/renderer/pages/conversation/utils/conversationCreateError';
 import type { AcpModelInfo, AvailableAgent, EffectiveAgentInfo } from '../types';
 
@@ -154,6 +155,7 @@ export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
       selectedAcpModel || currentAcpCachedModelInfo?.current_model_id || current_model?.use_model || undefined;
     const assistantOverrides = {
       model: assistantOverrideModel,
+      permission: selectedMode || undefined,
       skill_ids: enabled_skills_to_send,
       disabled_builtin_skill_ids: excludeBuiltinSkills,
     };
@@ -193,6 +195,13 @@ export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
 
         if (isCustomWorkspace) {
           updateWorkspaceTime(finalWorkspace);
+        }
+
+        if (preset_assistant_id) {
+          await Promise.all([
+            swrMutate(`guid.assistant.detail.${preset_assistant_id}.${localeKey}`),
+            swrMutate('assistants.list'),
+          ]);
         }
 
         emitter.emit('chat.history.refresh');
@@ -271,6 +280,13 @@ export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
 
         if (isCustomWorkspace) {
           updateWorkspaceTime(finalWorkspace);
+        }
+
+        if (preset_assistant_id) {
+          await Promise.all([
+            swrMutate(`guid.assistant.detail.${preset_assistant_id}.${localeKey}`),
+            swrMutate('assistants.list'),
+          ]);
         }
 
         emitter.emit('chat.history.refresh');

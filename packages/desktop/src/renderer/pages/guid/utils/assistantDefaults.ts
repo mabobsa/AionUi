@@ -3,6 +3,8 @@ import type { AssistantDetail } from '@/common/types/agent/assistantTypes';
 export type ResolvedGuidAssistantDefaults = {
   modelId?: string;
   permissionMode?: string;
+  skillIds: string[];
+  disabledBuiltinSkillIds: string[];
   mcpIds: string[];
 };
 
@@ -13,6 +15,8 @@ export const resolveGuidAssistantDefaults = (
     return {
       modelId: undefined,
       permissionMode: undefined,
+      skillIds: [],
+      disabledBuiltinSkillIds: [],
       mcpIds: [],
     };
   }
@@ -31,6 +35,20 @@ export const resolveGuidAssistantDefaults = (
         ? detail.preferences.last_permission_value
         : undefined;
 
+  const skillIds =
+    detail.defaults.skills.mode === 'fixed'
+      ? (detail.defaults.skills.value ?? [])
+      : detail.defaults.skills.mode === 'auto'
+        ? (detail.preferences.last_skill_ids ?? [])
+        : [];
+
+  const disabledBuiltinSkillIds =
+    detail.defaults.skills.mode === 'fixed'
+      ? (detail.capabilities.default_disabled_builtin_skill_ids ?? [])
+      : detail.defaults.skills.mode === 'auto'
+        ? (detail.preferences.last_disabled_builtin_skill_ids ?? [])
+        : [];
+
   const mcpIds =
     detail.defaults.mcps.mode === 'fixed'
       ? (detail.defaults.mcps.value ?? [])
@@ -41,6 +59,8 @@ export const resolveGuidAssistantDefaults = (
   return {
     modelId: modelId || undefined,
     permissionMode: permissionMode || undefined,
+    skillIds,
+    disabledBuiltinSkillIds,
     mcpIds,
   };
 };

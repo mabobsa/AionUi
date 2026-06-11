@@ -341,14 +341,27 @@ const GuidPage: React.FC = () => {
 
   // Sync disabledBuiltinSkills + enabledSkills from preset assistant config
   useEffect(() => {
-    if (agentSelection.is_presetAgent && selectedAssistantRecord) {
+    if (!agentSelection.is_presetAgent) {
+      setGuidDisabledBuiltinSkills(undefined);
+      setGuidEnabledSkills(undefined);
+      return;
+    }
+
+    if (selectedAssistantDetail) {
+      const resolvedDefaults = resolveGuidAssistantDefaults(selectedAssistantDetail);
+      setGuidDisabledBuiltinSkills(resolvedDefaults.disabledBuiltinSkillIds);
+      setGuidEnabledSkills(resolvedDefaults.skillIds);
+      return;
+    }
+
+    if (selectedAssistantRecord) {
       setGuidDisabledBuiltinSkills(selectedAssistantRecord.disabled_builtin_skills ?? []);
       setGuidEnabledSkills(selectedAssistantRecord.enabled_skills ?? []);
     } else {
       setGuidDisabledBuiltinSkills(undefined);
       setGuidEnabledSkills(undefined);
     }
-  }, [agentSelection.is_presetAgent, selectedAssistantRecord]);
+  }, [agentSelection.is_presetAgent, selectedAssistantDetail, selectedAssistantRecord]);
 
   const appliedAssistantDefaultsKeyRef = useRef<string | null>(null);
   useEffect(() => {
@@ -749,39 +762,41 @@ const GuidPage: React.FC = () => {
             )}
           </div>
 
-          {agentSelection.is_presetAgent && selectedAssistantDescription ? (
-            <div
-              className={`${styles.heroSubtitle} ${isDescriptionExpanded ? styles.heroSubtitleExpanded : ''}`}
-              onClick={() => {
-                if (!canExpandDescription) return;
-                setIsDescriptionExpanded((v) => !v);
-              }}
-            >
+          {agentSelection.is_presetAgent ? (
+            selectedAssistantDescription ? (
               <div
-                ref={descriptionTextRef}
-                className={`${styles.heroSubtitleText} ${isDescriptionExpanded ? styles.heroSubtitleTextExpanded : ''}`}
+                className={`${styles.heroSubtitle} ${isDescriptionExpanded ? styles.heroSubtitleExpanded : ''}`}
+                onClick={() => {
+                  if (!canExpandDescription) return;
+                  setIsDescriptionExpanded((v) => !v);
+                }}
               >
-                {selectedAssistantDescription}
+                <div
+                  ref={descriptionTextRef}
+                  className={`${styles.heroSubtitleText} ${isDescriptionExpanded ? styles.heroSubtitleTextExpanded : ''}`}
+                >
+                  {selectedAssistantDescription}
+                </div>
+                {canExpandDescription ? (
+                  <Button
+                    size='mini'
+                    type='secondary'
+                    shape='circle'
+                    icon={<Down theme='outline' size={12} fill='currentColor' />}
+                    className={`${styles.heroSubtitleToggle} ${isDescriptionExpanded ? styles.heroSubtitleToggleExpanded : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsDescriptionExpanded((v) => !v);
+                    }}
+                    aria-label={
+                      isDescriptionExpanded
+                        ? t('common.collapse', { defaultValue: 'Collapse' })
+                        : t('common.expand', { defaultValue: 'Expand' })
+                    }
+                  />
+                ) : null}
               </div>
-              {canExpandDescription ? (
-                <Button
-                  size='mini'
-                  type='secondary'
-                  shape='circle'
-                  icon={<Down theme='outline' size={12} fill='currentColor' />}
-                  className={`${styles.heroSubtitleToggle} ${isDescriptionExpanded ? styles.heroSubtitleToggleExpanded : ''}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsDescriptionExpanded((v) => !v);
-                  }}
-                  aria-label={
-                    isDescriptionExpanded
-                      ? t('common.collapse', { defaultValue: 'Collapse' })
-                      : t('common.expand', { defaultValue: 'Expand' })
-                  }
-                />
-              ) : null}
-            </div>
+            ) : null
           ) : agentSelection.availableAgents === undefined ? (
             <AgentPillBarSkeleton />
           ) : agentSelection.availableAgents.length > 0 ? (
