@@ -46,6 +46,14 @@ vi.mock('swr', () => ({
   mutate: vi.fn(),
 }));
 
+vi.mock('@/renderer/hooks/mcp/catalog', () => ({
+  ensureBackendMcpCatalog: vi.fn(async () => ({
+    userServers: [{ id: 'mcp-a', name: 'Server A', enabled: true }],
+    builtinServers: [],
+    allServers: [{ id: 'mcp-a', name: 'Server A', enabled: true }],
+  })),
+}));
+
 import { useAssistantEditor } from '@/renderer/hooks/assistant/useAssistantEditor';
 import { ipcBridge } from '@/common';
 import type { AssistantListItem } from '@/renderer/pages/settings/AssistantSettings/types';
