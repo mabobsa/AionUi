@@ -1166,6 +1166,7 @@ export type I18nKey =
   | 'settings.assistant.userRevoked'
   | 'settings.assistantAvatarImageFiles'
   | 'settings.assistantAvatarUploadImage'
+  | 'settings.assistantBackToList'
   | 'settings.assistantBuiltinDefaultHint'
   | 'settings.assistantBuiltinReadonlyDuplicateLink'
   | 'settings.assistantBuiltinReadonlyTip'

@@ -29,7 +29,7 @@ const AssistantEditorPage: React.FC<AssistantEditorPageProps> = ({ editor, activ
             data-testid='btn-back-assistant-editor'
             className='!rounded-8px !px-6px !text-primary-6'
           >
-            {t('common.back', { defaultValue: 'Back' })}
+            {t('settings.assistantBackToList', { defaultValue: 'All assistants' })}
           </Button>
           <div className='truncate text-14px font-600 text-t-primary'>
             {activeAssistant?.name ||
