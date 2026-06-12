@@ -143,4 +143,20 @@ describe('AssistantListPanel', () => {
     expect(screen.getByTestId('btn-duplicate-1')).toBeInTheDocument();
     expect(screen.queryByTestId('btn-duplicate-2')).not.toBeInTheDocument();
   });
+
+  it('renders the reorder hint in the header area instead of a bottom hint card', () => {
+    renderWithProviders(<AssistantListPanel {...defaultProps} />);
+
+    const header = screen.getByTestId('assistant-list-header');
+    expect(header).toHaveTextContent('settings.assistantListHint');
+    expect(screen.getByTestId('assistant-list-body')).not.toHaveTextContent('settings.assistantListHint');
+  });
+
+  it('uses smaller action button typography on the right-side action rail', () => {
+    renderWithProviders(<AssistantListPanel {...defaultProps} />);
+
+    expect(screen.getByTestId('btn-edit-1')).toHaveClass('!h-30px', '!rounded-8px', '!text-12px', '!font-500');
+    expect(screen.getByTestId('btn-duplicate-1')).toHaveClass('!h-30px', '!rounded-8px', '!text-12px', '!font-500');
+    expect(screen.getByTestId('btn-delete-2')).toHaveClass('!h-30px', '!rounded-8px', '!text-12px', '!font-500');
+  });
 });

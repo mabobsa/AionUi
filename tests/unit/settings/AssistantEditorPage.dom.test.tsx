@@ -83,4 +83,14 @@ describe('AssistantEditorPage', () => {
     expect(screen.getByTestId('assistant-editor-bar')).toHaveClass('sticky');
     expect(screen.getByTestId('assistant-editor-body')).toBeInTheDocument();
   });
+
+  it('uses a high-contrast back action in the editor header', () => {
+    render(
+      <ConfigProvider>
+        <AssistantEditorPage editor={createEditor()} activeAssistant={null} onBack={vi.fn()} />
+      </ConfigProvider>
+    );
+
+    expect(screen.getByTestId('btn-back-assistant-editor').className).toContain('text-t-primary');
+  });
 });

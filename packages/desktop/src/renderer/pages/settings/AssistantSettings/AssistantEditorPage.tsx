@@ -27,7 +27,7 @@ const AssistantEditorPage: React.FC<AssistantEditorPageProps> = ({ editor, activ
             icon={<ArrowLeft size={16} />}
             onClick={onBack}
             data-testid='btn-back-assistant-editor'
-            className='!rounded-8px !px-6px !text-primary-6'
+            className='!rounded-8px !px-6px !text-t-primary'
           >
             {t('settings.assistantBackToList', { defaultValue: 'All assistants' })}
           </Button>

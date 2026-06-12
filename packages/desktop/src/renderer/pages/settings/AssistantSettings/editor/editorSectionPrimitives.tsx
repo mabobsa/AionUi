@@ -30,8 +30,8 @@ export const SectionCard: React.FC<SectionCardProps> = ({
           <span
             className={`rounded-6px px-8px py-2px text-10px font-500 ${
               legend.tone === 'now'
-                ? 'bg-[rgba(var(--success-6),0.12)] text-[rgb(var(--success-6))]'
-                : 'bg-[rgba(var(--warning-6),0.12)] text-[rgb(var(--warning-6))]'
+                ? 'border border-success-8 bg-success-8 text-white font-600'
+                : 'border border-warning-8 bg-warning-8 text-white font-600'
             }`}
           >
             {legend.label}
