@@ -71,41 +71,25 @@ const PromptsSection: React.FC<PromptsSectionProps> = ({
       testId='assistant-card-prompts'
     >
       {showPromptPanel ? (
-        <div className='space-y-12px rounded-12px border border-border-2 bg-fill-1 px-12px py-14px'>
-          {addingPrompt && isPromptEditable ? (
-            <div className='flex items-center gap-8px rounded-10px bg-base p-10px'>
-              <Input
-                value={newPromptDraft}
-                onChange={(value) => setNewPromptDraft(value)}
-                placeholder={t('settings.assistantRecommendedPromptsPlaceholder', {
-                  defaultValue: 'Enter one suggested prompt per line',
-                })}
-                data-testid='input-assistant-recommended-prompt-new'
-              />
-              <Button size='small' type='primary' className='!rounded-full' onClick={onAddPrompt}>
-                {t('common.add', { defaultValue: 'Add' })}
-              </Button>
-              <Button
-                size='small'
-                type='secondary'
-                className='!rounded-full'
-                onClick={() => {
-                  setAddingPrompt(false);
-                  setNewPromptDraft('');
-                }}
-              >
-                {t('common.cancel', { defaultValue: 'Cancel' })}
-              </Button>
-            </div>
-          ) : null}
-
+        <div className='space-y-6px rounded-12px border border-border-2 bg-fill-1 px-12px py-6px'>
           {recommendedPromptItems.length > 0 ? (
-            <div className='space-y-12px'>
+            <div className='space-y-4px'>
               {recommendedPromptItems.map((prompt, index) => {
                 const isEditingPrompt = editingPromptIndex === index;
                 return (
-                  <div key={`${prompt}-${index}`} className='flex items-start gap-12px'>
-                    <div className='w-24px pt-10px text-right text-12px font-500 text-t-quaternary'>{index + 1}.</div>
+                  <div
+                    key={`${prompt}-${index}`}
+                    className={isEditingPrompt ? 'flex items-start gap-10px' : 'flex items-center gap-10px'}
+                  >
+                    <div
+                      className={
+                        isEditingPrompt
+                          ? 'w-24px pt-9px text-right text-12px font-500 leading-18px text-t-quaternary'
+                          : 'flex h-36px w-24px items-center justify-end text-right text-12px font-500 leading-18px text-t-quaternary'
+                      }
+                    >
+                      {index + 1}.
+                    </div>
                     <div className='min-w-0 flex-1'>
                       {isEditingPrompt ? (
                         <div className='space-y-8px'>
@@ -132,8 +116,8 @@ const PromptsSection: React.FC<PromptsSectionProps> = ({
                           </div>
                         </div>
                       ) : (
-                        <div className='flex items-start gap-12px'>
-                          <div className='min-h-36px flex-1 px-4px py-8px text-13px font-500 leading-22px text-t-primary'>
+                        <div className='flex items-center gap-12px'>
+                          <div className='flex h-36px flex-1 items-center px-4px text-13px font-500 leading-18px text-t-primary'>
                             {prompt}
                           </div>
                           {isPromptEditable ? (
@@ -162,6 +146,33 @@ const PromptsSection: React.FC<PromptsSectionProps> = ({
                   </div>
                 );
               })}
+            </div>
+          ) : null}
+
+          {addingPrompt && isPromptEditable ? (
+            <div className='flex items-center gap-8px rounded-10px bg-base p-4px'>
+              <Input
+                value={newPromptDraft}
+                onChange={(value) => setNewPromptDraft(value)}
+                placeholder={t('settings.assistantRecommendedPromptsPlaceholder', {
+                  defaultValue: 'Enter one suggested prompt per line',
+                })}
+                data-testid='input-assistant-recommended-prompt-new'
+              />
+              <Button size='small' type='primary' className='!rounded-full' onClick={onAddPrompt}>
+                {t('common.add', { defaultValue: 'Add' })}
+              </Button>
+              <Button
+                size='small'
+                type='secondary'
+                className='!rounded-full'
+                onClick={() => {
+                  setAddingPrompt(false);
+                  setNewPromptDraft('');
+                }}
+              >
+                {t('common.cancel', { defaultValue: 'Cancel' })}
+              </Button>
             </div>
           ) : null}
         </div>

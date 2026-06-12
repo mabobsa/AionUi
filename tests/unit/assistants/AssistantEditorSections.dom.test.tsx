@@ -310,6 +310,25 @@ describe('AssistantEditorSections', () => {
     expect(promptScope.getByRole('button', { name: 'Add' })).toBeInTheDocument();
   });
 
+  it('keeps existing recommended prompts above the new prompt input while adding', () => {
+    renderWithProviders(
+      <AssistantEditorSections
+        editor={createEditor({ prompts: { text: 'Prompt one\nPrompt two', setText: vi.fn() } })}
+        activeAssistant={null}
+      />
+    );
+
+    const promptCard = screen.getByTestId('assistant-card-prompts');
+    fireEvent.click(within(promptCard).getByRole('button', { name: 'Add' }));
+
+    const promptPanel = promptCard.querySelector('.bg-fill-1');
+    const firstPrompt = within(promptCard).getByText('Prompt one');
+    const newPromptInput = within(promptCard).getByTestId('input-assistant-recommended-prompt-new');
+
+    expect(promptPanel).not.toBeNull();
+    expect(firstPrompt.compareDocumentPosition(newPromptInput) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('does not render an empty prompts panel when there are no recommended prompts', () => {
     renderWithProviders(
       <AssistantEditorSections
