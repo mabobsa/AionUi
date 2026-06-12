@@ -75,7 +75,6 @@
   "assistantSectionDisabled": "無効",
   "searchAssistants": "名前または説明でアシスタントを検索",
   "assistantNoMatch": "現在のフィルター条件に一致するアシスタントはありません。",
-  "assistantListHint": "各行のハンドルをドラッグして順序を変更できます。変更はホームのアシスタント一覧に即時反映されます。",
   "assistantCreated": "アシスタントを作成しました",
   "assistantNameRequired": "名前は必須です",
   "assistantPromptRequired": "プロンプトは必須です",

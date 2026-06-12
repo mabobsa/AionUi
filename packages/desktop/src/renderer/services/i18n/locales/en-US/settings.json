@@ -75,7 +75,6 @@
   "assistantSectionDisabled": "Disabled",
   "searchAssistants": "Search assistants by name or description",
   "assistantNoMatch": "No assistants match the current filters.",
-  "assistantListHint": "Drag the handle on each row to update assistant order. Changes affect the home assistant list immediately.",
   "assistantCreated": "Assistant created",
   "assistantNameRequired": "Name is required",
   "assistantPromptRequired": "Prompt is required",

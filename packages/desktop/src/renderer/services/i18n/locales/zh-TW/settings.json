@@ -75,7 +75,6 @@
   "assistantSectionDisabled": "已停用",
   "searchAssistants": "按名稱或描述搜尋助理",
   "assistantNoMatch": "沒有符合目前篩選條件的助理。",
-  "assistantListHint": "拖曳每列前方的手把調整順序，會即時影響首頁助理列表的排序。",
   "assistantCreated": "助理已建立",
   "assistantNameRequired": "名稱不能為空",
   "assistantPromptRequired": "提示詞不能為空",

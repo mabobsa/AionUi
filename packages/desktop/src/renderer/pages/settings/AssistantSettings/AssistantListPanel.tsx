@@ -233,7 +233,7 @@ const AssistantListPanel: React.FC<AssistantListPanelProps> = ({
           bordered={false}
           className='!rounded-10px !bg-fill-1 !px-8px !py-1px !text-10px !font-600 !leading-16px !text-primary-6'
         >
-          {t('settings.assistantSourceOfficial', { defaultValue: 'Official' })}
+          {t('settings.builtin', { defaultValue: 'Built-in' })}
         </Tag>
       );
     }

@@ -96,7 +96,14 @@ const AssistantEditorSections: React.FC<AssistantEditorSectionsProps> = ({ edito
 
     return [];
   }, [currentBackend, editAgent, providerModelOptions]);
-  const permissionOptions = getAgentModes(editAgent);
+  const permissionOptions = useMemo(
+    () =>
+      getAgentModes(editAgent).map((option) => ({
+        ...option,
+        label: t(`agentMode.${option.value}`, { defaultValue: option.label }),
+      })),
+    [editAgent, t]
+  );
   const recommendedPromptItems = useMemo(
     () =>
       editRecommendedPromptsText

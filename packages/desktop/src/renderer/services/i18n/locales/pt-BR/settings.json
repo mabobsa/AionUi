@@ -75,7 +75,6 @@
   "assistantSectionDisabled": "Desativado",
   "searchAssistants": "Pesquisar assistentes por nome ou descrição",
   "assistantNoMatch": "Nenhum assistente corresponde aos filtros atuais.",
-  "assistantListHint": "Arraste a alça no início de cada linha para reordenar. As mudanças afetam imediatamente a lista de assistentes da página inicial.",
   "assistantCreated": "Assistente criado",
   "assistantNameRequired": "O nome é obrigatório",
   "assistantPromptRequired": "O prompt é obrigatório",

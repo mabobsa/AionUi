@@ -9,7 +9,7 @@ import type {
   SkillInfo,
 } from '@/renderer/pages/settings/AssistantSettings/types';
 import { ensureBackendMcpCatalog } from '@/renderer/hooks/mcp/catalog';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { mutate as swrMutate } from 'swr';
 
@@ -53,6 +53,7 @@ export const useAssistantEditor = ({
   message,
 }: UseAssistantEditorParams) => {
   const { t } = useTranslation();
+  const previousLocaleKeyRef = useRef(localeKey);
 
   const [editVisible, setEditVisible] = useState(false);
   const [editName, setEditName] = useState('');
@@ -113,6 +114,34 @@ export const useAssistantEditor = ({
     },
     [loadAssistantDetail]
   );
+
+  useEffect(() => {
+    const localeChanged = previousLocaleKeyRef.current !== localeKey;
+    previousLocaleKeyRef.current = localeKey;
+
+    if (!localeChanged || !editVisible || isCreating || activeAssistant?.source !== 'builtin') {
+      return;
+    }
+
+    let cancelled = false;
+
+    void loadAssistantDetail(activeAssistant.id)
+      .then((detail) => {
+        if (cancelled) return;
+
+        setEditName(detail.profile.name || activeAssistant.name_i18n?.[localeKey] || activeAssistant.name || '');
+        setEditDescription(detail.profile.description || activeAssistant.description || '');
+        setEditContext(detail.rules.content || '');
+        setEditRecommendedPromptsText(resolveLocalizedRecommendedPrompts(detail, localeKey).join('\n'));
+      })
+      .catch((error) => {
+        console.error('Failed to refresh builtin assistant locale data:', error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeAssistant, editVisible, isCreating, loadAssistantDetail, localeKey]);
 
   const resetSkillEditorState = useCallback(() => {
     setPendingSkills([]);

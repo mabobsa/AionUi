@@ -75,7 +75,6 @@
   "assistantSectionDisabled": "Отключено",
   "searchAssistants": "Поиск ассистентов по названию или описанию",
   "assistantNoMatch": "Нет ассистентов, соответствующих текущим фильтрам.",
-  "assistantListHint": "Перетаскивайте ручку в начале строки, чтобы менять порядок. Изменения сразу отражаются в списке ассистентов на главной.",
   "assistantCreated": "Ассистент создан",
   "assistantNameRequired": "Название обязательно",
   "assistantPromptRequired": "Промпт обязателен",

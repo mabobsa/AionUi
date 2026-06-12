@@ -75,7 +75,6 @@
   "assistantSectionDisabled": "Devre Dışı",
   "searchAssistants": "Ada veya açıklamaya göre asistan ara",
   "assistantNoMatch": "Mevcut filtrelere uyan asistan bulunamadı.",
-  "assistantListHint": "Sırayı değiştirmek için her satırdaki tutamacı sürükleyin. Değişiklikler ana sayfadaki asistan listesine anında yansır.",
   "assistantCreated": "Asistan oluşturuldu",
   "assistantNameRequired": "İsim zorunludur",
   "assistantPromptRequired": "İstem zorunludur",
