@@ -27,7 +27,17 @@ import { useConversationActions } from './hooks/useConversationActions';
 import { useConversations } from './hooks/useConversations';
 import { useDragAndDrop } from './hooks/useDragAndDrop';
 import { useExport } from './hooks/useExport';
+import { useProjectGitBranches } from './hooks/useProjectGitBranches';
 import type { ConversationRowProps, WorkspaceGroupedHistoryProps } from './types';
+
+/** Last two path segments (parent/current) of a workspace path, e.g. "Sudda_Working/GameClient". */
+const parentAndCurrentDir = (workspacePath: string): string => {
+  const segments = workspacePath
+    .replace(/[\\/]+$/, '')
+    .split(/[\\/]+/)
+    .filter(Boolean);
+  return segments.slice(-2).join('/');
+};
 
 const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
   onSessionClick,
@@ -255,6 +265,11 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
     }
     return groups;
   }, [timelineSections]);
+
+  // Git branch per project folder, read from each workspace's .git/HEAD file.
+  const projectGitBranches = useProjectGitBranches(
+    useMemo(() => projectGroups.map((g) => g.workspace), [projectGroups])
+  );
 
   // Conversations section: keep timeline grouping (today/yesterday/...) but only show non-workspace conversations.
   const conversationOnlySections = useMemo(
@@ -567,8 +582,15 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
                       onToggle={() => handleToggleWorkspace(group.workspace)}
                       siderCollapsed={collapsed}
                       header={
-                        <span className='text-14px font-[500] truncate flex-1 text-t-primary min-w-0'>
-                          {group.displayName}
+                        <span className='flex flex-col flex-1 min-w-0 leading-tight'>
+                          <span className='text-14px font-[500] truncate text-t-primary'>
+                            {parentAndCurrentDir(group.workspace) || group.displayName}
+                          </span>
+                          {projectGitBranches[group.workspace] && (
+                            <span className='text-11px font-[400] truncate text-t-secondary'>
+                              ({projectGitBranches[group.workspace]})
+                            </span>
+                          )}
                         </span>
                       }
                       trailing={
