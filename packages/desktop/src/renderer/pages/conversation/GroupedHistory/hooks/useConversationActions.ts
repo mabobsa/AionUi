@@ -7,10 +7,13 @@
 import { ipcBridge } from '@/common';
 import type { TChatConversation } from '@/common/config/storage';
 import { refreshConversationCache } from '@/renderer/pages/conversation/utils/conversationCache';
+import { buildConversationExportText, type ExportTranscriptLabels } from '@/renderer/utils/chat/conversationExport';
+import { getLastAssistantText } from '@/renderer/utils/chat/getLastAssistantText';
 import { emitter } from '@/renderer/utils/emitter';
+import { copyText } from '@/renderer/utils/ui/clipboard';
 import { blockMobileInputFocus, blurActiveElement } from '@/renderer/utils/ui/focus';
 import { Message, Modal } from '@arco-design/web-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -223,6 +226,67 @@ export const useConversationActions = ({
     [t]
   );
 
+  // Labels for the full-conversation transcript (mirrors useConversationExport).
+  const transcriptLabels = useMemo<ExportTranscriptLabels>(
+    () => ({
+      conversation: t('messages.export.conversationLabel'),
+      conversation_id: t('messages.export.conversationIdLabel'),
+      exportedAt: t('messages.export.exportedAtLabel'),
+      type: t('messages.export.typeLabel'),
+      noMessages: t('messages.export.noMessages'),
+      user: t('messages.export.userLabel'),
+      assistant: t('messages.export.assistantLabel'),
+      system: t('messages.export.systemLabel'),
+    }),
+    [t]
+  );
+
+  // "Copy" — copy the conversation's last assistant response (same as the in-chat /copy command).
+  const handleCopyLastOutput = useCallback(
+    async (conversation: TChatConversation) => {
+      try {
+        const result = await ipcBridge.database.getConversationMessages.invoke({
+          conversation_id: conversation.id,
+          page: 0,
+          page_size: 1000,
+          content_mode: 'full',
+        });
+        const text = getLastAssistantText(result.items, false);
+        if (!text) {
+          Message.warning(t('messages.copyLastOutput.empty'));
+          return;
+        }
+        await copyText(text);
+        Message.success(t('messages.copySuccess'));
+      } catch (error) {
+        console.error('Failed to copy last output:', error);
+        Message.error(t('messages.copyFailed'));
+      }
+    },
+    [t]
+  );
+
+  // "Copy all" — copy the entire conversation transcript.
+  const handleCopyAll = useCallback(
+    async (conversation: TChatConversation) => {
+      try {
+        const result = await ipcBridge.database.getConversationMessages.invoke({
+          conversation_id: conversation.id,
+          page: 0,
+          page_size: 10000,
+          content_mode: 'full',
+        });
+        const transcript = buildConversationExportText(conversation, result.items, transcriptLabels);
+        await copyText(transcript);
+        Message.success(t('messages.export.copySuccess'));
+      } catch (error) {
+        console.error('Failed to copy conversation:', error);
+        Message.error(t('messages.export.copyFailed'));
+      }
+    },
+    [transcriptLabels, t]
+  );
+
   const handleMenuVisibleChange = useCallback((conversation_id: string, visible: boolean) => {
     setDropdownVisibleId(visible ? conversation_id : null);
   }, []);
@@ -289,6 +353,8 @@ export const useConversationActions = ({
     handleRenameConfirm,
     handleRenameCancel,
     handleTogglePin,
+    handleCopyLastOutput,
+    handleCopyAll,
     handleMenuVisibleChange,
     handleOpenMenu,
     handleRemoveProject,

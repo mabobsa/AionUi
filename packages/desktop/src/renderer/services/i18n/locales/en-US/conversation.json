@@ -30,6 +30,7 @@
     "saveName": "Save",
     "cancelEdit": "Cancel",
     "rename": "Rename",
+    "copyAll": "Copy Entire Conversation",
     "renameTitle": "Rename Chat",
     "renamePlaceholder": "Please enter a new name",
     "renameSuccess": "Renamed successfully",

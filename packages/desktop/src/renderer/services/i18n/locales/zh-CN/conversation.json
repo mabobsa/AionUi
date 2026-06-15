@@ -30,6 +30,7 @@
     "saveName": "保存",
     "cancelEdit": "取消",
     "rename": "重命名",
+    "copyAll": "复制整个对话",
     "renameTitle": "重命名对话",
     "renamePlaceholder": "请输入新名称",
     "renameSuccess": "重命名成功",

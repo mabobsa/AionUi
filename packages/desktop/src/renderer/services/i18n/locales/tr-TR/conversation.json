@@ -34,6 +34,7 @@
     "saveName": "Kaydet",
     "cancelEdit": "İptal",
     "rename": "Yeniden Adlandır",
+    "copyAll": "Tüm konuşmayı kopyala",
     "renameTitle": "Sohbeti Yeniden Adlandır",
     "renamePlaceholder": "Lütfen yeni bir isim girin",
     "renameSuccess": "Başarıyla yeniden adlandırıldı",

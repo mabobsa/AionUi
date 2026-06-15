@@ -149,6 +149,8 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
     handleRenameConfirm,
     handleRenameCancel,
     handleTogglePin,
+    handleCopyLastOutput,
+    handleCopyAll,
     handleMenuVisibleChange,
     handleOpenMenu,
     handleRemoveProject,
@@ -211,6 +213,8 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
       onMenuVisibleChange: handleMenuVisibleChange,
       onEditStart: handleEditStart,
       onDelete: handleDeleteClick,
+      onCopy: handleCopyLastOutput,
+      onCopyAll: handleCopyAll,
       // Export UI entry intentionally disabled (kanban #14): omit onExport so
       // ConversationRow's `{onExport && ...}` guard hides the menu item. The
       // underlying handleExportConversation logic from useExport is kept for a
@@ -233,6 +237,8 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
       handleMenuVisibleChange,
       handleEditStart,
       handleDeleteClick,
+      handleCopyLastOutput,
+      handleCopyAll,
       handleTogglePin,
       getJobStatus,
     ]

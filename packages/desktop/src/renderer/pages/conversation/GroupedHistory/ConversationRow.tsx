@@ -11,7 +11,7 @@ import { CronJobIndicator } from '@/renderer/pages/cron';
 import { cleanupSiderTooltips, getSiderTooltipProps } from '@/renderer/utils/ui/siderTooltip';
 import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
 import { Checkbox, Dropdown, Menu, Spin, Tooltip } from '@arco-design/web-react';
-import { DeleteOne, EditOne, Export, MessageOne, MoreOne, Pushpin } from '@icon-park/react';
+import { Copy, CopyOne, DeleteOne, EditOne, Export, MessageOne, MoreOne, Pushpin } from '@icon-park/react';
 import classNames from 'classnames';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
@@ -43,6 +43,8 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
     onEditStart,
     onDelete,
     onExport,
+    onCopy,
+    onCopyAll,
     onTogglePin,
     getJobStatus,
   } = props;
@@ -212,6 +214,14 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
               droplist={
                 <Menu
                   onClickMenuItem={(key) => {
+                    if (key === 'copy') {
+                      onCopy?.(conversation);
+                      return;
+                    }
+                    if (key === 'copyAll') {
+                      onCopyAll?.(conversation);
+                      return;
+                    }
                     if (key === 'pin') {
                       onTogglePin(conversation);
                       return;
@@ -229,6 +239,22 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
                     }
                   }}
                 >
+                  {onCopy && (
+                    <Menu.Item key='copy'>
+                      <div className='flex items-center gap-8px'>
+                        <Copy theme='outline' size='14' />
+                        <span>{t('messages.copy')}</span>
+                      </div>
+                    </Menu.Item>
+                  )}
+                  {onCopyAll && (
+                    <Menu.Item key='copyAll'>
+                      <div className='flex items-center gap-8px'>
+                        <CopyOne theme='outline' size='14' />
+                        <span>{t('conversation.history.copyAll')}</span>
+                      </div>
+                    </Menu.Item>
+                  )}
                   <Menu.Item key='pin'>
                     <div className='flex items-center gap-8px'>
                       <Pushpin theme='outline' size='14' />

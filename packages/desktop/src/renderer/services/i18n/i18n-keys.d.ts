@@ -421,6 +421,7 @@ export type I18nKey =
   | 'conversation.history.cancelEdit'
   | 'conversation.history.confirmDelete'
   | 'conversation.history.conversationsSection'
+  | 'conversation.history.copyAll'
   | 'conversation.history.deleteConfirm'
   | 'conversation.history.deleteFailed'
   | 'conversation.history.deleteSuccess'
