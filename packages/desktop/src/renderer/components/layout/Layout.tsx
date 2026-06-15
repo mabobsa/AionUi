@@ -75,8 +75,12 @@ const UpdateModal = React.lazy(() => import('@/renderer/components/settings/Upda
 
 const DEFAULT_SIDER_WIDTH = 260;
 const DESKTOP_COLLAPSED_WIDTH = 0;
-const SIDER_DRAG_SNAP_THRESHOLD = Math.round((DEFAULT_SIDER_WIDTH + DESKTOP_COLLAPSED_WIDTH) / 2);
-const SIDER_DRAG_HYSTERESIS = 6;
+// Desktop sider is resizable by dragging; width is clamped to this range.
+const MIN_SIDER_WIDTH = 220;
+const MAX_SIDER_WIDTH = 480;
+// Dragging below this width snaps the sider to collapsed.
+const SIDER_DRAG_SNAP_THRESHOLD = Math.round((MIN_SIDER_WIDTH + DESKTOP_COLLAPSED_WIDTH) / 2);
+const SIDER_WIDTH_STORAGE_KEY = 'layout-sider-width';
 const MOBILE_SIDER_WIDTH_RATIO = 0.67;
 const MOBILE_SIDER_MIN_WIDTH = 260;
 const MOBILE_SIDER_MAX_WIDTH = 420;
@@ -116,6 +120,15 @@ const Layout: React.FC<{
   const workspaceAvailable =
     location.pathname.startsWith('/conversation/') || (TEAM_MODE_ENABLED && location.pathname.startsWith('/team/'));
   const collapsedRef = useRef(collapsed);
+  // Desktop sider width (resizable by dragging the right edge), restored from localStorage.
+  const [desktopSiderWidth, setDesktopSiderWidth] = useState<number>(() => {
+    const stored = Number(typeof window === 'undefined' ? NaN : localStorage.getItem(SIDER_WIDTH_STORAGE_KEY));
+    return stored >= MIN_SIDER_WIDTH && stored <= MAX_SIDER_WIDTH ? stored : DEFAULT_SIDER_WIDTH;
+  });
+  const desktopSiderWidthRef = useRef(desktopSiderWidth);
+  useEffect(() => {
+    desktopSiderWidthRef.current = desktopSiderWidth;
+  }, [desktopSiderWidth]);
   const dragStateRef = useRef<{ active: boolean; startX: number; startWidth: number }>({
     active: false,
     startX: 0,
@@ -229,7 +242,7 @@ const Layout: React.FC<{
         MOBILE_SIDER_MIN_WIDTH,
         Math.min(MOBILE_SIDER_MAX_WIDTH, Math.round(viewportWidth * MOBILE_SIDER_WIDTH_RATIO))
       )
-    : DEFAULT_SIDER_WIDTH;
+    : desktopSiderWidth;
   useEffect(() => {
     collapsedRef.current = collapsed;
   }, [collapsed]);
@@ -241,7 +254,7 @@ const Layout: React.FC<{
       dragStateRef.current = {
         active: true,
         startX: event.clientX,
-        startWidth: collapsedRef.current ? DESKTOP_COLLAPSED_WIDTH : DEFAULT_SIDER_WIDTH,
+        startWidth: collapsedRef.current ? DESKTOP_COLLAPSED_WIDTH : desktopSiderWidthRef.current,
       };
       document.body.style.cursor = 'col-resize';
       document.body.style.userSelect = 'none';
@@ -255,13 +268,13 @@ const Layout: React.FC<{
       if (!dragState.active) return;
 
       const draggedWidth = dragState.startWidth + (event.clientX - dragState.startX);
-      // Add a small hysteresis zone to avoid rapid toggling near the snap threshold.
-      const shouldCollapse = collapsedRef.current
-        ? draggedWidth < SIDER_DRAG_SNAP_THRESHOLD + SIDER_DRAG_HYSTERESIS
-        : draggedWidth <= SIDER_DRAG_SNAP_THRESHOLD - SIDER_DRAG_HYSTERESIS;
-      if (shouldCollapse !== collapsedRef.current) {
-        setCollapsed(shouldCollapse);
+      // Below the snap threshold → collapse; otherwise expand and resize within bounds.
+      if (draggedWidth <= SIDER_DRAG_SNAP_THRESHOLD) {
+        if (!collapsedRef.current) setCollapsed(true);
+        return;
       }
+      if (collapsedRef.current) setCollapsed(false);
+      setDesktopSiderWidth(Math.min(MAX_SIDER_WIDTH, Math.max(MIN_SIDER_WIDTH, draggedWidth)));
     };
 
     const endDrag = () => {
@@ -269,6 +282,11 @@ const Layout: React.FC<{
       dragStateRef.current.active = false;
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
+      try {
+        localStorage.setItem(SIDER_WIDTH_STORAGE_KEY, String(desktopSiderWidthRef.current));
+      } catch {
+        // ignore storage errors
+      }
     };
 
     const handleBlur = () => endDrag();
