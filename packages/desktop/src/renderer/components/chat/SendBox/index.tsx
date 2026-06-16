@@ -1086,6 +1086,38 @@ const SendBox: React.FC<{
     [applyHistoryInput, exitHistoryNavigation, historyNavigationIndex, inputHistory, latestInputRef]
   );
 
+  // Shell-style line continuation: when the caret follows a trailing backslash,
+  // Enter drops the "\" and inserts a newline instead of sending the message.
+  const handleBackslashContinuation = useCallback(
+    (event: React.KeyboardEvent) => {
+      if (event.key !== 'Enter' || event.shiftKey) {
+        return false;
+      }
+      if (!(event.currentTarget instanceof HTMLTextAreaElement)) {
+        return false;
+      }
+      const { selectionStart, selectionEnd, value } = event.currentTarget;
+      // Only a collapsed caret immediately preceded by a backslash triggers continuation.
+      if (selectionStart !== selectionEnd || selectionStart <= 0 || value[selectionStart - 1] !== '\\') {
+        return false;
+      }
+
+      event.preventDefault();
+      const nextValue = `${value.slice(0, selectionStart - 1)}\n${value.slice(selectionEnd)}`;
+      // Removed one char ("\") and added one ("\n") → caret index is unchanged, now after the newline.
+      const nextCaret = selectionStart;
+      setInputRef.current(nextValue);
+      requestAnimationFrame(() => {
+        const textarea = containerRef.current?.querySelector('textarea');
+        if (textarea instanceof HTMLTextAreaElement) {
+          textarea.setSelectionRange(nextCaret, nextCaret);
+        }
+      });
+      return true;
+    },
+    [setInputRef]
+  );
+
   const handleAtFileMenuKeyDown = useCallback(
     (event: React.KeyboardEvent) => {
       if (!isAtFileMenuOpen || !activeAtFileTokenKey) {
@@ -1612,7 +1644,12 @@ const SendBox: React.FC<{
               {...compositionHandlers}
               autoSize={isSingleLine ? false : { minRows: 1, maxRows: 10 }}
               onKeyDown={createKeyDownHandler(sendMessageHandler, (event) => {
-                return handleAtFileMenuKeyDown(event) || handleOverlayKeyDown(event) || handleHistoryKeyDown(event);
+                return (
+                  handleAtFileMenuKeyDown(event) ||
+                  handleOverlayKeyDown(event) ||
+                  handleHistoryKeyDown(event) ||
+                  handleBackslashContinuation(event)
+                );
               })}
             ></Input.TextArea>
           </div>
