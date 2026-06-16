@@ -11,7 +11,7 @@ import { CronJobIndicator } from '@/renderer/pages/cron';
 import { cleanupSiderTooltips, getSiderTooltipProps } from '@/renderer/utils/ui/siderTooltip';
 import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
 import { Checkbox, Dropdown, Menu, Spin, Tooltip } from '@arco-design/web-react';
-import { Copy, CopyOne, DeleteOne, EditOne, Export, MessageOne, MoreOne, Pushpin } from '@icon-park/react';
+import { Copy, CopyOne, DeleteOne, EditOne, Export, Inbox, MessageOne, MoreOne, Pushpin, Undo } from '@icon-park/react';
 import classNames from 'classnames';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
@@ -45,6 +45,10 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
     onExport,
     onCopy,
     onCopyAll,
+    onArchive,
+    onRestore,
+    onPermanentDelete,
+    archived,
     onTogglePin,
     getJobStatus,
   } = props;
@@ -222,6 +226,14 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
                       onCopyAll?.(conversation);
                       return;
                     }
+                    if (key === 'restore') {
+                      onRestore?.(conversation);
+                      return;
+                    }
+                    if (key === 'permanentDelete') {
+                      onPermanentDelete?.(conversation.id);
+                      return;
+                    }
                     if (key === 'pin') {
                       onTogglePin(conversation);
                       return;
@@ -234,53 +246,87 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
                       onExport?.(conversation);
                       return;
                     }
+                    if (key === 'archive') {
+                      onArchive?.(conversation);
+                      return;
+                    }
                     if (key === 'delete') {
                       onDelete(conversation.id);
                     }
                   }}
                 >
-                  {onCopy && (
-                    <Menu.Item key='copy'>
-                      <div className='flex items-center gap-8px'>
-                        <Copy theme='outline' size='14' />
-                        <span>{t('messages.copy')}</span>
-                      </div>
-                    </Menu.Item>
-                  )}
-                  {onCopyAll && (
-                    <Menu.Item key='copyAll'>
-                      <div className='flex items-center gap-8px'>
-                        <CopyOne theme='outline' size='14' />
-                        <span>{t('conversation.history.copyAll')}</span>
-                      </div>
-                    </Menu.Item>
-                  )}
-                  <Menu.Item key='pin'>
-                    <div className='flex items-center gap-8px'>
-                      <Pushpin theme='outline' size='14' />
-                      <span>{isPinned ? t('conversation.history.unpin') : t('conversation.history.pin')}</span>
-                    </div>
-                  </Menu.Item>
-                  <Menu.Item key='rename'>
-                    <div className='flex items-center gap-8px'>
-                      <EditOne theme='outline' size='14' />
-                      <span>{t('conversation.history.rename')}</span>
-                    </div>
-                  </Menu.Item>
-                  {onExport && (
-                    <Menu.Item key='export'>
-                      <div className='flex items-center gap-8px'>
-                        <Export theme='outline' size='14' />
-                        <span>{t('conversation.history.export')}</span>
-                      </div>
-                    </Menu.Item>
-                  )}
-                  <Menu.Item key='delete'>
-                    <div className='flex items-center gap-8px text-[rgb(var(--warning-6))]'>
-                      <DeleteOne theme='outline' size='14' />
-                      <span>{t('conversation.history.deleteTitle')}</span>
-                    </div>
-                  </Menu.Item>
+                  {archived
+                    ? [
+                        onRestore && (
+                          <Menu.Item key='restore'>
+                            <div className='flex items-center gap-8px'>
+                              <Undo theme='outline' size='14' />
+                              <span>{t('conversation.history.restore')}</span>
+                            </div>
+                          </Menu.Item>
+                        ),
+                        onPermanentDelete && (
+                          <Menu.Item key='permanentDelete'>
+                            <div className='flex items-center gap-8px text-[rgb(var(--warning-6))]'>
+                              <DeleteOne theme='outline' size='14' />
+                              <span>{t('conversation.history.permanentDelete')}</span>
+                            </div>
+                          </Menu.Item>
+                        ),
+                      ]
+                    : [
+                        onCopy && (
+                          <Menu.Item key='copy'>
+                            <div className='flex items-center gap-8px'>
+                              <Copy theme='outline' size='14' />
+                              <span>{t('messages.copy')}</span>
+                            </div>
+                          </Menu.Item>
+                        ),
+                        onCopyAll && (
+                          <Menu.Item key='copyAll'>
+                            <div className='flex items-center gap-8px'>
+                              <CopyOne theme='outline' size='14' />
+                              <span>{t('conversation.history.copyAll')}</span>
+                            </div>
+                          </Menu.Item>
+                        ),
+                        <Menu.Item key='pin'>
+                          <div className='flex items-center gap-8px'>
+                            <Pushpin theme='outline' size='14' />
+                            <span>{isPinned ? t('conversation.history.unpin') : t('conversation.history.pin')}</span>
+                          </div>
+                        </Menu.Item>,
+                        <Menu.Item key='rename'>
+                          <div className='flex items-center gap-8px'>
+                            <EditOne theme='outline' size='14' />
+                            <span>{t('conversation.history.rename')}</span>
+                          </div>
+                        </Menu.Item>,
+                        onExport && (
+                          <Menu.Item key='export'>
+                            <div className='flex items-center gap-8px'>
+                              <Export theme='outline' size='14' />
+                              <span>{t('conversation.history.export')}</span>
+                            </div>
+                          </Menu.Item>
+                        ),
+                        onArchive ? (
+                          <Menu.Item key='archive'>
+                            <div className='flex items-center gap-8px'>
+                              <Inbox theme='outline' size='14' />
+                              <span>{t('conversation.history.archive')}</span>
+                            </div>
+                          </Menu.Item>
+                        ) : (
+                          <Menu.Item key='delete'>
+                            <div className='flex items-center gap-8px text-[rgb(var(--warning-6))]'>
+                              <DeleteOne theme='outline' size='14' />
+                              <span>{t('conversation.history.deleteTitle')}</span>
+                            </div>
+                          </Menu.Item>
+                        ),
+                      ]}
                 </Menu>
               }
               trigger='click'

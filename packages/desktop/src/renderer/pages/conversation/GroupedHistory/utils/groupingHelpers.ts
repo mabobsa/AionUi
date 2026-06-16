@@ -99,12 +99,20 @@ const isTeamConversation = (conversation: TChatConversation): boolean => {
   return Boolean(extra?.team_id || extra?.teamId);
 };
 
+/** Check whether a conversation has been archived (hidden from normal lists, shown in the Archived section). */
+export const isConversationArchived = (conversation: TChatConversation): boolean => {
+  const extra = conversation.extra as { archived?: boolean } | undefined;
+  return Boolean(extra?.archived);
+};
+
 export const buildGroupedHistory = (
   conversations: TChatConversation[],
   t: (key: string) => string
 ): GroupedHistoryResult => {
-  // Filter out team-owned conversations; they are only visible via the Teams panel
-  const visibleConversations = conversations.filter((conv) => !isTeamConversation(conv));
+  // Filter out team-owned conversations (Teams panel only) and archived ones (Archived section only).
+  const visibleConversations = conversations.filter(
+    (conv) => !isTeamConversation(conv) && !isConversationArchived(conv)
+  );
 
   const pinnedConversations = visibleConversations
     .filter((conversation) => isConversationPinned(conversation))

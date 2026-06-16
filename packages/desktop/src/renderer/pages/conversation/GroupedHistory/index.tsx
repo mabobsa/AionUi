@@ -28,6 +28,8 @@ import { useConversations } from './hooks/useConversations';
 import { useDragAndDrop } from './hooks/useDragAndDrop';
 import { useExport } from './hooks/useExport';
 import { useProjectGitBranches } from './hooks/useProjectGitBranches';
+import { isConversationArchived } from './utils/groupingHelpers';
+import { getActivityTime } from '@/renderer/utils/chat/timeline';
 import type { ConversationRowProps, WorkspaceGroupedHistoryProps } from './types';
 
 /** Last two path segments (parent/current) of a workspace path, e.g. "Sudda_Working/GameClient". */
@@ -151,6 +153,9 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
     handleTogglePin,
     handleCopyLastOutput,
     handleCopyAll,
+    handleArchive,
+    handleRestore,
+    handleClearArchived,
     handleMenuVisibleChange,
     handleOpenMenu,
     handleRemoveProject,
@@ -215,6 +220,8 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
       onDelete: handleDeleteClick,
       onCopy: handleCopyLastOutput,
       onCopyAll: handleCopyAll,
+      // Destructive action in the normal menu is "archive" (permanent delete lives in the Archived section).
+      onArchive: handleArchive,
       // Export UI entry intentionally disabled (kanban #14): omit onExport so
       // ConversationRow's `{onExport && ...}` guard hides the menu item. The
       // underlying handleExportConversation logic from useExport is kept for a
@@ -239,6 +246,7 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
       handleDeleteClick,
       handleCopyLastOutput,
       handleCopyAll,
+      handleArchive,
       handleTogglePin,
       getJobStatus,
     ]
@@ -289,7 +297,31 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
     [timelineSections]
   );
 
-  if (timelineSections.length === 0 && pinnedConversations.length === 0) {
+  // Archived section: conversations the user moved out of the normal lists, newest first.
+  const archivedConversations = useMemo(
+    () =>
+      conversations
+        .filter((conversation) => isConversationArchived(conversation))
+        .toSorted((a, b) => getActivityTime(b) - getActivityTime(a)),
+    [conversations]
+  );
+
+  const renderArchivedConversation = useCallback(
+    (conversation: TChatConversation) => (
+      <ConversationRow
+        key={conversation.id}
+        {...getConversationRowProps(conversation)}
+        dimIcon
+        archived
+        onArchive={undefined}
+        onRestore={handleRestore}
+        onPermanentDelete={handleDeleteClick}
+      />
+    ),
+    [getConversationRowProps, handleRestore, handleDeleteClick]
+  );
+
+  if (timelineSections.length === 0 && pinnedConversations.length === 0 && archivedConversations.length === 0) {
     return (
       <>
         {afterPinnedContent}
@@ -675,6 +707,36 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
                   )}
                 </div>
               ))}
+          </div>
+        )}
+
+        {/* L1: Archived section — restore or permanently delete */}
+        {archivedConversations.length > 0 && (
+          <div className='min-w-0'>
+            {!collapsed && (
+              <SectionLabel
+                sectionKey='archived'
+                label={t('conversation.history.archived')}
+                trailing={
+                  <span
+                    role='button'
+                    tabIndex={0}
+                    className='text-12px text-t-secondary hover:text-[rgb(var(--warning-6))] cursor-pointer px-6px transition-colors'
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleClearArchived(archivedConversations);
+                    }}
+                  >
+                    {t('conversation.history.clearArchived')}
+                  </span>
+                }
+              />
+            )}
+            {!collapsedSections.has('archived') && (
+              <div className='flex flex-col min-w-0'>
+                {archivedConversations.map((conversation) => renderArchivedConversation(conversation))}
+              </div>
+            )}
           </div>
         )}
       </div>

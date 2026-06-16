@@ -60,6 +60,11 @@ export type ConversationRowProps = {
   onExport?: (conversation: TChatConversation) => void;
   onCopy?: (conversation: TChatConversation) => void;
   onCopyAll?: (conversation: TChatConversation) => void;
+  onArchive?: (conversation: TChatConversation) => void;
+  onRestore?: (conversation: TChatConversation) => void;
+  onPermanentDelete?: (conversation_id: string) => void;
+  /** When true, render the row's menu for the Archived section (restore / permanent delete). */
+  archived?: boolean;
   onTogglePin: (conversation: TChatConversation) => void;
   getJobStatus: (conversation_id: string) => 'none' | 'active' | 'paused' | 'error' | 'unread';
   /** When true, the agent icon is dimmed by default and only shows full color on hover. Used inside project folders to reduce visual weight. */
