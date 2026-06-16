@@ -24,6 +24,7 @@ import type { FileOrFolderItem } from '@/renderer/utils/file/fileTypes';
 import { filterWorkspaceMentionItems } from '@/renderer/utils/file/workspaceMentions';
 import { copyText } from '@/renderer/utils/ui/clipboard';
 import { blurActiveElement, shouldBlockMobileInputFocus } from '@/renderer/utils/ui/focus';
+import { applyBackslashLineContinuation } from '@/renderer/utils/ui/lineContinuation';
 import { Button, Input, Message, Tag } from '@arco-design/web-react';
 import { ArrowUp, CloseSmall, Plus, Quote } from '@icon-park/react';
 import type { SlashCommandItem } from '@/common/chat/slash/types';
@@ -1090,29 +1091,13 @@ const SendBox: React.FC<{
   // Enter drops the "\" and inserts a newline instead of sending the message.
   const handleBackslashContinuation = useCallback(
     (event: React.KeyboardEvent) => {
-      if (event.key !== 'Enter' || event.shiftKey) {
+      if (event.key !== 'Enter' || event.shiftKey || !(event.currentTarget instanceof HTMLTextAreaElement)) {
         return false;
       }
-      if (!(event.currentTarget instanceof HTMLTextAreaElement)) {
+      if (!applyBackslashLineContinuation(event.currentTarget, setInputRef.current)) {
         return false;
       }
-      const { selectionStart, selectionEnd, value } = event.currentTarget;
-      // Only a collapsed caret immediately preceded by a backslash triggers continuation.
-      if (selectionStart !== selectionEnd || selectionStart <= 0 || value[selectionStart - 1] !== '\\') {
-        return false;
-      }
-
       event.preventDefault();
-      const nextValue = `${value.slice(0, selectionStart - 1)}\n${value.slice(selectionEnd)}`;
-      // Removed one char ("\") and added one ("\n") → caret index is unchanged, now after the newline.
-      const nextCaret = selectionStart;
-      setInputRef.current(nextValue);
-      requestAnimationFrame(() => {
-        const textarea = containerRef.current?.querySelector('textarea');
-        if (textarea instanceof HTMLTextAreaElement) {
-          textarea.setSelectionRange(nextCaret, nextCaret);
-        }
-      });
       return true;
     },
     [setInputRef]

@@ -28,6 +28,7 @@ import { useGuidSend } from './hooks/useGuidSend';
 import { useTypewriterPlaceholder } from './hooks/useTypewriterPlaceholder';
 import { ensureBackendMcpCatalog } from '@/renderer/hooks/mcp/catalog';
 import { resolveAgentLogo } from '@/renderer/utils/model/agentLogo';
+import { applyBackslashLineContinuation } from '@/renderer/utils/ui/lineContinuation';
 import SpeechInputButton from '@/renderer/components/chat/SpeechInputButton';
 import { appendSpeechTranscript } from '@/renderer/hooks/system/useSpeechInput';
 import { useLiveTranscriptInsertion } from '@/renderer/hooks/system/useLiveTranscriptInsertion';
@@ -280,12 +281,20 @@ const GuidPage: React.FC = () => {
         return;
       }
       if (event.key === 'Enter' && !event.shiftKey) {
+        // Shell-style line continuation: "\" + Enter inserts a newline instead of sending.
+        if (
+          event.currentTarget instanceof HTMLTextAreaElement &&
+          applyBackslashLineContinuation(event.currentTarget, guidInput.setInput)
+        ) {
+          event.preventDefault();
+          return;
+        }
         event.preventDefault();
         if (!guidInput.input.trim()) return;
         send.sendMessageHandler();
       }
     },
-    [mention, guidInput.input, send.sendMessageHandler]
+    [mention, guidInput.input, guidInput.setInput, send.sendMessageHandler]
   );
 
   const handleSelectAgentFromPillBar = useCallback(
