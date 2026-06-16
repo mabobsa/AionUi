@@ -23,6 +23,9 @@ const parseGitHead = (raw: string | null): string | null => {
   return null;
 };
 
+/** How often to re-read `.git/HEAD` so external branch switches get reflected. */
+const GIT_BRANCH_POLL_MS = 5000;
+
 /**
  * Resolve the Git branch for each project workspace by reading its
  * `.git/HEAD` file directly (no git binary required). Returns a map of
@@ -36,22 +39,33 @@ export const useProjectGitBranches = (workspaces: string[]): Record<string, stri
   useEffect(() => {
     let cancelled = false;
 
-    void Promise.all(
-      workspaces.map(async (workspace) => {
-        try {
-          const head = await ipcBridge.fs.readFile.invoke({ path: `${workspace}/.git/HEAD`, workspace });
-          return [workspace, parseGitHead(head)] as const;
-        } catch {
-          return [workspace, null] as const;
-        }
-      })
-    ).then((entries) => {
-      if (cancelled) return;
-      setBranches(Object.fromEntries(entries));
-    });
+    const refresh = async (): Promise<void> => {
+      const entries = await Promise.all(
+        workspaces.map(async (workspace) => {
+          try {
+            const head = await ipcBridge.fs.readFile.invoke({ path: `${workspace}/.git/HEAD`, workspace });
+            return [workspace, parseGitHead(head)] as const;
+          } catch {
+            return [workspace, null] as const;
+          }
+        })
+      );
+      if (!cancelled) setBranches(Object.fromEntries(entries));
+    };
+
+    void refresh();
+    // Poll so branch switches made outside the app (e.g. in a terminal) get reflected.
+    const intervalId = setInterval(() => void refresh(), GIT_BRANCH_POLL_MS);
+    // Refresh immediately when the window regains focus for fast feedback.
+    const onFocus = (): void => {
+      void refresh();
+    };
+    window.addEventListener('focus', onFocus);
 
     return () => {
       cancelled = true;
+      clearInterval(intervalId);
+      window.removeEventListener('focus', onFocus);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspacesKey]);
