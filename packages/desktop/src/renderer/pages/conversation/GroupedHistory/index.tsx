@@ -713,7 +713,7 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
                   <span
                     role='button'
                     tabIndex={0}
-                    className='text-12px text-t-secondary hover:text-[rgb(var(--warning-6))] cursor-pointer px-6px transition-colors'
+                    className='text-12px text-t-secondary hover:text-warning cursor-pointer px-6px transition-colors'
                     onClick={(e) => {
                       e.stopPropagation();
                       handleClearArchived(archivedConversations);
