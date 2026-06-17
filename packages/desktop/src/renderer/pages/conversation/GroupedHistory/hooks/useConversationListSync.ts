@@ -103,6 +103,12 @@ type ConversationListSyncSnapshot = {
 
 const listeners = new Set<() => void>();
 
+// The active (open) conversation normally suppresses its completion dot, but only
+// while the user is actually looking at it — i.e. the window has focus. When the
+// window is in the background, even the open conversation should surface a dot so
+// the taskbar badge fires.
+const isWindowFocused = (): boolean => typeof document !== 'undefined' && document.hasFocus();
+
 let isStoreInitialized = false;
 let conversationsState: TChatConversation[] = [];
 let generatingConversationIdsState = new Set<string>();
@@ -247,6 +253,16 @@ const initializeConversationListSyncStore = () => {
   isStoreInitialized = true;
   refreshConversations();
 
+  // When the user returns to the window, the open conversation is being viewed
+  // again — clear its completion dot (which may have been set while backgrounded).
+  if (typeof window !== 'undefined') {
+    window.addEventListener('focus', () => {
+      if (activeConversationIdState) {
+        clearCompletionUnreadState(activeConversationIdState);
+      }
+    });
+  }
+
   addEventListener('chat.history.refresh', refreshConversations);
   ipcBridge.conversation.listChanged.on((event) => {
     if (event.action === 'deleted') {
@@ -268,7 +284,7 @@ const initializeConversationListSyncStore = () => {
 
     if (isTerminalStreamMessage(message)) {
       const wasGenerating = generatingConversationIdsState.has(conversation_id);
-      if (wasGenerating && activeConversationIdState !== conversation_id) {
+      if (wasGenerating && (activeConversationIdState !== conversation_id || !isWindowFocused())) {
         markCompletionUnread(conversation_id);
       }
       clearGenerating(conversation_id);
@@ -291,7 +307,7 @@ const initializeConversationListSyncStore = () => {
     }
   });
   ipcBridge.conversation.turnCompleted.on((event) => {
-    if (isTerminalTurnState(event.state) && activeConversationIdState !== event.session_id) {
+    if (isTerminalTurnState(event.state) && (activeConversationIdState !== event.session_id || !isWindowFocused())) {
       markCompletionUnread(event.session_id);
     }
     markCompleted(event.session_id);
