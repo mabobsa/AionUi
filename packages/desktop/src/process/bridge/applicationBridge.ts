@@ -5,7 +5,7 @@
  */
 
 import type { BrowserWindow } from 'electron';
-import { app } from 'electron';
+import { app, nativeImage } from 'electron';
 import { ipcBridge } from '@/common';
 import { ProcessConfig } from '@process/utils/initStorage';
 import { getZoomFactor, setZoomFactor } from '@process/utils/zoom';
@@ -91,8 +91,70 @@ export function setStartOnBootEnabled(enabled: boolean): IStartOnBootStatus {
   return getStartOnBootStatus();
 }
 
+// --- Taskbar completion badge + attention flashing ---------------------------
+// Count of conversations with an unread "completed" (blue dot) state, mirrored
+// onto the taskbar icon: a numeric overlay (max "9+") plus continuous flashing
+// until the user focuses the window.
+let flashTimer: ReturnType<typeof setInterval> | null = null;
+let flashPhase = false;
+let lastBadgeCount = 0;
+
+const stopFlashing = (): void => {
+  if (flashTimer) {
+    clearInterval(flashTimer);
+    flashTimer = null;
+  }
+  flashPhase = false;
+  if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+    mainWindowRef.flashFrame(false);
+  }
+};
+
+const startFlashing = (): void => {
+  if (flashTimer) return;
+  // Toggle the flash state on an interval so the taskbar keeps blinking until
+  // the window is focused (a single flashFrame(true) can stop after a few cycles).
+  flashTimer = setInterval(() => {
+    const win = mainWindowRef;
+    if (!win || win.isDestroyed() || win.isFocused() || lastBadgeCount <= 0) {
+      stopFlashing();
+      return;
+    }
+    flashPhase = !flashPhase;
+    win.flashFrame(flashPhase);
+  }, 700);
+};
+
+const applyTaskbarBadge = (count: number, iconDataUrl?: string): void => {
+  lastBadgeCount = count;
+  // macOS / Linux (Unity): numeric dock/taskbar badge for free.
+  app.badgeCount = count;
+
+  const win = mainWindowRef;
+  if (!win || win.isDestroyed()) return;
+
+  if (process.platform === 'win32') {
+    // The numeric overlay is rasterized in the renderer (canvas → PNG dataURL),
+    // since nativeImage cannot reliably render SVG. Empty/absent → clear overlay.
+    let overlay: Electron.NativeImage | null = null;
+    if (count > 0 && iconDataUrl) {
+      const image = nativeImage.createFromDataURL(iconDataUrl);
+      overlay = image.isEmpty() ? null : image;
+    }
+    win.setOverlayIcon(overlay, count > 0 ? `${count} completed` : '');
+  }
+
+  if (count > 0 && !win.isFocused()) {
+    startFlashing();
+  } else {
+    stopFlashing();
+  }
+};
+
 export function setApplicationMainWindow(win: BrowserWindow): void {
   mainWindowRef = win;
+  // Stop flashing the moment the user looks at the window.
+  win.on('focus', () => stopFlashing());
 }
 
 export function initApplicationBridge(): void {
@@ -223,5 +285,9 @@ export function initApplicationBridge(): void {
     } catch (e) {
       return { success: false, msg: e.message || e.toString() };
     }
+  });
+
+  ipcBridge.application.setTaskbarBadge.provider(async ({ count, iconDataUrl }) => {
+    applyTaskbarBadge(Math.max(0, Math.floor(count)), iconDataUrl);
   });
 }

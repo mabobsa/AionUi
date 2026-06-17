@@ -7,6 +7,7 @@
 import { ipcBridge } from '@/common';
 import { TEAM_MODE_ENABLED } from '@/common/config/constants';
 import PwaPullToRefresh from '@/renderer/components/layout/PwaPullToRefresh';
+import TaskbarBadgeSync from '@/renderer/components/layout/TaskbarBadgeSync';
 import Titlebar from '@/renderer/components/layout/Titlebar';
 import { Layout as ArcoLayout } from '@arco-design/web-react';
 import classNames from 'classnames';
@@ -318,6 +319,7 @@ const Layout: React.FC<{
   return (
     <LayoutContext.Provider value={{ isMobile, siderCollapsed: collapsed, setSiderCollapsed: setCollapsed }}>
       <NavigationHistoryProvider>
+        <TaskbarBadgeSync />
         <div className='app-shell flex flex-col size-full min-h-0'>
           <Titlebar workspaceAvailable={workspaceAvailable} />
           {/* 移动端左侧边栏蒙板 / Mobile left sider backdrop */}

@@ -337,6 +337,7 @@ export const useConversationListSync = () => {
     conversations,
     isConversationGenerating,
     hasCompletionUnread,
+    completionUnreadCount: completionUnreadConversationIds.size,
     clearCompletionUnread,
     setActiveConversation,
   };

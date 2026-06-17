@@ -458,6 +458,10 @@ export const application = {
   setGpuOverride: bridge.buildProvider<IBridgeResponse<IGpuStatus>, { override: IGpuOverride | null }>(
     'app.set-gpu-override'
   ),
+  // Mirror the count of conversations with an unread "completed" state onto the
+  // taskbar icon: numeric overlay (rendered to a PNG dataURL by the renderer)
+  // plus continuous flashing until the window is focused.
+  setTaskbarBadge: bridge.buildProvider<void, { count: number; iconDataUrl?: string }>('app.set-taskbar-badge'),
   writeRendererLog: bridge.buildProvider<void, IRendererLogEntry>('app.write-renderer-log'),
   logStream: bridge.buildEmitter<{ level: 'log' | 'warn' | 'error'; tag: string; message: string; data?: unknown }>(
     'app.log-stream'
