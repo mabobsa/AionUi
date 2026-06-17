@@ -6,6 +6,7 @@ import {
   buildAssistantSortUpdates,
   reorderAssistantList,
 } from '@/renderer/pages/settings/AssistantSettings/assistantUtils';
+import { addEventListener } from '@/renderer/utils/emitter';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -63,6 +64,11 @@ export const useAssistantList = () => {
 
   useEffect(() => {
     void loadAssistants();
+  }, [loadAssistants]);
+
+  // Reload when another part of the app changes the catalog (e.g. backup restore).
+  useEffect(() => {
+    return addEventListener('assistant.list.refresh', () => void loadAssistants());
   }, [loadAssistants]);
 
   useEffect(() => {

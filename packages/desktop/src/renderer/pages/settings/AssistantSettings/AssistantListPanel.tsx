@@ -11,6 +11,7 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-
 import { CSS } from '@dnd-kit/utilities';
 import { Button, Switch, Tag } from '@arco-design/web-react';
 import { Drag, Plus } from '@icon-park/react';
+import AssistantBackupActions from './AssistantBackupActions';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -312,7 +313,7 @@ const AssistantListPanel: React.FC<AssistantListPanelProps> = ({
                 })}
               </p>
             </div>
-            <div className={`${isMobile ? 'w-full' : 'flex-shrink-0'}`}>
+            <div className={`flex flex-col items-stretch gap-8px ${isMobile ? 'w-full' : 'flex-shrink-0'}`}>
               <Button
                 type='primary'
                 size='small'
@@ -323,6 +324,7 @@ const AssistantListPanel: React.FC<AssistantListPanelProps> = ({
               >
                 {t('settings.createAssistant', { defaultValue: 'Create Assistant' })}
               </Button>
+              <AssistantBackupActions compact={isMobile} />
             </div>
           </div>
         </div>
