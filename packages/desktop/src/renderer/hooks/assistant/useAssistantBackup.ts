@@ -5,6 +5,7 @@
  */
 
 import { ipcBridge } from '@/common';
+import { getBaseUrl } from '@/common/adapter/httpBridge';
 import { emitter } from '@/renderer/utils/emitter';
 import i18nConfig from '@/common/config/i18n-config.json';
 import type { Assistant, CreateAssistantRequest } from '@/common/types/agent/assistantTypes';
@@ -30,17 +31,49 @@ type AssistantBackupFile = {
   assistants: AssistantBackupEntry[];
 };
 
+const blobToDataUrl = (blob: Blob): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+
+/**
+ * Make the avatar self-contained in the backup. Backend-served avatars are a
+ * `/api/assistants/<id>/avatar` URL that breaks once the source assistant is
+ * gone (restore uses a fresh id). Fetch the image and inline it as a `data:`
+ * URL — the backend stores that verbatim and the UI renders it directly, so it
+ * survives restore and restart. Emoji / data / unknown values are kept as-is.
+ */
+const embedAvatar = async (avatar?: string): Promise<string | undefined> => {
+  if (!avatar) return undefined;
+  if (avatar.startsWith('data:')) return avatar;
+  const isRemote =
+    avatar.startsWith('/api/assistants/') || avatar.startsWith('http://') || avatar.startsWith('https://');
+  if (!isRemote) return avatar;
+  try {
+    const url = avatar.startsWith('/') ? `${getBaseUrl()}${avatar}` : avatar;
+    const res = await fetch(url);
+    if (!res.ok) return avatar;
+    return await blobToDataUrl(await res.blob());
+  } catch {
+    return avatar;
+  }
+};
+
 /** Build the import-compatible request from a (user-owned) assistant list item + its defaults. */
 const toCreateRequest = (
   assistant: Assistant,
-  defaults: CreateAssistantRequest['defaults']
+  defaults: CreateAssistantRequest['defaults'],
+  avatar: string | undefined
 ): CreateAssistantRequest => ({
   id: assistant.id,
   name: assistant.name,
   name_i18n: assistant.name_i18n,
   description: assistant.description,
   description_i18n: assistant.description_i18n,
-  avatar: assistant.avatar,
+  avatar,
   preset_agent_type: assistant.preset_agent_type,
   enabled_skills: assistant.enabled_skills,
   custom_skill_names: assistant.custom_skill_names,
@@ -118,7 +151,8 @@ export const useAssistantBackup = () => {
         custom.map(async (assistant): Promise<AssistantBackupEntry> => {
           const detail = await ipcBridge.assistants.get.invoke({ id: assistant.id });
           const rules_i18n = await collectRules(assistant.id);
-          return { request: toCreateRequest(assistant, detail?.defaults), rules_i18n };
+          const avatar = await embedAvatar(assistant.avatar);
+          return { request: toCreateRequest(assistant, detail?.defaults, avatar), rules_i18n };
         })
       );
 
