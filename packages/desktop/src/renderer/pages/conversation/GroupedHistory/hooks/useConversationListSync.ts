@@ -7,7 +7,7 @@
 import { ipcBridge } from '@/common';
 import type { TChatConversation } from '@/common/config/storage';
 import { addEventListener } from '@/renderer/utils/emitter';
-import { useCallback, useEffect, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
 
 /**
  * Whitelist of message types that indicate content generation is in progress.
@@ -349,11 +349,23 @@ export const useConversationListSync = () => {
     [completionUnreadConversationIds]
   );
 
+  // Count only completion-unread conversations that are actually visible in the
+  // history list. Team / health-check conversations live outside this list (no
+  // blue dot), so excluding them keeps the taskbar badge in sync with the dots.
+  const completionUnreadCount = useMemo(
+    () =>
+      conversations.reduce(
+        (total, conversation) => total + (completionUnreadConversationIds.has(conversation.id) ? 1 : 0),
+        0
+      ),
+    [conversations, completionUnreadConversationIds]
+  );
+
   return {
     conversations,
     isConversationGenerating,
     hasCompletionUnread,
-    completionUnreadCount: completionUnreadConversationIds.size,
+    completionUnreadCount,
     clearCompletionUnread,
     setActiveConversation,
   };
