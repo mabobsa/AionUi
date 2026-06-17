@@ -30,16 +30,8 @@ import { useExport } from './hooks/useExport';
 import { useProjectGitBranches } from './hooks/useProjectGitBranches';
 import { isConversationArchived } from './utils/groupingHelpers';
 import { getActivityTime } from '@/renderer/utils/chat/timeline';
+import { getParentAndCurrentDir } from '@/renderer/utils/workspace/workspace';
 import type { ConversationRowProps, WorkspaceGroupedHistoryProps } from './types';
-
-/** Last two path segments (parent/current) of a workspace path, e.g. "Sudda_Working/GameClient". */
-const parentAndCurrentDir = (workspacePath: string): string => {
-  const segments = workspacePath
-    .replace(/[\\/]+$/, '')
-    .split(/[\\/]+/)
-    .filter(Boolean);
-  return segments.slice(-2).join('/');
-};
 
 const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
   onSessionClick,
@@ -622,7 +614,7 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
                       header={
                         <span className='flex flex-col flex-1 min-w-0 leading-tight'>
                           <span className='text-14px font-[500] truncate text-t-primary'>
-                            {parentAndCurrentDir(group.workspace) || group.displayName}
+                            {getParentAndCurrentDir(group.workspace) || group.displayName}
                           </span>
                           {projectGitBranches[group.workspace] && (
                             <span className='text-11px font-[400] truncate text-t-secondary'>
