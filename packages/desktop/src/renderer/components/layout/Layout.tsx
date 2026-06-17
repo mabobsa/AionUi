@@ -21,6 +21,7 @@ import { useNotificationClick } from '@renderer/hooks/system/useNotificationClic
 import { useDirectorySelection } from '@renderer/hooks/file/useDirectorySelection';
 import { cleanupSiderTooltips } from '@renderer/utils/ui/siderTooltip';
 import { useConversationShortcuts } from '@renderer/hooks/ui/useConversationShortcuts';
+import { useSiderResize } from '@renderer/hooks/ui/useSiderResize';
 import { isElectronDesktop } from '@renderer/utils/platform';
 import '@renderer/styles/layout.css';
 
@@ -74,18 +75,6 @@ const useDebug = () => {
 };
 
 const UpdateModal = React.lazy(() => import('@/renderer/components/settings/UpdateModal'));
-
-const DEFAULT_SIDER_WIDTH = 260;
-const DESKTOP_COLLAPSED_WIDTH = 0;
-// Desktop sider is resizable by dragging; width is clamped to this range.
-const MIN_SIDER_WIDTH = 220;
-const MAX_SIDER_WIDTH = 480;
-// Dragging below this width snaps the sider to collapsed.
-const SIDER_DRAG_SNAP_THRESHOLD = Math.round((MIN_SIDER_WIDTH + DESKTOP_COLLAPSED_WIDTH) / 2);
-const SIDER_WIDTH_STORAGE_KEY = 'layout-sider-width';
-const MOBILE_SIDER_WIDTH_RATIO = 0.67;
-const MOBILE_SIDER_MIN_WIDTH = 260;
-const MOBILE_SIDER_MAX_WIDTH = 420;
 
 const detectMobileViewportOrTouch = (): boolean => {
   if (typeof window === 'undefined') return false;
@@ -143,20 +132,7 @@ const Layout: React.FC<{
   const workspaceAvailable =
     location.pathname.startsWith('/conversation/') || (TEAM_MODE_ENABLED && location.pathname.startsWith('/team/'));
   const collapsedRef = useRef(collapsed);
-  // Desktop sider width (resizable by dragging the right edge), restored from localStorage.
-  const [desktopSiderWidth, setDesktopSiderWidth] = useState<number>(() => {
-    const stored = Number(typeof window === 'undefined' ? NaN : localStorage.getItem(SIDER_WIDTH_STORAGE_KEY));
-    return stored >= MIN_SIDER_WIDTH && stored <= MAX_SIDER_WIDTH ? stored : DEFAULT_SIDER_WIDTH;
-  });
-  const desktopSiderWidthRef = useRef(desktopSiderWidth);
-  useEffect(() => {
-    desktopSiderWidthRef.current = desktopSiderWidth;
-  }, [desktopSiderWidth]);
-  const dragStateRef = useRef<{ active: boolean; startX: number; startWidth: number }>({
-    active: false,
-    startX: 0,
-    startWidth: DEFAULT_SIDER_WIDTH,
-  });
+  const { siderWidth, beginSiderResizeDrag } = useSiderResize({ isMobile, viewportWidth, collapsed, setCollapsed });
 
   // 检测移动端并响应窗口大小变化
   useEffect(() => {
@@ -260,69 +236,9 @@ const Layout: React.FC<{
     };
   }, [navigate]);
 
-  const siderWidth = isMobile
-    ? Math.max(
-        MOBILE_SIDER_MIN_WIDTH,
-        Math.min(MOBILE_SIDER_MAX_WIDTH, Math.round(viewportWidth * MOBILE_SIDER_WIDTH_RATIO))
-      )
-    : desktopSiderWidth;
   useEffect(() => {
     collapsedRef.current = collapsed;
   }, [collapsed]);
-
-  const beginSiderResizeDrag = useCallback(
-    (event: React.MouseEvent<HTMLDivElement>) => {
-      if (isMobile) return;
-      event.preventDefault();
-      dragStateRef.current = {
-        active: true,
-        startX: event.clientX,
-        startWidth: collapsedRef.current ? DESKTOP_COLLAPSED_WIDTH : desktopSiderWidthRef.current,
-      };
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
-    },
-    [isMobile]
-  );
-
-  useEffect(() => {
-    const handleMouseMove = (event: MouseEvent) => {
-      const dragState = dragStateRef.current;
-      if (!dragState.active) return;
-
-      const draggedWidth = dragState.startWidth + (event.clientX - dragState.startX);
-      // Below the snap threshold → collapse; otherwise expand and resize within bounds.
-      if (draggedWidth <= SIDER_DRAG_SNAP_THRESHOLD) {
-        if (!collapsedRef.current) setCollapsed(true);
-        return;
-      }
-      if (collapsedRef.current) setCollapsed(false);
-      setDesktopSiderWidth(Math.min(MAX_SIDER_WIDTH, Math.max(MIN_SIDER_WIDTH, draggedWidth)));
-    };
-
-    const endDrag = () => {
-      if (!dragStateRef.current.active) return;
-      dragStateRef.current.active = false;
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-      try {
-        localStorage.setItem(SIDER_WIDTH_STORAGE_KEY, String(desktopSiderWidthRef.current));
-      } catch {
-        // ignore storage errors
-      }
-    };
-
-    const handleBlur = () => endDrag();
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', endDrag);
-    window.addEventListener('blur', handleBlur);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', endDrag);
-      window.removeEventListener('blur', handleBlur);
-      endDrag();
-    };
-  }, []);
 
   const siderStyle = isMobile
     ? {
