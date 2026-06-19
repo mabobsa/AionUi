@@ -212,8 +212,10 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
       onDelete: handleDeleteClick,
       onCopy: handleCopyLastOutput,
       onCopyAll: handleCopyAll,
-      // Destructive action in the normal menu is "archive" (permanent delete lives in the Archived section).
+      // Normal menu offers both "archive" and a final "permanent delete" (the
+      // same delete action used in the Archived section).
       onArchive: handleArchive,
+      onPermanentDelete: handleDeleteClick,
       // Export UI entry intentionally disabled (kanban #14): omit onExport so
       // ConversationRow's `{onExport && ...}` guard hides the menu item. The
       // underlying handleExportConversation logic from useExport is kept for a

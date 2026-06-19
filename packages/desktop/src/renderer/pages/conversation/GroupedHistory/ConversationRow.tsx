@@ -19,6 +19,7 @@ import { useTranslation } from 'react-i18next';
 import type { ConversationRowProps } from './types';
 import { getBackendKeyFromConversation } from './utils/exportHelpers';
 import { isConversationPinned } from './utils/groupingHelpers';
+import styles from './ConversationRow.module.css';
 
 const ConversationRow: React.FC<ConversationRowProps> = (props) => {
   const {
@@ -217,6 +218,7 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
             <Dropdown
               droplist={
                 <Menu
+                  className={styles.rowMenu}
                   onClickMenuItem={(key) => {
                     if (key === 'copy') {
                       onCopy?.(conversation);
@@ -323,6 +325,14 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
                             <div className='flex items-center gap-8px text-[rgb(var(--warning-6))]'>
                               <DeleteOne theme='outline' size='14' />
                               <span>{t('conversation.history.deleteTitle')}</span>
+                            </div>
+                          </Menu.Item>
+                        ),
+                        onPermanentDelete && (
+                          <Menu.Item key='permanentDelete'>
+                            <div className='flex items-center gap-8px'>
+                              <DeleteOne theme='outline' size='14' />
+                              <span>{t('conversation.history.permanentDelete')}</span>
                             </div>
                           </Menu.Item>
                         ),

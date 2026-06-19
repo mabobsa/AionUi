@@ -1,0 +1,17 @@
+/* Conversation row context menu (sidebar).
+ *
+ * Fork-owned CSS Module so the override lives with its component instead of in
+ * the shared arco-override.css (keeps that file identical to upstream and avoids
+ * a merge-conflict point — see AGENTS.md: component-scoped Arco overrides belong
+ * in a CSS Module).
+ *
+ * The class lands on the dropdown menu root (`.arco-dropdown-menu`), which Arco
+ * caps at `max-height: 200px` (~5 items) with `overflow: auto`. Once the menu
+ * grew past 5 items (adding "permanent delete") the 6th was clipped and needed a
+ * wheel scroll. Drop the cap so the popup sizes to its content; Arco still flips
+ * it up near the viewport bottom. Scoped to this menu, so the model picker's
+ * intentional scroll is unaffected. */
+.rowMenu {
+  max-height: none !important;
+  overflow: visible !important;
+}
