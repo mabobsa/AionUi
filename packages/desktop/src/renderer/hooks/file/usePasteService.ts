@@ -2,6 +2,7 @@ import type { FileMetadata } from '@/renderer/services/FileService';
 import type { UploadSource } from '@/renderer/hooks/file/useUploadState';
 import type { ImageCounter } from '@/renderer/services/PasteService';
 import { PasteService } from '@/renderer/services/PasteService';
+import { ipcBridge } from '@/common';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Message } from '@arco-design/web-react';
@@ -78,6 +79,49 @@ export const usePasteService = ({
   const handleFocus = useCallback(() => {
     PasteService.setLastFocusedComponent(componentId);
   }, [componentId]);
+
+  // Ctrl+Shift+V in a message input: paste the OS clipboard file path(s) as text.
+  // The browser paste event exposes the File object but not its OS path, and
+  // Ctrl+Shift+V usually fires no file paste at all — so read the paths from the
+  // main process (Windows file-drop list) and insert them as text. Desktop only.
+  const onTextPasteRef = useRef(onTextPaste);
+  onTextPasteRef.current = onTextPaste;
+  useEffect(() => {
+    if (source !== 'sendbox') return undefined;
+    const onKeyDown = (event: KeyboardEvent) => {
+      const isPasteAsPath =
+        (event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === 'v' || event.key === 'V');
+      if (!isPasteAsPath) return;
+      // Only the currently focused paste target acts (every input registers this).
+      if (PasteService.getLastFocusedComponent() !== componentId) return;
+      const insertText = onTextPasteRef.current;
+      if (!insertText) return;
+      // OS clipboard file paths are unavailable in the browser (WebUI).
+      if (typeof window === 'undefined' || !window.electronAPI) return;
+      event.preventDefault();
+      void (async () => {
+        try {
+          const paths = await ipcBridge.application.getClipboardFilePaths.invoke();
+          if (!paths || paths.length === 0) return;
+          const text = paths.join('\n');
+          // Insert via execCommand so the paste is a single native undo step —
+          // Ctrl+Z removes the whole path. A setInput-based insert (the
+          // onTextPaste fallback) bypasses the textarea's undo stack. The trusted
+          // `input` event still drives the controlled component's onChange.
+          const activeEl = document.activeElement;
+          const isEditable = activeEl instanceof HTMLTextAreaElement || activeEl instanceof HTMLInputElement;
+          if (isEditable && document.execCommand('insertText', false, text)) {
+            return;
+          }
+          insertText(text);
+        } catch (error) {
+          console.error('Failed to read clipboard file paths:', error);
+        }
+      })();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [source, componentId]);
 
   // 注册粘贴处理器
   useEffect(() => {

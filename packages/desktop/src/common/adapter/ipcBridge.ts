@@ -486,6 +486,10 @@ export const application = {
   // plus continuous flashing until the window is focused.
   setTaskbarBadge: bridge.buildProvider<void, { count: number; iconDataUrl?: string }>('app.set-taskbar-badge'),
   writeRendererLog: bridge.buildProvider<void, IRendererLogEntry>('app.write-renderer-log'),
+  // Read absolute paths of files currently on the OS clipboard (e.g. files copied
+  // from Windows Explorer). Used by message inputs to paste a path as text on
+  // Ctrl+Shift+V — the browser paste event exposes the File but not its OS path.
+  getClipboardFilePaths: bridge.buildProvider<string[], void>('app.get-clipboard-file-paths'),
   logStream: bridge.buildEmitter<{ level: 'log' | 'warn' | 'error'; tag: string; message: string; data?: unknown }>(
     'app.log-stream'
   ),
