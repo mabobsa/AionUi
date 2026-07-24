@@ -7,7 +7,8 @@
 import { ipcBridge } from '@/common';
 import type { TChatConversation } from '@/common/config/storage';
 import { addEventListener } from '@/renderer/utils/emitter';
-import { useCallback, useEffect, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
+import { countVisibleCompletionUnread, isConversationWindowFocused } from '../utils/completionUnread';
 
 /**
  * Whitelist of message types that indicate content generation is in progress.
@@ -411,6 +412,16 @@ const initializeConversationListSyncStore = () => {
   isStoreInitialized = true;
   refreshConversations();
 
+  // When the user returns to the window, the open conversation is being viewed
+  // again — clear its completion dot (which may have been set while backgrounded).
+  if (typeof window !== 'undefined') {
+    window.addEventListener('focus', () => {
+      if (activeConversationIdState) {
+        clearCompletionUnreadState(activeConversationIdState);
+      }
+    });
+  }
+
   addEventListener('chat.history.refresh', refreshConversations);
   ipcBridge.conversation.listChanged.on((event) => {
     if (event.action === 'deleted') {
@@ -433,7 +444,7 @@ const initializeConversationListSyncStore = () => {
 
     if (isTerminalStreamMessage(message)) {
       const wasGenerating = generatingConversationIdsState.has(conversation_id);
-      if (wasGenerating && activeConversationIdState !== conversation_id) {
+      if (wasGenerating && (activeConversationIdState !== conversation_id || !isConversationWindowFocused())) {
         markCompletionUnread(conversation_id);
       }
       clearGenerating(conversation_id, 'terminal');
@@ -458,7 +469,10 @@ const initializeConversationListSyncStore = () => {
     }
   });
   ipcBridge.conversation.turnCompleted.on((event) => {
-    if (isTerminalTurnState(event.state) && activeConversationIdState !== event.session_id) {
+    if (
+      isTerminalTurnState(event.state) &&
+      (activeConversationIdState !== event.session_id || !isConversationWindowFocused())
+    ) {
       markCompletionUnread(event.session_id);
     }
     markCompleted(event.session_id, event.turn_id);
@@ -516,10 +530,16 @@ export const useConversationListSync = () => {
     [manualUnreadConversationIds]
   );
 
+  const completionUnreadCount = useMemo(
+    () => countVisibleCompletionUnread(conversations, completionUnreadConversationIds),
+    [conversations, completionUnreadConversationIds]
+  );
+
   return {
     conversations,
     isConversationGenerating,
     hasCompletionUnread,
+    completionUnreadCount,
     clearCompletionUnread,
     isManualUnread,
     markManualUnread,
