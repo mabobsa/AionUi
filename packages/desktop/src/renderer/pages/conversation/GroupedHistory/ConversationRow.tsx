@@ -12,8 +12,8 @@ import { CronJobIndicator } from '@/renderer/pages/cron';
 import { resolveConversationLeadingMark } from '@/renderer/pages/conversation/utils/conversationAssistantIdentity';
 import { cleanupSiderTooltips, getSiderTooltipProps } from '@/renderer/utils/ui/siderTooltip';
 import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
-import { Checkbox, Dropdown, Menu, Spin, Tooltip } from '@arco-design/web-react';
-import { DeleteOne, EditOne, Export, Inbox, MessageOne, MoreOne, Pushpin, Robot, Timer } from '@icon-park/react';
+import { Checkbox, Spin, Tooltip } from '@arco-design/web-react';
+import { MessageOne, Pushpin, Robot } from '@icon-park/react';
 import ForkBranchIcon from '@renderer/components/base/ForkBranchIcon';
 import classNames from 'classnames';
 import React from 'react';
@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 
 import type { ConversationRowProps } from './types';
 import { isConversationPinned } from './utils/groupingHelpers';
+import ConversationRowMenu from './components/ConversationRowMenu';
 
 const ConversationRow: React.FC<ConversationRowProps> = (props) => {
   const {
@@ -48,6 +49,12 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
     onCreateCronTask,
     onDelete,
     onExport,
+    onCopy,
+    onCopyAll,
+    onArchive,
+    onRestore,
+    onPermanentDelete,
+    archived,
     onTogglePin,
     onToggleManualUnread,
     isManualUnread,
@@ -237,101 +244,27 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
               event.stopPropagation();
             }}
           >
-            <Dropdown
-              droplist={
-                <Menu
-                  onClickMenuItem={(key) => {
-                    if (key === 'pin') {
-                      onTogglePin(conversation);
-                      return;
-                    }
-                    if (key === 'toggleManualUnread') {
-                      onToggleManualUnread(conversation);
-                      return;
-                    }
-                    if (key === 'rename') {
-                      onEditStart(conversation);
-                      return;
-                    }
-                    if (key === 'createCronTask') {
-                      onCreateCronTask(conversation);
-                      return;
-                    }
-                    if (key === 'export') {
-                      onExport?.(conversation);
-                      return;
-                    }
-                    if (key === 'delete') {
-                      onDelete(conversation.id);
-                    }
-                  }}
-                >
-                  <Menu.Item key='pin'>
-                    <div className='flex items-center gap-8px'>
-                      <Pushpin theme='outline' size='14' />
-                      <span>{isPinned ? t('conversation.history.unpin') : t('conversation.history.pin')}</span>
-                    </div>
-                  </Menu.Item>
-                  <Menu.Item key='toggleManualUnread'>
-                    <div className='flex items-center gap-8px'>
-                      <Inbox theme='outline' size='14' />
-                      <span>
-                        {isManualUnread ? t('conversation.history.markAsRead') : t('conversation.history.markAsUnread')}
-                      </span>
-                    </div>
-                  </Menu.Item>
-                  <Menu.Item key='rename'>
-                    <div className='flex items-center gap-8px'>
-                      <EditOne theme='outline' size='14' />
-                      <span>{t('conversation.history.rename')}</span>
-                    </div>
-                  </Menu.Item>
-                  <Menu.Item key='createCronTask'>
-                    <div className='flex items-center gap-8px'>
-                      <Timer theme='outline' size='14' />
-                      <span>{t('conversation.history.createCronTask')}</span>
-                    </div>
-                  </Menu.Item>
-                  {onExport && (
-                    <Menu.Item key='export'>
-                      <div className='flex items-center gap-8px'>
-                        <Export theme='outline' size='14' />
-                        <span>{t('conversation.history.export')}</span>
-                      </div>
-                    </Menu.Item>
-                  )}
-                  <Menu.Item key='delete'>
-                    <div className='flex items-center gap-8px text-[rgb(var(--warning-6))]'>
-                      <DeleteOne theme='outline' size='14' />
-                      <span>{t('conversation.history.deleteTitle')}</span>
-                    </div>
-                  </Menu.Item>
-                </Menu>
-              }
-              trigger='click'
-              position='br'
-              popupVisible={menuVisible}
-              onVisibleChange={(visible) => onMenuVisibleChange(conversation.id, visible)}
-              getPopupContainer={() => document.body}
-              unmountOnExit={false}
-            >
-              <span
-                data-testid={`conversation-row-menu-${conversation.id}`}
-                className={classNames(
-                  'flex-center cursor-pointer transition-colors text-t-secondary hover:text-t-primary size-20px rd-4px sider-action-btn',
-                  {
-                    flex: isMobile || menuVisible,
-                    'hidden group-hover:flex': !isMobile && !menuVisible,
-                  }
-                )}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onOpenMenu(conversation);
-                }}
-              >
-                <MoreOne theme='outline' size='14' fill='currentColor' className='block leading-none' />
-              </span>
-            </Dropdown>
+            <ConversationRowMenu
+              conversation={conversation}
+              isMobile={isMobile}
+              isPinned={isPinned}
+              menuVisible={menuVisible}
+              archived={archived}
+              onOpenMenu={onOpenMenu}
+              onMenuVisibleChange={onMenuVisibleChange}
+              onEditStart={onEditStart}
+              onCreateCronTask={onCreateCronTask}
+              onDelete={onDelete}
+              onExport={onExport}
+              onCopy={onCopy}
+              onCopyAll={onCopyAll}
+              onArchive={onArchive}
+              onRestore={onRestore}
+              onPermanentDelete={onPermanentDelete}
+              onTogglePin={onTogglePin}
+              onToggleManualUnread={onToggleManualUnread}
+              isManualUnread={isManualUnread}
+            />
           </div>
         )}
       </div>

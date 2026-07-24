@@ -17,6 +17,8 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { isConversationPinned } from '../utils/groupingHelpers';
+import { useConversationArchiveActions } from './conversationActions/useConversationArchiveActions';
+import { useConversationCopyActions } from './conversationActions/useConversationCopyActions';
 
 type UseConversationActionsParams = {
   batchMode: boolean;
@@ -94,6 +96,8 @@ export const useConversationActions = ({
     },
     [id, navigate]
   );
+  const { handleCopyLastOutput, handleCopyAll } = useConversationCopyActions();
+  const { handleArchive, handleRestore, handleClearArchived } = useConversationArchiveActions(removeConversation);
 
   const handleDeleteClick = useCallback(
     (conversation_id: string) => {
@@ -333,6 +337,11 @@ export const useConversationActions = ({
     handleRenameConfirm,
     handleRenameCancel,
     handleTogglePin,
+    handleCopyLastOutput,
+    handleCopyAll,
+    handleArchive,
+    handleRestore,
+    handleClearArchived,
     handleMenuVisibleChange,
     handleOpenMenu,
     handleToggleManualUnread,

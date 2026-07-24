@@ -20,13 +20,15 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import WorkspaceCollapse from '../components/WorkspaceCollapse';
 import ConversationRow from './ConversationRow';
-import ProjectGroupHeader from './components/ProjectGroupHeader';
 import SortableConversationRow from './SortableConversationRow';
+import ArchivedConversationSection from './components/ArchivedConversationSection';
+import ProjectGroupHeader from './components/ProjectGroupHeader';
 import { useBatchSelection } from './hooks/useBatchSelection';
 import { useConversationActions } from './hooks/useConversationActions';
 import { useConversations } from './hooks/useConversations';
 import { useDragAndDrop } from './hooks/useDragAndDrop';
 import { useProjectGitBranches } from './hooks/useProjectGitBranches';
+import { isConversationArchived } from './utils/groupingHelpers';
 import type { ConversationRowProps, WorkspaceGroupedHistoryProps } from './types';
 
 const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
@@ -118,6 +120,11 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
     handleRenameConfirm,
     handleRenameCancel,
     handleTogglePin,
+    handleCopyLastOutput,
+    handleCopyAll,
+    handleArchive,
+    handleRestore,
+    handleClearArchived,
     handleMenuVisibleChange,
     handleOpenMenu,
     handleToggleManualUnread,
@@ -180,6 +187,13 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
       onEditStart: handleEditStart,
       onCreateCronTask: handleCreateCronTask,
       onDelete: handleDeleteClick,
+      onCopy: handleCopyLastOutput,
+      onCopyAll: handleCopyAll,
+      // Normal menu offers both "archive" and a final "permanent delete" (the
+      // same delete action used in the Archived section).
+      onArchive: handleArchive,
+      onPermanentDelete: handleDeleteClick,
+      // Omit onExport so ConversationRow hides the disabled export entry.
       onTogglePin: handleTogglePin,
       onToggleManualUnread: handleToggleManualUnread,
       getJobStatus,
@@ -202,6 +216,9 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
       handleEditStart,
       handleCreateCronTask,
       handleDeleteClick,
+      handleCopyLastOutput,
+      handleCopyAll,
+      handleArchive,
       handleTogglePin,
       handleToggleManualUnread,
       getJobStatus,
@@ -254,7 +271,8 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
     [timelineSections]
   );
 
-  if (timelineSections.length === 0 && pinnedConversations.length === 0) {
+  const hasArchivedConversations = conversations.some(isConversationArchived);
+  if (timelineSections.length === 0 && pinnedConversations.length === 0 && !hasArchivedConversations) {
     return (
       <>
         {afterPinnedContent}
@@ -532,6 +550,17 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
               ))}
           </div>
         )}
+
+        <ArchivedConversationSection
+          conversations={conversations}
+          collapsed={collapsed}
+          expanded={!collapsedSections.has('archived')}
+          sectionLabel={SectionLabel}
+          onClear={handleClearArchived}
+          getConversationRowProps={getConversationRowProps}
+          onRestore={handleRestore}
+          onPermanentDelete={handleDeleteClick}
+        />
       </div>
     </>
   );

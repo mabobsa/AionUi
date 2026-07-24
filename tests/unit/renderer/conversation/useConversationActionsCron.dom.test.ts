@@ -5,14 +5,18 @@
  */
 
 import type { TChatConversation } from '@/common/config/storage';
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { navigateMock, requestPrefillMock, routeState } = vi.hoisted(() => ({
-  navigateMock: vi.fn(),
-  requestPrefillMock: vi.fn(),
-  routeState: { id: 'current-conversation' as string | undefined },
-}));
+const { copyTextMock, getMessagesMock, navigateMock, requestPrefillMock, routeState, updateConversationMock } =
+  vi.hoisted(() => ({
+    copyTextMock: vi.fn(),
+    getMessagesMock: vi.fn(),
+    navigateMock: vi.fn(),
+    requestPrefillMock: vi.fn(),
+    routeState: { id: 'current-conversation' as string | undefined },
+    updateConversationMock: vi.fn(),
+  }));
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -33,8 +37,30 @@ vi.mock('@/common', () => ({
   ipcBridge: {
     conversation: {
       remove: { invoke: vi.fn() },
-      update: { invoke: vi.fn() },
+      update: { invoke: updateConversationMock },
     },
+    database: {
+      getConversationMessages: { invoke: getMessagesMock },
+    },
+  },
+}));
+
+vi.mock('@/renderer/utils/ui/clipboard', () => ({
+  copyText: copyTextMock,
+}));
+
+vi.mock('@/renderer/utils/chat/getLastAssistantText', () => ({
+  getLastAssistantText: () => 'final assistant response',
+}));
+
+vi.mock('@arco-design/web-react', () => ({
+  Message: {
+    error: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+  },
+  Modal: {
+    confirm: vi.fn(),
   },
 }));
 
@@ -84,6 +110,8 @@ describe('create scheduled task conversation action', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     routeState.id = 'current-conversation';
+    getMessagesMock.mockResolvedValue({ items: [] });
+    updateConversationMock.mockResolvedValue(true);
   });
 
   it('prefills the current editable conversation without navigating', () => {
@@ -124,4 +152,43 @@ describe('create scheduled task conversation action', () => {
       });
     }
   );
+});
+
+describe('conversation copy and archive actions', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getMessagesMock.mockResolvedValue({ items: [] });
+    updateConversationMock.mockResolvedValue(true);
+  });
+
+  it('copies the last assistant response from the selected conversation', async () => {
+    const conversation = makeConversation('copy-target', 'acp');
+    const { result } = renderActions();
+
+    await act(async () => {
+      await result.current.handleCopyLastOutput(conversation);
+    });
+
+    expect(getMessagesMock).toHaveBeenCalledWith({
+      conversation_id: 'copy-target',
+      limit: 1000,
+      content_mode: 'full',
+    });
+    expect(copyTextMock).toHaveBeenCalledWith('final assistant response');
+  });
+
+  it('archives a conversation through a merged extra update', async () => {
+    const conversation = makeConversation('archive-target', 'acp');
+    const { result } = renderActions();
+
+    act(() => result.current.handleArchive(conversation));
+
+    await waitFor(() => {
+      expect(updateConversationMock).toHaveBeenCalledWith({
+        id: 'archive-target',
+        updates: { extra: { archived: true } },
+        merge_extra: true,
+      });
+    });
+  });
 });
