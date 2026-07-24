@@ -1,4 +1,4 @@
-import loginLogo from '@renderer/assets/logos/brand/app.png';
+import loginLogo from '@renderer/assets/logos/brand/login-brand.png';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { changeLanguage } from '@/renderer/services/i18n';
@@ -108,17 +108,9 @@ const LoginPage: React.FC = () => {
 
   const supportedLanguages = useMemo<{ code: string; label: string }[]>(
     () => [
-      { code: 'zh-CN', label: '简体中文' },
-      { code: 'zh-TW', label: '繁體中文' },
-      { code: 'ja-JP', label: '日本語' },
       { code: 'ko-KR', label: '한국어' },
-      { code: 'tr-TR', label: 'Türkçe' },
-      { code: 'uk-UA', label: 'Українська' },
-      { code: 'pt-BR', label: 'Português (BR)' },
-      { code: 'de-DE', label: 'Deutsch' },
-      { code: 'es-ES', label: 'Español' },
-      { code: 'fa-IR', label: 'فارسی' },
       { code: 'en-US', label: 'English' },
+      { code: 'ja-JP', label: '日本語' },
     ],
     []
   );

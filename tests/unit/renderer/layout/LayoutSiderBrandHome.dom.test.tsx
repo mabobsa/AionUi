@@ -39,6 +39,15 @@ vi.mock('@/common', () => ({
     application: {
       openDevTools: { invoke: () => openDevTools() },
       logStream: { on: () => () => {} },
+      setTaskbarBadge: { invoke: vi.fn(() => Promise.resolve()) },
+    },
+    database: {
+      getUserConversations: { invoke: vi.fn(() => Promise.resolve({ items: [] })) },
+    },
+    conversation: {
+      listChanged: { on: () => () => {} },
+      responseStream: { on: () => () => {} },
+      turnCompleted: { on: () => () => {} },
     },
     task: { stopAll: { invoke: () => Promise.resolve({ success: false }) } },
   },
