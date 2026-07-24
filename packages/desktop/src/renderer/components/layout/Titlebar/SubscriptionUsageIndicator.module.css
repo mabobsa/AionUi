@@ -1,0 +1,23 @@
+.usage {
+  -webkit-app-region: no-drag;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  cursor: default;
+  background-color: var(--color-fill-2);
+}
+
+.normal {
+  background-color: var(--color-fill-2);
+}
+
+.warning {
+  background-color: var(--color-warning-light-1);
+}
+
+.limit {
+  background-color: var(--color-danger-light-1);
+}
