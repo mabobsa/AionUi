@@ -803,6 +803,15 @@ export const dialog = {
       return nativeShowOpen.invoke(options);
     }) as typeof nativeShowOpen.invoke,
   },
+  // Read/write a file at a user-chosen absolute path in the main process,
+  // bypassing the backend's workspace sandbox. Only use with paths the user
+  // explicitly selected via a trusted OS dialog (e.g. assistant backup/restore).
+  writeUserFile: bridge.buildProvider<{ success: boolean; error?: string }, { path: string; data: string }>(
+    'dialog.write-user-file'
+  ),
+  readUserFile: bridge.buildProvider<{ success: boolean; content?: string; error?: string }, { path: string }>(
+    'dialog.read-user-file'
+  ),
 };
 
 // ---------------------------------------------------------------------------
