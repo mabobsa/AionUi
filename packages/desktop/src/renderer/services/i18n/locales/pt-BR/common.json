@@ -202,5 +202,15 @@
   },
   "selectedCount": "{{count}} selecionado(s)",
   "selectedSkills": "Habilidades selecionadas",
-  "aiAssistant": "Assistente de IA"
+  "aiAssistant": "Assistente de IA",
+  "claudeUsage": {
+    "title": "Uso do Claude",
+    "codexTitle": "Uso do Codex",
+    "session": "Limite de 5 horas",
+    "weekly": "Semanal (todos os modelos)",
+    "resets": "Redefine em {{time}}",
+    "reached": "Limite de uso atingido",
+    "ok": "Dentro do limite",
+    "approaching": "Perto do limite"
+  }
 }

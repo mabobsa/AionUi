@@ -205,5 +205,15 @@
   },
   "selectedCount": "Вибрано {{count}}",
   "selectedSkills": "Вибрані навички",
-  "aiAssistant": "ШІ-асистент"
+  "aiAssistant": "ШІ-асистент",
+  "claudeUsage": {
+    "title": "Використання Claude",
+    "codexTitle": "Використання Codex",
+    "session": "5-годинний ліміт",
+    "weekly": "За тиждень (усі моделі)",
+    "resets": "Скидання о {{time}}",
+    "reached": "Досягнуто ліміту використання",
+    "ok": "У межах ліміту",
+    "approaching": "Наближається до ліміту"
+  }
 }
