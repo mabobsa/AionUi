@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { isConversationPinned } from '../utils/groupingHelpers';
+import { useConversationCopyActions } from './conversationActions/useConversationCopyActions';
 
 type UseConversationActionsParams = {
   batchMode: boolean;
@@ -94,6 +95,7 @@ export const useConversationActions = ({
     },
     [id, navigate]
   );
+  const { handleCopyLastOutput, handleCopyAll } = useConversationCopyActions();
 
   const handleBatchArchive = useCallback(() => {
     if (selectedConversationIds.size === 0) {
@@ -329,6 +331,8 @@ export const useConversationActions = ({
     handleRenameConfirm,
     handleRenameCancel,
     handleTogglePin,
+    handleCopyLastOutput,
+    handleCopyAll,
     handleMenuVisibleChange,
     handleOpenMenu,
     handleToggleManualUnread,
