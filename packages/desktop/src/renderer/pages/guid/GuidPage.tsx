@@ -29,6 +29,7 @@ import { useGuidSend } from './hooks/useGuidSend';
 import { useTypewriterPlaceholder } from './hooks/useTypewriterPlaceholder';
 import { ensureBackendMcpCatalog } from '@/renderer/hooks/mcp/catalog';
 import { resolveGuidAssistantDefaults } from './utils/assistantDefaults';
+import { handleBackslashLineContinuation } from '@/renderer/utils/ui/input/lineContinuation';
 import SpeechInputButton from '@/renderer/components/chat/SpeechInputButton';
 import { chatFileRefPath, uploadFileRef } from '@/common/types/chatFile';
 import { useOpenFileSelector } from '@/renderer/hooks/file/useOpenFileSelector';
@@ -300,6 +301,7 @@ const GuidPage: React.FC = () => {
       }
 
       if (event.key === 'Enter' && !event.shiftKey) {
+        if (handleBackslashLineContinuation(event, guidInput.setInput)) return;
         event.preventDefault();
         // Empty input is allowed — it creates an empty conversation ("start
         // chat"). Mirror the send button's gate so Enter and click behave
@@ -308,7 +310,7 @@ const GuidPage: React.FC = () => {
         send.sendMessageHandler();
       }
     },
-    [send.isButtonDisabled, send.sendMessageHandler, slashController]
+    [guidInput.setInput, send.isButtonDisabled, send.sendMessageHandler, slashController]
   );
 
   const handleSelectAssistant = useCallback(
