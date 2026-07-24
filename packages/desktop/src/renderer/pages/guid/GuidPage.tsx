@@ -29,6 +29,7 @@ import { useGuidSend } from './hooks/useGuidSend';
 import { useTypewriterPlaceholder } from './hooks/useTypewriterPlaceholder';
 import { ensureBackendMcpCatalog } from '@/renderer/hooks/mcp/catalog';
 import { resolveGuidAssistantDefaults } from './utils/assistantDefaults';
+import { handleBackslashLineContinuation } from '@/renderer/utils/ui/input/lineContinuation';
 import SpeechInputButton from '@/renderer/components/chat/SpeechInputButton';
 import { chatFileRefPath, uploadFileRef } from '@/common/types/chatFile';
 import { useOpenFileSelector } from '@/renderer/hooks/file/useOpenFileSelector';
@@ -301,12 +302,13 @@ const GuidPage: React.FC = () => {
       }
 
       if (event.key === 'Enter' && !event.shiftKey) {
+        if (handleBackslashLineContinuation(event, guidInput.setInput)) return;
         event.preventDefault();
         if (!guidInput.input.trim()) return;
         send.sendMessageHandler();
       }
     },
-    [guidInput.input, send.sendMessageHandler, slashController]
+    [guidInput.input, guidInput.setInput, send.sendMessageHandler, slashController]
   );
 
   const handleSelectAssistant = useCallback(

@@ -31,6 +31,7 @@ import { peLabeledPath } from '@/renderer/pages/conversation/explorer/search/sea
 import { copyText } from '@/renderer/utils/ui/clipboard';
 import { blurActiveElement, shouldBlockMobileInputFocus } from '@/renderer/utils/ui/focus';
 import { isPlatformPrimaryModifier } from '@/renderer/utils/ui/keyboardShortcuts';
+import { handleBackslashLineContinuation } from '@/renderer/utils/ui/input/lineContinuation';
 import { isMacOS } from '@/renderer/utils/platform';
 import { Button, Input, Message, Tag, Tooltip } from '@arco-design/web-react';
 import { CloseSmall, Plus, Quote } from '@icon-park/react';
@@ -1886,7 +1887,8 @@ const SendBox: React.FC<{
                   handleAddToDraftShortcut(event) ||
                   handleAtFileMenuKeyDown(event) ||
                   handleOverlayKeyDown(event) ||
-                  handleHistoryKeyDown(event)
+                  handleHistoryKeyDown(event) ||
+                  handleBackslashLineContinuation(event, setInputRef.current)
                 );
               })}
             ></Input.TextArea>
