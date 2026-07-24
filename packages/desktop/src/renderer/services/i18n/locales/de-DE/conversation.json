@@ -31,6 +31,7 @@
     "cancelEdit": "Abbrechen",
     "rename": "Umbenennen",
     "createCronTask": "Geplante Aufgabe erstellen",
+    "copyAll": "Gesamte Unterhaltung kopieren",
     "renameTitle": "Chat umbenennen",
     "renamePlaceholder": "Bitte neuen Namen eingeben",
     "renameSuccess": "Erfolgreich umbenannt",

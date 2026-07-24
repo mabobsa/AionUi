@@ -35,6 +35,7 @@
     "cancelEdit": "İptal",
     "rename": "Yeniden Adlandır",
     "createCronTask": "Zamanlanmış Görev Oluştur",
+    "copyAll": "Tüm konuşmayı kopyala",
     "renameTitle": "Sohbeti Yeniden Adlandır",
     "renamePlaceholder": "Lütfen yeni bir isim girin",
     "renameSuccess": "Başarıyla yeniden adlandırıldı",

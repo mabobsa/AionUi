@@ -8,7 +8,9 @@ import type { TChatConversation } from '@/common/config/storage';
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { navigateMock, requestPrefillMock, routeState } = vi.hoisted(() => ({
+const { copyTextMock, getMessagesMock, navigateMock, requestPrefillMock, routeState } = vi.hoisted(() => ({
+  copyTextMock: vi.fn(),
+  getMessagesMock: vi.fn(),
   navigateMock: vi.fn(),
   requestPrefillMock: vi.fn(),
   routeState: { id: 'current-conversation' as string | undefined },
@@ -35,6 +37,28 @@ vi.mock('@/common', () => ({
       remove: { invoke: vi.fn() },
       update: { invoke: vi.fn() },
     },
+    database: {
+      getConversationMessages: { invoke: getMessagesMock },
+    },
+  },
+}));
+
+vi.mock('@/renderer/utils/ui/clipboard', () => ({
+  copyText: copyTextMock,
+}));
+
+vi.mock('@/renderer/utils/chat/getLastAssistantText', () => ({
+  getLastAssistantText: () => 'final assistant response',
+}));
+
+vi.mock('@arco-design/web-react', () => ({
+  Message: {
+    error: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+  },
+  Modal: {
+    confirm: vi.fn(),
   },
 }));
 
@@ -84,6 +108,7 @@ describe('create scheduled task conversation action', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     routeState.id = 'current-conversation';
+    getMessagesMock.mockResolvedValue({ items: [] });
   });
 
   it('prefills the current editable conversation without navigating', () => {
@@ -124,4 +149,27 @@ describe('create scheduled task conversation action', () => {
       });
     }
   );
+});
+
+describe('conversation copy actions', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getMessagesMock.mockResolvedValue({ items: [] });
+  });
+
+  it('copies the last assistant response from the selected conversation', async () => {
+    const conversation = makeConversation('copy-target', 'acp');
+    const { result } = renderActions();
+
+    await act(async () => {
+      await result.current.handleCopyLastOutput(conversation);
+    });
+
+    expect(getMessagesMock).toHaveBeenCalledWith({
+      conversation_id: 'copy-target',
+      limit: 1000,
+      content_mode: 'full',
+    });
+    expect(copyTextMock).toHaveBeenCalledWith('final assistant response');
+  });
 });

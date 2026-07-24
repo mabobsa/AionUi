@@ -20,8 +20,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import WorkspaceCollapse from '../components/WorkspaceCollapse';
 import ConversationRow from './ConversationRow';
-import ProjectGroupHeader from './components/ProjectGroupHeader';
 import SortableConversationRow from './SortableConversationRow';
+import ProjectGroupHeader from './components/ProjectGroupHeader';
 import { useBatchSelection } from './hooks/useBatchSelection';
 import { useConversationActions } from './hooks/useConversationActions';
 import { useConversations } from './hooks/useConversations';
@@ -119,6 +119,8 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
     handleRenameConfirm,
     handleRenameCancel,
     handleTogglePin,
+    handleCopyLastOutput,
+    handleCopyAll,
     handleMenuVisibleChange,
     handleOpenMenu,
     handleToggleManualUnread,
@@ -181,6 +183,8 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
       onMenuVisibleChange: handleMenuVisibleChange,
       onEditStart: handleEditStart,
       onCreateCronTask: handleCreateCronTask,
+      onCopy: handleCopyLastOutput,
+      onCopyAll: handleCopyAll,
       onArchive: handleArchive,
       onTogglePin: handleTogglePin,
       onToggleManualUnread: handleToggleManualUnread,
@@ -204,6 +208,8 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
       handleMenuVisibleChange,
       handleEditStart,
       handleCreateCronTask,
+      handleCopyLastOutput,
+      handleCopyAll,
       handleArchive,
       handleTogglePin,
       handleToggleManualUnread,
