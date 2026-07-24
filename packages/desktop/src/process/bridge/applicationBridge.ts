@@ -8,6 +8,7 @@ import type { BrowserWindow } from 'electron';
 import { app, session } from 'electron';
 import { ipcBridge } from '@/common';
 import { BROWSER_SESSION_PARTITION } from '@/common/config/constants';
+import { readClipboardFilePaths } from '@process/services/clipboardFilePaths';
 import { applyTaskbarBadge, setTaskbarBadgeWindow } from '@process/services/taskbarBadge';
 import { ProcessConfig } from '@process/utils/initStorage';
 import { getZoomFactor, setZoomFactor } from '@process/utils/zoom';
@@ -150,6 +151,8 @@ export function initApplicationBridge(): void {
   });
 
   ipcBridge.application.getZoomFactor.provider(() => Promise.resolve(getZoomFactor()));
+
+  ipcBridge.application.getClipboardFilePaths.provider(() => readClipboardFilePaths());
 
   ipcBridge.application.setZoomFactor.provider(async ({ factor }) => {
     const updatedFactor = setZoomFactor(factor);
