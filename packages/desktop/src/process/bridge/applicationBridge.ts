@@ -8,6 +8,7 @@ import type { BrowserWindow } from 'electron';
 import { app, session } from 'electron';
 import { ipcBridge } from '@/common';
 import { BROWSER_SESSION_PARTITION } from '@/common/config/constants';
+import { applyTaskbarBadge, setTaskbarBadgeWindow } from '@process/services/taskbarBadge';
 import { ProcessConfig } from '@process/utils/initStorage';
 import { getZoomFactor, setZoomFactor } from '@process/utils/zoom';
 import { getCdpStatus, updateCdpConfig } from '@process/utils/configureChromium';
@@ -95,6 +96,7 @@ export function setStartOnBootEnabled(enabled: boolean): IStartOnBootStatus {
 
 export function setApplicationMainWindow(win: BrowserWindow): void {
   mainWindowRef = win;
+  setTaskbarBadgeWindow(win);
 }
 
 export function initApplicationBridge(): void {
@@ -281,5 +283,9 @@ export function initApplicationBridge(): void {
     } catch (e) {
       return { success: false, msg: e.message || e.toString() };
     }
+  });
+
+  ipcBridge.application.setTaskbarBadge.provider(async ({ count, iconDataUrl }) => {
+    applyTaskbarBadge(Math.max(0, Math.floor(count)), iconDataUrl);
   });
 }
