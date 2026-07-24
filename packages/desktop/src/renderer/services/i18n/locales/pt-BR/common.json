@@ -201,5 +201,15 @@
     "second_short": "s"
   },
   "selectedCount": "{{count}} selecionado(s)",
-  "selectedSkills": "Habilidades selecionadas"
+  "selectedSkills": "Habilidades selecionadas",
+  "claudeUsage": {
+    "title": "Uso do Claude",
+    "codexTitle": "Uso do Codex",
+    "session": "Limite de 5 horas",
+    "weekly": "Semanal (todos os modelos)",
+    "resets": "Redefine em {{time}}",
+    "reached": "Limite de uso atingido",
+    "ok": "Dentro do limite",
+    "approaching": "Perto do limite"
+  }
 }

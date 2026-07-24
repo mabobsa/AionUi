@@ -201,5 +201,15 @@
     "second_short": "秒"
   },
   "selectedCount": "選択済み {{count}}",
-  "selectedSkills": "選択済みスキル"
+  "selectedSkills": "選択済みスキル",
+  "claudeUsage": {
+    "title": "Claude 使用量",
+    "codexTitle": "Codex 使用量",
+    "session": "5時間上限",
+    "weekly": "週間(全モデル)",
+    "resets": "{{time}} にリセット",
+    "reached": "使用上限に達しました",
+    "ok": "余裕あり",
+    "approaching": "上限に近づいています"
+  }
 }

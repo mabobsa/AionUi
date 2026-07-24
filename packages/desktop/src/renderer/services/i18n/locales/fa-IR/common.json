@@ -201,5 +201,15 @@
     "second_short": "ث"
   },
   "selectedCount": "{{count}} انتخاب‌شده",
-  "selectedSkills": "مهارت‌های انتخاب‌شده"
+  "selectedSkills": "مهارت‌های انتخاب‌شده",
+  "claudeUsage": {
+    "title": "مصرف Claude",
+    "codexTitle": "مصرف Codex",
+    "session": "محدودیت ۵ ساعته",
+    "weekly": "هفتگی (همه مدل‌ها)",
+    "resets": "بازنشانی در {{time}}",
+    "reached": "به سقف مصرف رسیدید",
+    "ok": "در حد مجاز",
+    "approaching": "نزدیک به سقف"
+  }
 }

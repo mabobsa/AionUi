@@ -204,5 +204,15 @@
     "second_short": "с"
   },
   "selectedCount": "Вибрано {{count}}",
-  "selectedSkills": "Вибрані навички"
+  "selectedSkills": "Вибрані навички",
+  "claudeUsage": {
+    "title": "Використання Claude",
+    "codexTitle": "Використання Codex",
+    "session": "5-годинний ліміт",
+    "weekly": "За тиждень (усі моделі)",
+    "resets": "Скидання о {{time}}",
+    "reached": "Досягнуто ліміту використання",
+    "ok": "У межах ліміту",
+    "approaching": "Наближається до ліміту"
+  }
 }

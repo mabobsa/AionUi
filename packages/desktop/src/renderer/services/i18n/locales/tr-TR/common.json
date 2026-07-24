@@ -201,5 +201,15 @@
     "second_short": "sn"
   },
   "selectedCount": "{{count}} seçili",
-  "selectedSkills": "Seçili beceriler"
+  "selectedSkills": "Seçili beceriler",
+  "claudeUsage": {
+    "title": "Claude Kullanımı",
+    "codexTitle": "Codex Kullanımı",
+    "session": "5 saatlik sınır",
+    "weekly": "Haftalık (tüm modeller)",
+    "resets": "{{time}} sıfırlanır",
+    "reached": "Kullanım sınırına ulaşıldı",
+    "ok": "Sınır içinde",
+    "approaching": "Sınıra yaklaşıyor"
+  }
 }
