@@ -7,6 +7,7 @@
 import { useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ipcBridge } from '@/common';
+import { handleExternalConversationDeepLink } from '@/renderer/services/externalConversationLaunch';
 
 /**
  * Deep link event payload from main process
@@ -54,6 +55,8 @@ export const useDeepLink = () => {
 
   const handler = useCallback(
     (payload: DeepLinkPayload) => {
+      if (handleExternalConversationDeepLink(payload, navigate)) return;
+
       // Support both formats: "add-provider" and "provider/add" (one-api style)
       if (payload.action === 'add-provider' || payload.action === 'provider/add') {
         pendingDeepLinkData = {
