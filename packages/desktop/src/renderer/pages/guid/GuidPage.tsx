@@ -26,6 +26,7 @@ import { useGuidAssistantSelection } from './hooks/useGuidAssistantSelection';
 import { useGuidInput } from './hooks/useGuidInput';
 import { useGuidModelSelection } from './hooks/useGuidModelSelection';
 import { useGuidSend } from './hooks/useGuidSend';
+import { useExternalConversationLaunch } from './hooks/useExternalConversationLaunch';
 import { useTypewriterPlaceholder } from './hooks/useTypewriterPlaceholder';
 import { ensureBackendMcpCatalog } from '@/renderer/hooks/mcp/catalog';
 import { resolveGuidAssistantDefaults } from './utils/assistantDefaults';
@@ -36,6 +37,7 @@ import { useOpenFileSelector } from '@/renderer/hooks/file/useOpenFileSelector';
 import { appendSpeechTranscript } from '@/renderer/hooks/system/useSpeechInput';
 import { useLiveTranscriptInsertion } from '@/renderer/hooks/system/useLiveTranscriptInsertion';
 import { ArrowRightUp } from '@icon-park/react';
+import { readExternalConversationLaunch } from '@/renderer/services/externalConversationLaunch';
 import { Button, ConfigProvider } from '@arco-design/web-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -58,6 +60,7 @@ const GuidPage: React.FC = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
+  const externalConversation = readExternalConversationLaunch(location.search);
   const guidContainerRef = useRef<HTMLDivElement>(null);
   const { activeBorderColor, inactiveBorderColor, activeShadow } = useInputFocusRing();
 
@@ -249,6 +252,8 @@ const GuidPage: React.FC = () => {
   const send = useGuidSend({
     // Input state
     input: guidInput.input,
+    conversationName: externalConversation?.launch.title,
+    onConversationCreated: externalConversation?.onConversationCreated,
     setInput: guidInput.setInput,
     files: guidInput.files,
     setFiles: guidInput.setFiles,
@@ -285,6 +290,19 @@ const GuidPage: React.FC = () => {
     navigate,
     t,
     localeKey,
+  });
+
+  useExternalConversationLaunch({
+    agentSelection,
+    allSkills,
+    availableMcpServers,
+    input: guidInput.input,
+    modelSelection,
+    sendMessage: send.sendMessageHandler,
+    session: externalConversation,
+    setDisabledBuiltinSkills: setGuidDisabledBuiltinSkills,
+    setEnabledSkills: setGuidEnabledSkills,
+    setSelectedMcpServerIds: setGuidSelectedMcpServerIds,
   });
 
   // --- Coordinated handlers (depend on multiple hooks) ---
@@ -672,12 +690,14 @@ const GuidPage: React.FC = () => {
             <p className='text-2xl font-semibold mb-0 text-t-primary text-center'>{t('conversation.welcome.title')}</p>
           </div>
 
-          <AssistantSelectionArea
-            selectedAssistantId={agentSelection.selectedAssistantId}
-            assistants={agentSelection.assistants}
-            localeKey={localeKey}
-            onSelectAssistant={handleSelectAssistant}
-          />
+          {!externalConversation && (
+            <AssistantSelectionArea
+              selectedAssistantId={agentSelection.selectedAssistantId}
+              assistants={agentSelection.assistants}
+              localeKey={localeKey}
+              onSelectAssistant={handleSelectAssistant}
+            />
+          )}
 
           <GuidInputCard
             focusRequestKey={navState?.focusPrefill && navState.prefillPrompt ? location.key : undefined}

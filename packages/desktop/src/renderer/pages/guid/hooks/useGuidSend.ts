@@ -21,6 +21,8 @@ import type { AcpModelInfo } from '../types';
 export type GuidSendDeps = {
   // Input state
   input: string;
+  conversationName?: string;
+  onConversationCreated?: (conversationId: string) => Promise<void> | void;
   setInput: React.Dispatch<React.SetStateAction<string>>;
   files: ChatFileRef[];
   setFiles: React.Dispatch<React.SetStateAction<ChatFileRef[]>>;
@@ -65,12 +67,26 @@ export type GuidSendResult = {
   isButtonDisabled: boolean;
 };
 
+async function notifyConversationCreated(
+  callback: GuidSendDeps['onConversationCreated'],
+  conversationId: string
+): Promise<void> {
+  if (!callback) return;
+  try {
+    await callback(conversationId);
+  } catch (error) {
+    console.warn('[GuidPage] Conversation-created callback failed', error);
+  }
+}
+
 /**
  * Hook that manages the send logic for ACP and Aion CLI conversations.
  */
 export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
   const {
     input,
+    conversationName,
+    onConversationCreated,
     setInput,
     files,
     setFiles,
@@ -112,6 +128,7 @@ export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
 
     const assistantConversationId = selectedAssistantId;
     const assistantBackend = selectedAssistantBackend;
+    const resolvedConversationName = conversationName?.trim() || input;
     const enabled_skills_to_send = guidEnabledSkills ?? assistantDefaultSkillIds;
     const excludeBuiltinSkills = guidDisabledBuiltinSkills ?? assistantDefaultDisabledBuiltinSkillIds;
     const selectedAllMcpServerIds = selectedMcpServerIds ?? [];
@@ -173,7 +190,7 @@ export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
       }
       try {
         const conversation = await ipcBridge.conversation.create.invoke({
-          name: input,
+          name: resolvedConversationName,
           model: current_model,
           assistant: {
             id: assistantConversationId,
@@ -193,6 +210,8 @@ export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
           Message.error(t('conversation.createFailed'));
           return;
         }
+
+        await notifyConversationCreated(onConversationCreated, conversation.id);
 
         if (isCustomWorkspace) {
           updateWorkspaceTime(finalWorkspace);
@@ -223,7 +242,7 @@ export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
 
     try {
       const conversation = await ipcBridge.conversation.create.invoke({
-        name: input,
+        name: resolvedConversationName,
         assistant: {
           id: assistantConversationId,
           locale: localeKey,
@@ -242,6 +261,8 @@ export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
         console.error('Failed to create ACP conversation - conversation object is null or missing id');
         return;
       }
+
+      await notifyConversationCreated(onConversationCreated, conversation.id);
 
       if (isCustomWorkspace) {
         updateWorkspaceTime(finalWorkspace);
@@ -269,6 +290,8 @@ export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
     }
   }, [
     input,
+    conversationName,
+    onConversationCreated,
     files,
     dir,
     selectedAssistantId,

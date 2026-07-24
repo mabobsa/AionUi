@@ -85,7 +85,7 @@ describe('useGuidSend', () => {
 
   it('passes selected mode into assistant conversation overrides when creating a preset ACP conversation', async () => {
     const deps = createDeps();
-    (deps as any).selectedThoughtLevelValue = 'high';
+    deps.selectedThoughtLevelValue = 'high';
 
     const { result } = renderHook(() => useGuidSend(deps));
 
