@@ -24,6 +24,7 @@ import { initMainAdapterWithWindow } from './common/adapter/main';
 import { ipcBridge } from './common';
 import { initializeProcess } from './process';
 import { startBackendOrExit } from './process/startup/backendStartup';
+import { publishBackendDiscovery } from './process/startup/backendDiscovery';
 import { assertStartupArchitectureCompatible } from './process/startup/architectureCompatibility';
 import { classifyBackendStartupFailure } from './process/startup/backendStartupFailure';
 import { installQuitCleanup } from './process/startup/quitCleanup';
@@ -365,6 +366,11 @@ function exposeBackendPort(backendPort: number): void {
   // ipcBridge.* invoke from the main process — the renderer side reads
   // window.__backendPort via preload, but main has no `window`.
   (globalThis as typeof globalThis & { __backendPort?: number }).__backendPort = backendPort;
+  try {
+    publishBackendDiscovery(backendPort);
+  } catch (error) {
+    console.warn('[AionUi] Failed to publish backend discovery data:', error);
+  }
 }
 
 function ensureAdminUserOnce(backendPort: number): Promise<void> {
@@ -382,9 +388,9 @@ function ensureAdminUserOnce(backendPort: number): Promise<void> {
 }
 
 function markBackendReady(backendPort: number, source: string): void {
+  exposeBackendPort(backendPort);
   if (backendStartedOk) return;
   console.log(`[AionUi] ${source} ready (port=${backendPort})`);
-  exposeBackendPort(backendPort);
   registerCronResumeBridge(backendPort);
   backendStartedOk = true;
   backendStartupFailed = false;
