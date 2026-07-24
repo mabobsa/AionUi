@@ -45,6 +45,7 @@ vi.mock('@/common', () => ({
       getUserConversations: { invoke: vi.fn(() => Promise.resolve({ items: [] })) },
     },
     conversation: {
+      confirmation: { remove: { on: () => () => {} } },
       listChanged: { on: () => () => {} },
       responseStream: { on: () => () => {} },
       turnCompleted: { on: () => () => {} },
