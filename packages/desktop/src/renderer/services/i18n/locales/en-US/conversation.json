@@ -580,6 +580,12 @@
   "mcp": {
     "loaded": "Loaded MCP",
     "managementHint": "If an MCP looks abnormal, it is usually caused by the MCP JSON configuration. Go to Tools settings and test it there.",
+    "reload": "Apply selected MCP servers",
+    "reloadHint": "Select the MCP servers to use in this conversation, then apply them. Messages are preserved and only the runtime restarts.",
+    "reloadSuccess": "The selected MCP servers were applied to this conversation.",
+    "reloadFailed": "Failed to apply the selected MCP servers to this conversation.",
+    "reloadBackendOutdated": "Restart AionUi after rebuilding AionCore, then try again.",
+    "reloadBusy": "Wait for the current response to finish before applying the MCP selection.",
     "openSettings": "Open Tools settings",
     "status": {
       "loaded": "Loaded",

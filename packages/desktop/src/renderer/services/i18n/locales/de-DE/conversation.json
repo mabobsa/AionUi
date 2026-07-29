@@ -581,6 +581,12 @@
   "mcp": {
     "loaded": "MCP geladen",
     "managementHint": "Falls ein MCP unnormal aussieht, wird dies normalerweise durch die MCP-JSON-Konfiguration verursacht. Gehe zu den Tool-Einstellungen und teste es dort.",
+    "reload": "Ausgewählte MCP-Server anwenden",
+    "reloadHint": "Wähle die MCP-Server für diese Unterhaltung aus und wende sie an. Nachrichten bleiben erhalten; nur die Laufzeit wird neu gestartet.",
+    "reloadSuccess": "Die ausgewählten MCP-Server wurden auf diese Unterhaltung angewendet.",
+    "reloadFailed": "Die ausgewählten MCP-Server konnten nicht auf diese Unterhaltung angewendet werden.",
+    "reloadBackendOutdated": "Erstellen Sie AionCore neu, starten Sie AionUi neu und versuchen Sie es erneut.",
+    "reloadBusy": "Warte, bis die aktuelle Antwort abgeschlossen ist, bevor du die MCP-Auswahl anwendest.",
     "openSettings": "Tool-Einstellungen öffnen",
     "status": {
       "loaded": "Geladen",
