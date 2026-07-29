@@ -259,6 +259,25 @@ export const conversation = {
     ),
     fromApiConversation
   ),
+  reloadMcpServers: withResponseMap(
+    httpPut<
+      TChatConversation,
+      {
+        conversation_id: string;
+        sync_aionui_catalog: boolean;
+        mcp_server_ids: string[];
+        session_mcp_servers: ISessionMcpServer[];
+      }
+    >(
+      (p) => `/api/conversations/${p.conversation_id}/mcp-servers`,
+      (p) => ({
+        sync_aionui_catalog: p.sync_aionui_catalog,
+        mcp_server_ids: p.mcp_server_ids,
+        session_mcp_servers: p.session_mcp_servers,
+      })
+    ),
+    fromApiConversation
+  ),
   ensureRuntime: httpPost<EnsureConversationRuntimeResponse, { conversation_id: string }>(
     (p) => `/api/conversations/${p.conversation_id}/runtime/ensure`,
     () => undefined

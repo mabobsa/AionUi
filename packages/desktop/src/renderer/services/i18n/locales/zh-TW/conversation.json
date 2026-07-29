@@ -585,6 +585,12 @@
   "mcp": {
     "loaded": "已載入 MCP",
     "managementHint": "如果某個 MCP 載入異常，通常是 MCP JSON 設定有問題。請到工具設定頁檢查並手動檢測。",
+    "reload": "套用所選 MCP",
+    "reloadHint": "選擇此對話要使用的 MCP 後套用。訊息會保留，僅重新啟動執行環境。",
+    "reloadSuccess": "已將所選 MCP 套用到此對話。",
+    "reloadFailed": "無法將所選 MCP 套用到此對話。",
+    "reloadBackendOutdated": "重新建置 AionCore 並重新啟動 AionUi 後再試。",
+    "reloadBusy": "請等待目前回覆完成後再套用 MCP 選擇。",
     "openSettings": "前往工具設定",
     "status": {
       "loaded": "已載入",

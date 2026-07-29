@@ -587,6 +587,12 @@
   "mcp": {
     "loaded": "Yüklü MCP",
     "managementHint": "Bir MCP anormal görünüyorsa, bunun nedeni genellikle MCP JSON yapılandırmasıdır. Araç ayarlarına gidip manuel olarak test edin.",
+    "reload": "Seçili MCP'leri uygula",
+    "reloadHint": "Bu konuşmada kullanılacak MCP'leri seçip uygulayın. İletiler korunur ve yalnızca çalışma zamanı yeniden başlatılır.",
+    "reloadSuccess": "Seçili MCP'ler bu konuşmaya uygulandı.",
+    "reloadFailed": "Seçili MCP'ler bu konuşmaya uygulanamadı.",
+    "reloadBackendOutdated": "AionCore'u yeniden derleyin, AionUi'yi yeniden başlatın ve tekrar deneyin.",
+    "reloadBusy": "MCP seçimini uygulamadan önce mevcut yanıtın bitmesini bekleyin.",
     "openSettings": "Araç ayarlarını aç",
     "status": {
       "loaded": "Yüklendi",

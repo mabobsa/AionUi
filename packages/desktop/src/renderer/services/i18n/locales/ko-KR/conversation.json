@@ -585,6 +585,12 @@
   "mcp": {
     "loaded": "로드된 MCP",
     "managementHint": "MCP가 비정상적으로 보인다면 보통 MCP JSON 설정 문제입니다. 도구 설정으로 이동해 직접 테스트하세요.",
+    "reload": "선택한 MCP 적용",
+    "reloadHint": "이 대화에서 사용할 MCP를 선택한 뒤 적용하세요. 메시지는 유지되고 런타임만 재시작됩니다.",
+    "reloadSuccess": "선택한 MCP를 이 대화에 적용했습니다.",
+    "reloadFailed": "선택한 MCP를 이 대화에 적용하지 못했습니다.",
+    "reloadBackendOutdated": "AionCore를 다시 빌드한 후 AionUi를 재시작하고 다시 시도하세요.",
+    "reloadBusy": "현재 응답이 끝난 뒤 MCP 선택을 적용하세요.",
     "openSettings": "도구 설정 열기",
     "status": {
       "loaded": "로드됨",
