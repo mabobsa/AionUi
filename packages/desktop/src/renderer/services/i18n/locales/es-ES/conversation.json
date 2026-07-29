@@ -581,6 +581,12 @@
   "mcp": {
     "loaded": "MCP cargado",
     "managementHint": "Si un MCP parece anormal, generalmente es causado por la configuración JSON del MCP. Ve a la configuración de herramientas y pruébalo allí.",
+    "reload": "Aplicar los MCP seleccionados",
+    "reloadHint": "Selecciona los MCP que usará esta conversación y aplícalos. Los mensajes se conservan y solo se reinicia el entorno.",
+    "reloadSuccess": "Los MCP seleccionados se aplicaron a esta conversación.",
+    "reloadFailed": "No se pudieron aplicar los MCP seleccionados a esta conversación.",
+    "reloadBackendOutdated": "Vuelve a compilar AionCore, reinicia AionUi e inténtalo de nuevo.",
+    "reloadBusy": "Espera a que termine la respuesta actual antes de aplicar la selección de MCP.",
     "openSettings": "Abrir configuración de herramientas",
     "status": {
       "loaded": "Cargado",

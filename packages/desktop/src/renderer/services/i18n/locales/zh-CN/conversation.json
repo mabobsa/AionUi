@@ -580,6 +580,12 @@
   "mcp": {
     "loaded": "已加载 MCP",
     "managementHint": "如果某个 MCP 加载异常，通常是 MCP JSON 配置有问题。请到工具设置页检查并手动检测。",
+    "reload": "应用所选 MCP",
+    "reloadHint": "选择此对话要使用的 MCP 后应用。消息会保留，仅重启运行时。",
+    "reloadSuccess": "已将所选 MCP 应用到此对话。",
+    "reloadFailed": "无法将所选 MCP 应用到此对话。",
+    "reloadBackendOutdated": "重新构建 AionCore 并重启 AionUi 后再试。",
+    "reloadBusy": "请等待当前回复完成后再应用 MCP 选择。",
     "openSettings": "前往工具设置",
     "status": {
       "loaded": "已加载",
