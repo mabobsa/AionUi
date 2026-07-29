@@ -580,6 +580,12 @@
   "mcp": {
     "loaded": "ロード済み MCP",
     "managementHint": "MCP が異常に見える場合、通常は MCP JSON 設定が原因です。ツール設定で確認し、手動で検査してください。",
+    "reload": "選択した MCP を適用",
+    "reloadHint": "この会話で使用する MCP を選択して適用します。メッセージは保持され、ランタイムのみ再起動します。",
+    "reloadSuccess": "選択した MCP をこの会話に適用しました。",
+    "reloadFailed": "選択した MCP をこの会話に適用できませんでした。",
+    "reloadBackendOutdated": "AionCore を再ビルドして AionUi を再起動した後、もう一度お試しください。",
+    "reloadBusy": "現在の応答が完了してから MCP の選択を適用してください。",
     "openSettings": "ツール設定を開く",
     "status": {
       "loaded": "読み込み済み",
