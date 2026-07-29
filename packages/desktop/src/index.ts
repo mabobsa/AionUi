@@ -943,6 +943,7 @@ const handleAppReady = async (): Promise<void> => {
           userDataPath: getDataPath(),
         },
         staticDir: path.join(__dirname, '../renderer'),
+        frontendUrl: !app.isPackaged ? process.env['ELECTRON_RENDERER_URL'] : undefined,
         port: resolvedPort,
         allowRemote,
         dataDir: getDataPath(),
