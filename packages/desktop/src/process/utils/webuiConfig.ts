@@ -245,6 +245,9 @@ export async function startDesktopWebUI(opts: { port?: number; allowRemote?: boo
     },
     // After bundling, this file is out/main/index.js — renderer assets live at ../renderer.
     staticDir: path.join(__dirname, '../renderer'),
+    // electron-vite serves the renderer from memory in development, so out/renderer
+    // may not exist. Proxy WebUI browser assets to the active Vite server instead.
+    frontendUrl: !app.isPackaged ? process.env['ELECTRON_RENDERER_URL'] : undefined,
     port: preferredPort,
     allowRemote,
     // Must align with the desktop IPC path's backend dataDir (src/index.ts), otherwise
