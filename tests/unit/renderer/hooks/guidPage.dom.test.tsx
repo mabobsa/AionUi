@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LayoutContext } from '@/renderer/hooks/context/LayoutContext';
@@ -19,6 +19,7 @@ const {
   capturedGuidInputCardProps,
   capturedGuidSendDeps,
   resolveGuidAssistantDefaultsMock,
+  listAvailableSkillsInvokeMock,
   sendMock,
   navigateMock,
 } = vi.hoisted(() => ({
@@ -117,6 +118,7 @@ const {
     skillIds: [],
     mcpIds: [],
   })),
+  listAvailableSkillsInvokeMock: vi.fn().mockResolvedValue([]),
   sendMock: {
     handleSend: vi.fn(),
     sendMessageHandler: vi.fn(),
@@ -140,7 +142,7 @@ vi.mock('react-router-dom', () => ({
 vi.mock('@/common', () => ({
   ipcBridge: {
     fs: {
-      listAvailableSkills: { invoke: vi.fn().mockResolvedValue([]) },
+      listAvailableSkills: { invoke: listAvailableSkillsInvokeMock },
     },
   },
 }));
@@ -310,6 +312,8 @@ describe('GuidPage', () => {
     capturedAssistantSelectionAreaProps.length = 0;
     capturedGuidInputCardProps.length = 0;
     capturedGuidSendDeps.length = 0;
+    listAvailableSkillsInvokeMock.mockReset();
+    listAvailableSkillsInvokeMock.mockResolvedValue([]);
     useGuidAssistantSelectionMock.mockClear();
     resolveGuidAssistantDefaultsMock.mockReturnValue({
       disabledBuiltinSkillIds: [],
@@ -520,6 +524,74 @@ describe('GuidPage', () => {
     expect(screen.getByRole('button', { name: 'guid.defaultPrompts.understand' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'guid.defaultPrompts.cleanup' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'guid.defaultPrompts.create' })).toBeInTheDocument();
+  });
+
+  it('leaves every auto-inject skill unchecked by default', async () => {
+    listAvailableSkillsInvokeMock.mockResolvedValue([
+      {
+        name: 'officecli',
+        description: 'Office documents',
+        location: '/builtin/officecli/SKILL.md',
+        is_auto_inject: true,
+        is_custom: false,
+        source: 'builtin',
+      },
+      {
+        name: 'skill-creator',
+        description: 'Create skills',
+        location: '/builtin/skill-creator/SKILL.md',
+        is_auto_inject: true,
+        is_custom: false,
+        source: 'builtin',
+      },
+      {
+        name: 'cron',
+        description: 'Schedule tasks',
+        location: '/builtin/cron/SKILL.md',
+        is_auto_inject: true,
+        is_custom: false,
+        source: 'builtin',
+      },
+      {
+        name: 'aionui-config',
+        description: 'Configure AionUi',
+        location: '/builtin/aionui-config/SKILL.md',
+        is_auto_inject: true,
+        is_custom: false,
+        source: 'builtin',
+      },
+      {
+        name: 'manual-skill',
+        description: 'Opt-in skill',
+        location: '/builtin/manual-skill/SKILL.md',
+        is_auto_inject: false,
+        is_custom: false,
+        source: 'builtin',
+      },
+    ]);
+
+    render(<GuidPage />);
+
+    const expectedDisabledSkills = ['officecli', 'skill-creator', 'cron', 'aionui-config'];
+    await waitFor(() => {
+      expect(capturedGuidActionRowProps.at(-1)?.disabledBuiltinSkills).toEqual(expectedDisabledSkills);
+      expect(capturedGuidSendDeps.at(-1)?.assistantDefaultDisabledBuiltinSkillIds).toEqual(expectedDisabledSkills);
+    });
+
+    act(() => {
+      const onToggleSkill = capturedGuidActionRowProps.at(-1)?.onToggleSkill as
+        | ((skillName: string, isAuto: boolean) => void)
+        | undefined;
+      onToggleSkill?.('officecli', true);
+    });
+
+    await waitFor(() => {
+      expect(capturedGuidActionRowProps.at(-1)?.disabledBuiltinSkills).toEqual([
+        'skill-creator',
+        'cron',
+        'aionui-config',
+      ]);
+    });
   });
 
   it('does not seed skill defaults from the assistant list while detail is loading', async () => {
