@@ -33,6 +33,8 @@ export type BackendSystemDirs = {
 export type WebHostOptions = {
   app: AppMetadata;
   staticDir: string;
+  /** Development renderer URL. When set, browser assets are proxied here instead of read from staticDir. */
+  frontendUrl?: string;
   port?: number;
   allowRemote?: boolean;
   dataDir?: string;

@@ -17,6 +17,7 @@ import serveHandler from 'serve-handler';
 
 export type StaticServerOptions = {
   staticDir: string;
+  frontendUrl?: string;
   backendPort: number;
   port?: number;
   allowRemote?: boolean;
@@ -32,6 +33,11 @@ export type StaticServerHandle = {
 };
 
 const DEFAULT_PORT = 25808;
+
+type HttpProxyTarget = {
+  hostname: string;
+  port: number;
+};
 
 // Ranges that are non-internal IPv4 yet never a reachable LAN address, so we
 // must never advertise them as the WebUI access URL even when they are the only
@@ -76,13 +82,28 @@ function getLanIP(): string | null {
   return pickLanIP(networkInterfaces());
 }
 
-function forwardToBackend(req: IncomingMessage, res: ServerResponse, backendPort: number): void {
+function resolveFrontendTarget(frontendUrl?: string): HttpProxyTarget | null {
+  if (!frontendUrl) return null;
+
+  const url = new URL(frontendUrl);
+  if (url.protocol !== 'http:' || url.username || url.password) {
+    throw new Error(`Unsupported WebUI development frontend URL: ${frontendUrl}`);
+  }
+
+  const hostname = ['0.0.0.0', '::', '[::]'].includes(url.hostname) ? '127.0.0.1' : url.hostname;
+  return {
+    hostname,
+    port: url.port ? Number(url.port) : 80,
+  };
+}
+
+function forwardHttpRequest(req: IncomingMessage, res: ServerResponse, target: HttpProxyTarget, path = req.url): void {
   const options: http.RequestOptions = {
-    hostname: '127.0.0.1',
-    port: backendPort,
-    path: req.url,
+    hostname: target.hostname,
+    port: target.port,
+    path,
     method: req.method,
-    headers: { ...req.headers, host: `127.0.0.1:${backendPort}` },
+    headers: { ...req.headers, host: `${target.hostname}:${target.port}` },
   };
   const proxy = http.request(options, (proxyRes) => {
     res.writeHead(proxyRes.statusCode ?? 502, proxyRes.headers);
@@ -99,6 +120,16 @@ function forwardToBackend(req: IncomingMessage, res: ServerResponse, backendPort
   req.pipe(proxy);
 }
 
+function resolveFrontendRequestPath(req: IncomingMessage): string | undefined {
+  if (req.method !== 'GET' || !req.url || !req.headers.accept?.includes('text/html')) {
+    return req.url;
+  }
+
+  const pathname = new URL(req.url, 'http://webui.local').pathname;
+  const lastSegment = pathname.split('/').pop() ?? '';
+  return pathname !== '/' && !lastSegment.includes('.') ? '/index.html' : req.url;
+}
+
 // Max bytes we peek before forcing a routing decision. An HTTP request-line
 // on its own is typically < 100 bytes; a full header block is < 2 KB. If we
 // haven't seen a newline after 4 KB the client is sending something weird —
@@ -106,11 +137,11 @@ function forwardToBackend(req: IncomingMessage, res: ServerResponse, backendPort
 const PEEK_LIMIT_BYTES = 4096;
 
 /**
- * Splice `client` to a TCP endpoint on `targetPort`. Any bytes already read
+ * Splice `client` to a TCP endpoint at `target`. Any bytes already read
  * from `client` during peek are replayed to the upstream as the first write,
  * so the endpoint sees the full HTTP request as-sent.
  */
-function spliceToTcpEndpoint(client: Socket, targetPort: number, initialBytes: Buffer): void {
+function spliceToTcpEndpoint(client: Socket, target: HttpProxyTarget, initialBytes: Buffer): void {
   client.setNoDelay(true);
   client.setKeepAlive(true);
   client.setTimeout(0);
@@ -123,7 +154,7 @@ function spliceToTcpEndpoint(client: Socket, targetPort: number, initialBytes: B
   // span multiple TCP segments) lose their tail bytes and the backend hangs
   // forever waiting for the missing Content-Length (issue #4058).
   client.pause();
-  const upstream = net.connect({ host: '127.0.0.1', port: targetPort });
+  const upstream = net.connect({ host: target.hostname, port: target.port });
   upstream.setNoDelay(true);
   upstream.setKeepAlive(true);
   upstream.once('connect', () => {
@@ -142,27 +173,40 @@ function spliceToTcpEndpoint(client: Socket, targetPort: number, initialBytes: B
 }
 
 /**
- * Decide routing from the first chunk of an incoming HTTP connection:
- *  - `true`  → `GET /ws[...] HTTP/1.x` or `GET /api/stt/stream[...] HTTP/1.x` (WebSocket/stream upgrades), splice to backend
- *  - `false` → any other HTTP method / path, hand to internal HTTP server
- *  - `null`  → need more bytes (no CRLF yet)
+ * Decide routing from the first request headers of an incoming HTTP connection:
+ *  - `backend`  → backend WebSocket/stream upgrades
+ *  - `frontend` → development frontend WebSocket upgrades (Vite HMR)
+ *  - `http`     → internal HTTP server for API proxying or static/frontend HTTP
+ *  - `null`     → need more bytes
  *
  * We only check the request-line; `Upgrade: websocket` is not strictly
  * required — the backend will reject a non-upgrade GET on these paths on its own.
  * Keeping the rule simple means we can decide after the first ~50 bytes
  * instead of waiting for the full header block.
  */
-function peekWsRoute(buf: Buffer): boolean | null {
+type TcpRoute = 'backend' | 'frontend' | 'http';
+
+function peekTcpRoute(buf: Buffer, hasFrontendTarget: boolean): TcpRoute | null {
   const newlineIdx = buf.indexOf(0x0a); // \n
   if (newlineIdx < 0) return null;
   const firstLine = buf.slice(0, newlineIdx).toString('ascii');
-  return /^GET\s+\/(?:ws|api\/stt\/stream)(?:\?[^\s]*)?\s+HTTP\/1\.[01]\r?$/.test(firstLine);
+  if (/^GET\s+\/(?:ws|api\/stt\/stream)(?:\?[^\s]*)?\s+HTTP\/1\.[01]\r?$/.test(firstLine)) {
+    return 'backend';
+  }
+  if (!hasFrontendTarget) return 'http';
+
+  const headerEnd = buf.indexOf('\r\n\r\n');
+  if (headerEnd < 0 && buf.length < PEEK_LIMIT_BYTES) return null;
+  const headers = buf.slice(0, headerEnd >= 0 ? headerEnd : undefined).toString('ascii');
+  return /(?:^|\r?\n)upgrade:\s*websocket\s*(?:\r?\n|$)/i.test(headers) ? 'frontend' : 'http';
 }
 
 export async function startStaticServer(opts: StaticServerOptions): Promise<StaticServerHandle> {
   const port = opts.port ?? DEFAULT_PORT;
   const allowRemote = opts.allowRemote === true;
   const host = allowRemote ? '0.0.0.0' : '127.0.0.1';
+  const backendTarget: HttpProxyTarget = { hostname: '127.0.0.1', port: opts.backendPort };
+  const frontendTarget = resolveFrontendTarget(opts.frontendUrl);
 
   // The HTTP server listens only on loopback — user traffic hits the outer
   // net.Server first. We route to this server for everything except WS
@@ -184,7 +228,12 @@ export async function startStaticServer(opts: StaticServerOptions): Promise<Stat
       // /login and /logout are aionui-auth's top-level auth endpoints: proxy them too
       // so WebUI browser clients reach the backend without a path-rewrite.
       if (req.url.startsWith('/api/') || req.url.startsWith('/api?') || req.url === '/login' || req.url === '/logout') {
-        forwardToBackend(req, res, opts.backendPort);
+        forwardHttpRequest(req, res, backendTarget);
+        return;
+      }
+
+      if (frontendTarget) {
+        forwardHttpRequest(req, res, frontendTarget, resolveFrontendRequestPath(req));
         return;
       }
 
@@ -193,7 +242,7 @@ export async function startStaticServer(opts: StaticServerOptions): Promise<Stat
         public: opts.staticDir,
         rewrites: [{ source: '**', destination: '/index.html' }],
       });
-    } catch (err) {
+    } catch {
       if (!res.headersSent) {
         res.writeHead(500, { 'content-type': 'application/json' });
         res.end(JSON.stringify({ error: 'INTERNAL_ERROR' }));
@@ -232,10 +281,15 @@ export async function startStaticServer(opts: StaticServerOptions): Promise<Stat
     };
     const onData = (chunk: Buffer): void => {
       peeked = Buffer.concat([peeked, chunk]);
-      const decision = peekWsRoute(peeked);
+      const decision = peekTcpRoute(peeked, frontendTarget !== null);
       if (decision === null && peeked.length < PEEK_LIMIT_BYTES) return;
       cleanup();
-      const target = decision === true ? opts.backendPort : internalPort;
+      const target =
+        decision === 'backend'
+          ? backendTarget
+          : decision === 'frontend' && frontendTarget
+            ? frontendTarget
+            : { hostname: '127.0.0.1', port: internalPort };
       spliceToTcpEndpoint(client, target, peeked);
     };
     const onEarlyError = (): void => {
