@@ -4,20 +4,24 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useContext, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useConversationListSync } from '@/renderer/pages/conversation/GroupedHistory/hooks/useConversationListSync';
 import type { GroupedHistoryResult } from '@/renderer/pages/conversation/GroupedHistory/types';
+import type { ConversationHistoryView } from '@/renderer/pages/conversation/GroupedHistory/utils/bookmarkHelpers';
 import { buildGroupedHistory } from '@/renderer/pages/conversation/GroupedHistory/utils/groupingHelpers';
 
 export type ConversationHistoryContextValue = ReturnType<typeof useConversationListSync> & {
   groupedHistory: GroupedHistoryResult;
+  historyView: ConversationHistoryView;
+  setHistoryView: React.Dispatch<React.SetStateAction<ConversationHistoryView>>;
 };
 
 const ConversationHistoryContext = createContext<ConversationHistoryContextValue | null>(null);
 
 export const ConversationHistoryProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
   const { t } = useTranslation();
+  const [historyView, setHistoryView] = useState<ConversationHistoryView>('all');
   const conversationListSync = useConversationListSync();
 
   const groupedHistory = useMemo(() => {
@@ -28,8 +32,10 @@ export const ConversationHistoryProvider: React.FC<React.PropsWithChildren> = ({
     return {
       ...conversationListSync,
       groupedHistory,
+      historyView,
+      setHistoryView,
     };
-  }, [conversationListSync, groupedHistory]);
+  }, [conversationListSync, groupedHistory, historyView]);
 
   return <ConversationHistoryContext.Provider value={value}>{children}</ConversationHistoryContext.Provider>;
 };

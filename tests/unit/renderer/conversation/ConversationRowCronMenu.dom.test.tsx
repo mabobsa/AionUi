@@ -100,4 +100,25 @@ describe('conversation scheduled-task menu item', () => {
 
     expect(screen.queryByText('conversation.history.createCronTask')).not.toBeInTheDocument();
   });
+
+  it('toggles the bookmark without opening the conversation', () => {
+    const onTogglePin = vi.fn();
+    const onConversationClick = vi.fn();
+    render(<ConversationRow {...makeProps({ menuVisible: false, onTogglePin, onConversationClick })} />);
+
+    fireEvent.click(screen.getByTestId(`conversation-bookmark-${conversation.id}`));
+
+    expect(onTogglePin).toHaveBeenCalledWith(conversation);
+    expect(onConversationClick).not.toHaveBeenCalled();
+  });
+
+  it('places the bookmark before the AI model icon', () => {
+    render(<ConversationRow {...makeProps({ menuVisible: false })} />);
+
+    const bookmark = screen.getByTestId(`conversation-bookmark-${conversation.id}`);
+    const leadingIcon = screen.getByTestId(`conversation-leading-icon-${conversation.id}`);
+
+    expect(bookmark.compareDocumentPosition(leadingIcon) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(bookmark).toHaveClass('!inline-flex', '!items-center', '!justify-center', '!leading-none');
+  });
 });
