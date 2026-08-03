@@ -2,6 +2,7 @@ import type { GroupedHistoryResult } from '../types';
 
 type VisibleConversationOrderInput = GroupedHistoryResult & {
   expandedWorkspaces: string[];
+  historyView: 'all' | 'bookmarks';
   siderCollapsed: boolean;
 };
 
@@ -9,14 +10,15 @@ export const buildVisibleConversationIds = ({
   pinnedConversations,
   timelineSections,
   expandedWorkspaces,
+  historyView,
   siderCollapsed,
 }: VisibleConversationOrderInput): string[] => {
+  if (historyView === 'bookmarks') {
+    return pinnedConversations.map((conversation) => conversation.id);
+  }
+
   const expandedWorkspaceSet = new Set(expandedWorkspaces);
   const visibleConversationIds: string[] = [];
-
-  pinnedConversations.forEach((conversation) => {
-    visibleConversationIds.push(conversation.id);
-  });
 
   timelineSections.forEach((section) => {
     section.items.forEach((item) => {
