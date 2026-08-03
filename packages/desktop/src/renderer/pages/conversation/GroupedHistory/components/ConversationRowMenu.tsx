@@ -5,7 +5,7 @@
  */
 
 import { Dropdown, Menu } from '@arco-design/web-react';
-import { Copy, CopyOne, DeleteOne, EditOne, Export, Inbox, MoreOne, Pushpin, Timer, Undo } from '@icon-park/react';
+import { Copy, CopyOne, DeleteOne, EditOne, Export, Inbox, MoreOne, Star, Timer, Undo } from '@icon-park/react';
 import classNames from 'classnames';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
@@ -115,8 +115,8 @@ const ConversationRowMenu: React.FC<ConversationRowMenuProps> = ({
         ),
         <Menu.Item key='pin'>
           <div className='flex items-center gap-8px'>
-            <Pushpin theme='outline' size='14' />
-            <span>{isPinned ? t('conversation.history.unpin') : t('conversation.history.pin')}</span>
+            <Star theme={isPinned ? 'filled' : 'outline'} size='14' fill='currentColor' />
+            <span>{isPinned ? t('conversation.history.removeBookmark') : t('conversation.history.addBookmark')}</span>
           </div>
         </Menu.Item>,
         <Menu.Item key='toggleManualUnread'>

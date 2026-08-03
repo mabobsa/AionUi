@@ -214,9 +214,9 @@ export const useConversationActions = ({
         const success = await ipcBridge.conversation.update.invoke({
           id: conversation.id,
           updates: {
+            pinned: !pinned,
             extra: {
-              pinned: !pinned,
-              pinned_at: pinned ? undefined : Date.now(),
+              pinned: false,
             } as Partial<TChatConversation['extra']>,
           } as Partial<TChatConversation>,
           merge_extra: true,
@@ -225,11 +225,11 @@ export const useConversationActions = ({
         if (success) {
           emitter.emit('chat.history.refresh');
         } else {
-          Message.error(t('conversation.history.pinFailed'));
+          Message.error(t('conversation.history.bookmarkUpdateFailed'));
         }
       } catch (error) {
         console.error('Failed to toggle pin conversation:', error);
-        Message.error(t('conversation.history.pinFailed'));
+        Message.error(t('conversation.history.bookmarkUpdateFailed'));
       }
     },
     [t]

@@ -8,15 +8,23 @@ import type { TChatConversation } from '@/common/config/storage';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { copyTextMock, getMessagesMock, navigateMock, requestPrefillMock, routeState, updateConversationMock } =
-  vi.hoisted(() => ({
-    copyTextMock: vi.fn(),
-    getMessagesMock: vi.fn(),
-    navigateMock: vi.fn(),
-    requestPrefillMock: vi.fn(),
-    routeState: { id: 'current-conversation' as string | undefined },
-    updateConversationMock: vi.fn(),
-  }));
+const {
+  copyTextMock,
+  getMessagesMock,
+  messageErrorMock,
+  navigateMock,
+  requestPrefillMock,
+  routeState,
+  updateConversationMock,
+} = vi.hoisted(() => ({
+  copyTextMock: vi.fn(),
+  getMessagesMock: vi.fn(),
+  messageErrorMock: vi.fn(),
+  navigateMock: vi.fn(),
+  requestPrefillMock: vi.fn(),
+  routeState: { id: 'current-conversation' as string | undefined },
+  updateConversationMock: vi.fn(),
+}));
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -55,7 +63,7 @@ vi.mock('@/renderer/utils/chat/getLastAssistantText', () => ({
 
 vi.mock('@arco-design/web-react', () => ({
   Message: {
-    error: vi.fn(),
+    error: messageErrorMock,
     success: vi.fn(),
     warning: vi.fn(),
   },
@@ -190,5 +198,45 @@ describe('conversation copy and archive actions', () => {
         merge_extra: true,
       });
     });
+  });
+
+  it.each([
+    { currentPinned: false, expectedPinned: true },
+    { currentPinned: true, expectedPinned: false },
+  ])(
+    'updates the canonical bookmark field from $currentPinned to $expectedPinned',
+    async ({ currentPinned, expectedPinned }) => {
+      const conversation = {
+        ...makeConversation('bookmark-target', 'acp'),
+        pinned: currentPinned,
+        extra: { backend: 'claude', pinned: currentPinned },
+      } as TChatConversation;
+      const { result } = renderActions();
+
+      await act(async () => {
+        await result.current.handleTogglePin(conversation);
+      });
+
+      expect(updateConversationMock).toHaveBeenCalledWith({
+        id: 'bookmark-target',
+        updates: {
+          pinned: expectedPinned,
+          extra: { pinned: false },
+        },
+        merge_extra: true,
+      });
+    }
+  );
+
+  it('keeps the current bookmark state and reports an error when the update is rejected', async () => {
+    updateConversationMock.mockResolvedValue(false);
+    const conversation = makeConversation('bookmark-failure', 'acp');
+    const { result } = renderActions();
+
+    await act(async () => {
+      await result.current.handleTogglePin(conversation);
+    });
+
+    expect(messageErrorMock).toHaveBeenCalledWith('conversation.history.bookmarkUpdateFailed');
   });
 });

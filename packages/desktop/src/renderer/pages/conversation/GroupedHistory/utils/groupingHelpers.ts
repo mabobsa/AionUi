@@ -13,12 +13,17 @@ import type { GroupedHistoryResult, TimelineItem, TimelineSection } from '../typ
 import { getConversationSortOrder } from './sortOrderHelpers';
 
 export const isConversationPinned = (conversation: TChatConversation): boolean => {
+  const canonical = conversation as TChatConversation & { pinned?: boolean };
   const extra = conversation.extra as { pinned?: boolean } | undefined;
-  return Boolean(extra?.pinned);
+  return canonical.pinned === true || extra?.pinned === true;
 };
 
 export const getConversationPinnedAt = (conversation: TChatConversation): number => {
+  const canonical = conversation as TChatConversation & { pinned_at?: number };
   const extra = conversation.extra as { pinned_at?: number } | undefined;
+  if (typeof canonical.pinned_at === 'number') {
+    return canonical.pinned_at;
+  }
   if (typeof extra?.pinned_at === 'number') {
     return extra.pinned_at;
   }
@@ -120,10 +125,8 @@ export const buildGroupedHistory = (
       return getConversationPinnedAt(b) - getConversationPinnedAt(a);
     });
 
-  const normalConversations = visibleConversations.filter((conversation) => !isConversationPinned(conversation));
-
   return {
     pinnedConversations,
-    timelineSections: groupConversationsByWorkspace(normalConversations, t),
+    timelineSections: groupConversationsByWorkspace(visibleConversations, t),
   };
 };

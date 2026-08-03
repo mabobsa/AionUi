@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useConversationHistoryContext } from '@/renderer/hooks/context/ConversationHistoryContext';
 import type { TimelineSection } from '../types';
+import type { ConversationHistoryView } from '../utils/bookmarkHelpers';
 import {
   dispatchWorkspaceExpansionChange,
   readExpandedWorkspaces,
@@ -31,14 +32,23 @@ const readCollapsedSections = (): Set<string> => {
 
 // Where an active conversation lives, so we can expand the right containers
 // before scrolling it into view.
-type ConversationLocation = { section: 'pinned' | 'projects' | 'conversations'; workspace?: string };
+type ConversationLocation = {
+  section: 'pinned' | 'projects' | 'conversations' | 'bookmark:without-project';
+  workspace?: string;
+};
 
 const locateConversation = (
   id: string,
   pinned: TChatConversation[],
-  sections: TimelineSection[]
+  sections: TimelineSection[],
+  historyView: ConversationHistoryView
 ): ConversationLocation | null => {
-  if (pinned.some((c) => c.id === id)) return { section: 'pinned' };
+  if (historyView === 'bookmarks') {
+    const conversation = pinned.find((candidate) => candidate.id === id);
+    if (!conversation) return null;
+    const workspace = conversation.extra?.custom_workspace ? conversation.extra.workspace?.trim() : undefined;
+    return workspace ? { section: 'pinned', workspace } : { section: 'bookmark:without-project' };
+  }
   for (const section of sections) {
     for (const item of section.items) {
       if (item.type === 'workspace' && item.workspaceGroup) {
@@ -67,6 +77,8 @@ export const useConversations = () => {
     clearManualUnread,
     setActiveConversation,
     groupedHistory,
+    historyView,
+    setHistoryView,
   } = useConversationHistoryContext();
 
   const { pinnedConversations, timelineSections } = groupedHistory;
@@ -105,14 +117,16 @@ export const useConversations = () => {
     clearCompletionUnread(id);
     clearManualUnread(id);
 
-    if (revealedIdRef.current === id) return;
+    const revealKey = `${historyView}:${id}`;
+    if (revealedIdRef.current === revealKey) return;
 
-    const location = locateConversation(id, pinnedConversations, timelineSections);
+    const location = locateConversation(id, pinnedConversations, timelineSections, historyView);
     if (!location) return; // data not loaded yet; effect re-runs when it arrives
-    revealedIdRef.current = id;
+    revealedIdRef.current = revealKey;
 
     // Expand the containing section if collapsed.
     setCollapsedSections((prev) => {
+      if (location.section === 'pinned') return prev;
       if (!prev.has(location.section)) return prev;
       const next = new Set(prev);
       next.delete(location.section);
@@ -141,7 +155,15 @@ export const useConversations = () => {
       cancelAnimationFrame(outerRafId);
       cancelAnimationFrame(innerRafId);
     };
-  }, [clearCompletionUnread, clearManualUnread, id, setActiveConversation, pinnedConversations, timelineSections]);
+  }, [
+    clearCompletionUnread,
+    clearManualUnread,
+    historyView,
+    id,
+    setActiveConversation,
+    pinnedConversations,
+    timelineSections,
+  ]);
 
   // Persist workspace expansion state
   useEffect(() => {
@@ -220,6 +242,8 @@ export const useConversations = () => {
     expandedWorkspaces,
     pinnedConversations,
     timelineSections,
+    historyView,
+    setHistoryView,
     handleToggleWorkspace,
     collapsedSections,
     toggleSection,
