@@ -8,9 +8,6 @@ import type { TChatConversation } from '@/common/config/storage';
 import AionModal from '@/renderer/components/base/AionModal';
 import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
 import { useCronJobsMap } from '@/renderer/pages/cron';
-import { restrictToVerticalAxis } from '@/renderer/utils/ui/dndModifiers';
-import { DndContext, closestCenter } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Button, Dropdown, Empty, Input, Menu, Modal, Tooltip } from '@arco-design/web-react';
 import { FolderClose, MoreOne, Plus, Right } from '@icon-park/react';
 import classNames from 'classnames';
@@ -20,12 +17,12 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import WorkspaceCollapse from '../components/WorkspaceCollapse';
 import ConversationRow from './ConversationRow';
-import SortableConversationRow from './SortableConversationRow';
+import BookmarkedConversationList from './components/BookmarkedConversationList';
+import HistoryViewTabs from './components/HistoryViewTabs';
 import ProjectGroupHeader from './components/ProjectGroupHeader';
 import { useBatchSelection } from './hooks/useBatchSelection';
 import { useConversationActions } from './hooks/useConversationActions';
 import { useConversations } from './hooks/useConversations';
-import { useDragAndDrop } from './hooks/useDragAndDrop';
 import { useProjectGitBranches } from './hooks/useProjectGitBranches';
 import type { ConversationRowProps, WorkspaceGroupedHistoryProps } from './types';
 
@@ -55,6 +52,8 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
     expandedWorkspaces,
     pinnedConversations,
     timelineSections,
+    historyView,
+    setHistoryView,
     handleToggleWorkspace,
     collapsedSections,
     toggleSection,
@@ -143,12 +142,6 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
     isManualUnread,
   });
 
-  const { sensors, handleDragEnd, isDragEnabled } = useDragAndDrop({
-    pinnedConversations,
-    batchMode,
-    collapsed,
-  });
-
   // Fork-lineage badge support: resolve a parent conversation's display name
   // from the already-loaded sidebar list (no extra fetch; unresolved = the
   // parent was deleted or not loaded → the badge falls back to a generic tip).
@@ -223,9 +216,6 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
     return <ConversationRow key={conversation.id} {...rowProps} dimIcon={dimIcon} />;
   };
 
-  // Collect all sortable IDs for the pinned section
-  const pinnedIds = useMemo(() => pinnedConversations.map((c) => c.id), [pinnedConversations]);
-
   // Codex-style split: project folders (workspaces) on top, free conversations below.
   // Projects section: collect all workspace groups across timeline sections, ordered by recency.
   const projectGroups = useMemo(() => {
@@ -263,16 +253,7 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
     [timelineSections]
   );
 
-  if (timelineSections.length === 0 && pinnedConversations.length === 0) {
-    return (
-      <>
-        {afterPinnedContent}
-        <div className='py-48px flex-center'>
-          <Empty description={t('conversation.history.noHistory')} />
-        </div>
-      </>
-    );
-  }
+  const hasRegularHistory = timelineSections.length > 0;
 
   return (
     <>
@@ -395,43 +376,39 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
       </AionModal>
 
       <div>
-        {/* L1: Pinned section */}
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          modifiers={[restrictToVerticalAxis]}
-          onDragEnd={handleDragEnd}
-        >
-          {pinnedConversations.length > 0 && (
-            <div className='min-w-0'>
-              {!collapsed && <SectionLabel sectionKey='pinned' label={t('conversation.history.pinnedSection')} />}
-              {!collapsedSections.has('pinned') && (
-                <SortableContext items={pinnedIds} strategy={verticalListSortingStrategy}>
-                  <div className='min-w-0'>
-                    {pinnedConversations.map((conversation) => {
-                      const props = getConversationRowProps(conversation);
-                      return isDragEnabled ? (
-                        <SortableConversationRow key={conversation.id} {...props} />
-                      ) : (
-                        <ConversationRow key={conversation.id} {...props} />
-                      );
-                    })}
-                  </div>
-                </SortableContext>
-              )}
-            </div>
-          )}
-        </DndContext>
-
         {/* Slot 由父级（Sider）填入：例如 Team / CronJob sections，位于「置顶」之后、「项目」之前 */}
         {afterPinnedContent}
 
+        {!collapsed && (
+          <HistoryViewTabs
+            activeView={historyView}
+            bookmarkCount={pinnedConversations.length}
+            onChange={setHistoryView}
+          />
+        )}
+
+        {historyView === 'bookmarks' && (
+          <BookmarkedConversationList
+            conversations={pinnedConversations}
+            collapsed={collapsed}
+            batchMode={batchMode}
+            expandedWorkspaces={expandedWorkspaces}
+            onToggleWorkspace={handleToggleWorkspace}
+            collapsedSections={collapsedSections}
+            onToggleSection={toggleSection}
+            projectGitBranches={projectGitBranches}
+            hasCompletionUnread={hasCompletionUnread}
+            getConversationRowProps={getConversationRowProps}
+          />
+        )}
+
         {/* L1: Projects section — workspace folders, peer to conversations */}
-        {projectGroups.length > 0 && (
+        {historyView === 'all' && projectGroups.length > 0 && (
           <div className='min-w-0'>
             {!collapsed && <SectionLabel sectionKey='projects' label={t('conversation.history.projectsSection')} />}
             {!collapsedSections.has('projects') &&
               projectGroups.map((group) => {
+                const isProjectExpanded = expandedWorkspaces.includes(group.workspace);
                 const projectMenu = (
                   <Menu
                     onClickMenuItem={(key) => {
@@ -451,7 +428,7 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
                 return (
                   <div key={group.workspace} className='min-w-0'>
                     <WorkspaceCollapse
-                      expanded={expandedWorkspaces.includes(group.workspace)}
+                      expanded={isProjectExpanded}
                       onToggle={() => handleToggleWorkspace(group.workspace)}
                       siderCollapsed={collapsed}
                       stickyHeader
@@ -461,6 +438,10 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
                           workspace={group.workspace}
                           displayName={group.displayName}
                           branch={projectGitBranches[group.workspace]}
+                          showCompletionUnread={
+                            !isProjectExpanded &&
+                            group.conversations.some((conversation) => hasCompletionUnread(conversation.id))
+                          }
                         />
                       }
                       trailing={
@@ -521,7 +502,7 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
         )}
 
         {/* L1: Conversations section — peer to projects, internally split by timeline */}
-        {conversationOnlySections.length > 0 && (
+        {historyView === 'all' && conversationOnlySections.length > 0 && (
           <div className='min-w-0'>
             {!collapsed && (
               <SectionLabel sectionKey='conversations' label={t('conversation.history.conversationsSection')} />
@@ -539,6 +520,11 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
                   )}
                 </div>
               ))}
+          </div>
+        )}
+        {historyView === 'all' && !hasRegularHistory && (
+          <div className='py-48px flex-center'>
+            <Empty description={t('conversation.history.noHistory')} />
           </div>
         )}
       </div>

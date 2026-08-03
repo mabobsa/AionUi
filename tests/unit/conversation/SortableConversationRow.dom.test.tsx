@@ -40,7 +40,8 @@ const pinnedConversation = {
   type: 'acp',
   created_at: 1,
   modified_at: 1,
-  extra: { pinned: true },
+  pinned: true,
+  extra: {},
 } as unknown as TChatConversation;
 
 const onConversationClick = vi.fn();
@@ -76,7 +77,7 @@ const renderRow = () =>
   );
 
 describe('SortableConversationRow', () => {
-  it('renders a drag handle overlaying the leading icon for pinned rows', () => {
+  it('renders a drag handle overlaying the leading icon for bookmarked rows', () => {
     renderRow();
     expect(screen.getByTestId('conversation-drag-handle-conv-1')).toBeInTheDocument();
   });

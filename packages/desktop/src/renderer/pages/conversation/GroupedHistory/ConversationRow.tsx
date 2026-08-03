@@ -22,6 +22,7 @@ import { useTranslation } from 'react-i18next';
 import ConversationRowMenu from './components/ConversationRowMenu';
 import type { ConversationRowProps } from './types';
 import { isConversationPinned } from './utils/groupingHelpers';
+import ConversationBookmarkButton from './components/ConversationBookmarkButton';
 
 const ConversationRow: React.FC<ConversationRowProps> = (props) => {
   const {
@@ -147,7 +148,7 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
 
     return (
       <span className='absolute end-8px top-1/2 -translate-y-1/2 flex items-center justify-center group-hover:hidden'>
-        <span className='h-8px w-8px rounded-full bg-#2C7FFF shadow-[0_0_0_2px_rgba(44,127,255,0.18)]' />
+        <span className='h-8px w-8px rounded-full bg-[var(--conversation-completion-unread)] shadow-[0_0_0_2px_var(--conversation-completion-unread-ring)]' />
       </span>
     );
   };
@@ -186,7 +187,18 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
             <Checkbox checked={checked} />
           </span>
         )}
-        <span className='size-22px flex items-center justify-center shrink-0 relative'>
+        {!batchMode && !collapsed && (
+          <ConversationBookmarkButton
+            conversation={conversation}
+            isPinned={isPinned}
+            isMobile={isMobile}
+            onTogglePin={onTogglePin}
+          />
+        )}
+        <span
+          data-testid={`conversation-leading-icon-${conversation.id}`}
+          className='size-22px flex items-center justify-center shrink-0 relative'
+        >
           {showWaitingConfirmation ? (
             <Attention
               theme='filled'
