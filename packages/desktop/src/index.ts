@@ -29,6 +29,7 @@ import { assertStartupArchitectureCompatible } from './process/startup/architect
 import { classifyBackendStartupFailure } from './process/startup/backendStartupFailure';
 import { installQuitCleanup } from './process/startup/quitCleanup';
 import { shouldRegisterBackendStartup } from './process/startup/singleInstanceGating';
+import type { AionUiBootstrapContext, BootstrapProtocolEvent } from './process/startup/bootstrap/protocol';
 import { ProcessConfig } from './process/utils/initStorage';
 import type { BackendStartupFailureInfo } from './common/types/platform/electron';
 import { registerWindowMaximizeListeners } from '@process/bridge';
@@ -50,12 +51,7 @@ import {
   loadSavedWindowBounds,
   resolveInitialBounds,
 } from './process/utils/windowBounds';
-import {
-  clearPendingDeepLinkUrl,
-  getPendingDeepLinkUrl,
-  handleDeepLinkUrl,
-  PROTOCOL_SCHEME,
-} from './process/utils/deepLink';
+import { handleDeepLinkUrl, PROTOCOL_SCHEME, registerDeepLinkReadyProvider } from './process/utils/deepLink';
 import {
   bindMainWindowReferences,
   showAndFocusMainWindow,
@@ -80,44 +76,22 @@ import { readCloseToTraySetting } from './process/utils/closeToTraySetting';
 // @ts-expect-error - electron-squirrel-startup doesn't have types
 import electronSquirrelStartup from 'electron-squirrel-startup';
 
-// ============ Single Instance Lock ============
-// Acquire lock early so the second instance quits before doing unnecessary work.
-// When a second instance starts (e.g. from protocol URL), it sends its data
-// to the first instance via second-instance event, then quits.
+type BootstrapGlobal = typeof globalThis & {
+  __aionuiBootstrapContext?: AionUiBootstrapContext;
+};
+
+// The normal entry acquires the lock before loading this full application.
+// Keep a direct-entry fallback for diagnostics and older generated launchers.
+const bootstrapContext = (globalThis as BootstrapGlobal).__aionuiBootstrapContext;
 const isE2ETestMode = process.env.AIONUI_E2E_TEST === '1';
 const skipSingleInstanceLock = isE2ETestMode || process.env.AIONUI_MULTI_INSTANCE === '1';
 const deepLinkFromArgv = process.argv.find((arg) => arg.startsWith(`${PROTOCOL_SCHEME}://`));
-const gotTheLock = skipSingleInstanceLock ? true : app.requestSingleInstanceLock({ deepLinkUrl: deepLinkFromArgv });
+const gotTheLock =
+  bootstrapContext?.ownsSingleInstanceLock ??
+  (skipSingleInstanceLock ? true : app.requestSingleInstanceLock({ deepLinkUrl: deepLinkFromArgv }));
 if (!gotTheLock) {
   console.warn('[AionUi] Another instance is already running; current process will exit.');
-  app.quit();
-} else {
-  app.on('second-instance', (_event, argv, _workingDirectory, additionalData) => {
-    // Prefer additionalData (reliable on all platforms), fallback to argv scan
-    const deepLinkUrl =
-      (additionalData as { deepLinkUrl?: string })?.deepLinkUrl ||
-      argv.find((arg) => arg.startsWith(`${PROTOCOL_SCHEME}://`));
-    if (deepLinkUrl) {
-      handleDeepLinkUrl(deepLinkUrl);
-    }
-    // Focus existing window or recreate one if needed.
-    if (isWebUIMode || isResetPasswordMode) {
-      return;
-    }
-
-    // Skip window creation if app hasn't finished initializing
-    if (!appReadyDone) return;
-
-    if (app.isReady()) {
-      showOrCreateMainWindow({
-        mainWindow,
-        createWindow: () => {
-          console.log('[AionUi] second-instance received with no active main window, recreating main window');
-          createWindow();
-        },
-      });
-    }
-  });
+  app.exit(0);
 }
 
 // Align GUI-launched PATH with what local CLIs expect on each desktop OS.
@@ -201,6 +175,8 @@ const isRemoteMode = hasSwitch('remote');
 const isResetPasswordMode = hasCommand('--resetpass');
 const isVersionMode = hasCommand('--version') || hasCommand('-v');
 
+registerDeepLinkReadyProvider();
+
 // Flag to distinguish intentional quit from unexpected exit in WebUI mode
 let isExplicitQuit = false;
 
@@ -209,6 +185,7 @@ let isExplicitQuit = false;
 // causing the renderer to load and compete with initStorage on the serial configFile queue,
 // which blocks startup for 100-265 seconds.
 let appReadyDone = false;
+let pendingExternalWindowActivation = false;
 
 let mainWindow: BrowserWindow;
 const backendManager = new BackendLifecycleManager(
@@ -1003,7 +980,8 @@ const handleAppReady = async (): Promise<void> => {
       }
     }
 
-    const showMainWindowOnReady = !(wasLaunchedAtLogin() && getCloseToTrayEnabled());
+    const showMainWindowOnReady = pendingExternalWindowActivation || !(wasLaunchedAtLogin() && getCloseToTrayEnabled());
+    pendingExternalWindowActivation = false;
 
     createWindow({ showOnReady: showMainWindowOnReady });
     appReadyDone = true;
@@ -1050,17 +1028,46 @@ const handleAppReady = async (): Promise<void> => {
         console.error('[WebUI] Failed to auto-restore:', error);
       });
     }
-
-    // Flush pending deep-link URL (received before window was ready)
-    const pendingUrl = getPendingDeepLinkUrl();
-    if (pendingUrl) {
-      clearPendingDeepLinkUrl();
-      mainWindow.webContents.once('did-finish-load', () => {
-        handleDeepLinkUrl(pendingUrl);
-      });
-    }
   }
 };
+
+const requestExternalWindowActivation = (): void => {
+  if (isWebUIMode || isResetPasswordMode) return;
+  if (!appReadyDone) {
+    pendingExternalWindowActivation = true;
+    return;
+  }
+  if (!app.isReady()) return;
+
+  showOrCreateMainWindow({
+    mainWindow,
+    createWindow: () => {
+      console.log('[AionUi] external launch received with no active main window, recreating main window');
+      createWindow();
+    },
+  });
+};
+
+const handleBootstrapProtocolEvent = (event: BootstrapProtocolEvent): void => {
+  if (isWebUIMode || isResetPasswordMode) return;
+  if (event.deepLinkUrl) handleDeepLinkUrl(event.deepLinkUrl);
+  requestExternalWindowActivation();
+};
+
+if (bootstrapContext) {
+  bootstrapContext.attachProtocolHandler(handleBootstrapProtocolEvent);
+} else if (gotTheLock && !skipSingleInstanceLock) {
+  app.on('second-instance', (_event, argv, _workingDirectory, additionalData) => {
+    const additionalDeepLink = (additionalData as { deepLinkUrl?: unknown })?.deepLinkUrl;
+    handleBootstrapProtocolEvent({
+      kind: 'second-instance',
+      deepLinkUrl:
+        typeof additionalDeepLink === 'string'
+          ? additionalDeepLink
+          : argv.find((arg) => arg.startsWith(`${PROTOCOL_SCHEME}://`)),
+    });
+  });
+}
 
 // ============ Protocol Registration ============
 // Register aionui:// as the default protocol client
@@ -1071,16 +1078,13 @@ if (process.defaultApp) {
   app.setAsDefaultProtocolClient(PROTOCOL_SCHEME);
 }
 
-// macOS: handle aionui:// URLs via the open-url event
-app.on('open-url', (event, url) => {
-  event.preventDefault();
-  handleDeepLinkUrl(url);
-  if (isWebUIMode || isResetPasswordMode || !app.isReady()) {
-    return;
-  }
-  // Focus existing window so user sees the result
-  showOrCreateMainWindow({ mainWindow, createWindow });
-});
+if (!bootstrapContext) {
+  // Direct-entry fallback; the normal bootstrap registers this before app.ready.
+  app.on('open-url', (event, url) => {
+    event.preventDefault();
+    handleBootstrapProtocolEvent({ kind: 'open-url', deepLinkUrl: url });
+  });
+}
 
 // 监听 GPU 子进程崩溃，连续多次后下次启动自动关闭硬件加速（参见 ELECTRON-9A / ELECTRON-9D）。
 installGpuCrashHandler();
