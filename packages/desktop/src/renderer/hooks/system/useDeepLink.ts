@@ -91,6 +91,10 @@ export const useDeepLink = () => {
   );
 
   useEffect(() => {
-    return ipcBridge.deepLink.received.on(handler);
+    const unsubscribe = ipcBridge.deepLink.received.on(handler);
+    void ipcBridge.deepLink.ready.invoke().catch(() => {
+      // Browser-only WebUI sessions may not have an Electron deep-link provider.
+    });
+    return unsubscribe;
   }, [handler]);
 };
