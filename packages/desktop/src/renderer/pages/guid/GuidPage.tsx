@@ -17,6 +17,7 @@ import { getFuzzyMatchIndices, useSlashCommandController } from '@/renderer/hook
 import { openExternalUrl } from '@/renderer/utils/platform';
 import SlashCommandMenu, { type SlashCommandMenuItem } from '@/renderer/components/chat/SlashCommandMenu';
 import AssistantSelectionArea from './components/AssistantSelectionArea';
+import ExternalConversationLaunchState from './components/ExternalConversationLaunchState';
 import GuidActionRow from './components/GuidActionRow';
 import GuidInputCard from './components/GuidInputCard';
 import GuidModelSelector from './components/GuidModelSelector';
@@ -27,6 +28,7 @@ import { useGuidInput } from './hooks/useGuidInput';
 import { useGuidModelSelection } from './hooks/useGuidModelSelection';
 import { useGuidSend } from './hooks/useGuidSend';
 import { useExternalConversationLaunch } from './hooks/useExternalConversationLaunch';
+import { useExternalConversationLaunchSession } from './hooks/useExternalConversationLaunchSession';
 import { useTypewriterPlaceholder } from './hooks/useTypewriterPlaceholder';
 import { ensureBackendMcpCatalog } from '@/renderer/hooks/mcp/catalog';
 import { resolveGuidAssistantDefaults } from './utils/assistantDefaults';
@@ -37,8 +39,7 @@ import { useOpenFileSelector } from '@/renderer/hooks/file/useOpenFileSelector';
 import { appendSpeechTranscript } from '@/renderer/hooks/system/useSpeechInput';
 import { useLiveTranscriptInsertion } from '@/renderer/hooks/system/useLiveTranscriptInsertion';
 import { ArrowRightUp } from '@icon-park/react';
-import { readExternalConversationLaunch } from '@/renderer/services/externalConversationLaunch';
-import { Button, ConfigProvider } from '@arco-design/web-react';
+import { Button, ConfigProvider, Message } from '@arco-design/web-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -60,7 +61,11 @@ const GuidPage: React.FC = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const externalConversation = readExternalConversationLaunch(location.search);
+  const handleExternalLaunchCallbackPending = useCallback(() => {
+    Message.warning(t('guid.externalLaunch.callbackPending'));
+  }, [t]);
+  const externalLaunchState = useExternalConversationLaunchSession(handleExternalLaunchCallbackPending);
+  const externalConversation = externalLaunchState.session;
   const guidContainerRef = useRef<HTMLDivElement>(null);
   const { activeBorderColor, inactiveBorderColor, activeShadow } = useInputFocusRing();
 
@@ -307,6 +312,7 @@ const GuidPage: React.FC = () => {
     availableMcpServers,
     input: guidInput.input,
     modelSelection,
+    onUnavailable: externalConversation?.source === 'web' ? externalLaunchState.markUnavailable : undefined,
     sendMessage: send.sendMessageHandler,
     session: externalConversation,
     setDisabledBuiltinSkills: setGuidDisabledBuiltinSkills,
@@ -693,6 +699,19 @@ const GuidPage: React.FC = () => {
       emptyText={t('messages.slash.empty', { defaultValue: 'No commands found' })}
     />
   ) : null;
+
+  if (externalLaunchState.loading || externalLaunchState.error) {
+    return (
+      <ConfigProvider getPopupContainer={() => guidContainerRef.current || document.body}>
+        <ExternalConversationLaunchState
+          error={externalLaunchState.error}
+          loading={externalLaunchState.loading}
+          onClose={() => navigate('/guid', { replace: true })}
+          onRetry={externalLaunchState.retry}
+        />
+      </ConfigProvider>
+    );
+  }
 
   return (
     <ConfigProvider getPopupContainer={() => guidContainerRef.current || document.body}>
