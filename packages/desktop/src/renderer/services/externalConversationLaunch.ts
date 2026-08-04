@@ -5,6 +5,7 @@
  */
 
 import type { NavigateFunction } from 'react-router-dom';
+import { httpRequest } from '@/common/adapter/httpBridge';
 
 type ExternalConversationDeepLinkPayload = {
   action: string;
@@ -30,11 +31,24 @@ export type ExternalConversationLaunch = {
 export type ExternalConversationLaunchSession = {
   launch: ExternalConversationLaunch;
   onConversationCreated: (conversationId: string) => Promise<void>;
+  source?: 'desktop' | 'web';
   token: string;
+};
+
+export type ExternalConversationLaunchCallbackStatus = 'not_required' | 'delivered' | 'pending';
+
+type ClaimExternalConversationLaunchResponse = {
+  launch: ExternalConversationLaunch;
+  expiresAt: string;
+};
+
+type CompleteExternalConversationLaunchResponse = {
+  callbackStatus: ExternalConversationLaunchCallbackStatus;
 };
 
 const EXTERNAL_LAUNCH_QUERY_KEY = 'external-launch';
 const pendingLaunches = new Map<string, ExternalConversationLaunchSession>();
+const claimedWebLaunches = new Map<string, Promise<ClaimExternalConversationLaunchResponse>>();
 let launchSequence = 0;
 
 function parseLoopbackCompletionUrl(value: unknown): string | undefined {
@@ -114,6 +128,7 @@ function registerExternalConversationLaunch(launch: ExternalConversationLaunch):
   const session: ExternalConversationLaunchSession = {
     launch,
     onConversationCreated: (conversationId) => reportConversationCreated(token, launch, conversationId),
+    source: 'desktop',
     token,
   };
   pendingLaunches.set(token, session);
@@ -145,6 +160,67 @@ export function handleExternalConversationDeepLink(
 }
 
 export function readExternalConversationLaunch(search: string): ExternalConversationLaunchSession | null {
-  const token = new URLSearchParams(search).get(EXTERNAL_LAUNCH_QUERY_KEY);
+  const token = readExternalConversationLaunchToken(search);
   return token ? (pendingLaunches.get(token) ?? null) : null;
+}
+
+export function readExternalConversationLaunchToken(search: string): string | null {
+  const token = new URLSearchParams(search).get(EXTERNAL_LAUNCH_QUERY_KEY)?.trim();
+  return token || null;
+}
+
+async function claimWebExternalConversationLaunch(launchId: string): Promise<ClaimExternalConversationLaunchResponse> {
+  let claim = claimedWebLaunches.get(launchId);
+  if (!claim) {
+    claim = httpRequest<ClaimExternalConversationLaunchResponse>(
+      'POST',
+      '/api/external-conversation-launches/claim',
+      { launchId },
+      { silentStatuses: [404, 409] }
+    );
+    claimedWebLaunches.set(launchId, claim);
+  }
+
+  try {
+    return await claim;
+  } catch (error) {
+    claimedWebLaunches.delete(launchId);
+    throw error;
+  }
+}
+
+export async function createWebExternalConversationLaunchSession(
+  launchId: string,
+  onCallbackPending: () => void
+): Promise<ExternalConversationLaunchSession> {
+  const claimed = await claimWebExternalConversationLaunch(launchId);
+  const parsedLaunch = parseExternalConversationLaunch(JSON.stringify(claimed.launch));
+  if (!parsedLaunch) {
+    claimedWebLaunches.delete(launchId);
+    throw new Error('External conversation launch payload is invalid');
+  }
+
+  const launch: ExternalConversationLaunch = { ...parsedLaunch, completionUrl: undefined };
+  return {
+    launch,
+    source: 'web',
+    token: launchId,
+    onConversationCreated: async (conversationId) => {
+      try {
+        const result = await httpRequest<CompleteExternalConversationLaunchResponse>(
+          'POST',
+          '/api/external-conversation-launches/complete',
+          { launchId, conversationId }
+        );
+        if (result.callbackStatus === 'pending') {
+          onCallbackPending();
+        } else {
+          claimedWebLaunches.delete(launchId);
+        }
+      } catch (error) {
+        onCallbackPending();
+        throw error;
+      }
+    },
+  };
 }

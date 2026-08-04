@@ -20,6 +20,7 @@ type UseExternalConversationLaunchOptions = {
   availableMcpServers: IMcpServer[];
   input: string;
   modelSelection: GuidModelSelectionResult;
+  onUnavailable?: () => void;
   sendMessage: () => void;
   session: ExternalConversationLaunchSession | null;
   setDisabledBuiltinSkills: React.Dispatch<React.SetStateAction<string[] | undefined>>;
@@ -33,6 +34,7 @@ export function useExternalConversationLaunch({
   availableMcpServers,
   input,
   modelSelection,
+  onUnavailable,
   sendMessage,
   session,
   setDisabledBuiltinSkills,
@@ -43,6 +45,12 @@ export function useExternalConversationLaunch({
   const appliedTokenRef = useRef<string | null>(null);
   const sentTokenRef = useRef<string | null>(null);
   const launch = session?.launch;
+
+  useEffect(() => {
+    if (!session || !onUnavailable || readyToken === session.token) return;
+    const timeout = window.setTimeout(onUnavailable, 15_000);
+    return () => window.clearTimeout(timeout);
+  }, [onUnavailable, readyToken, session]);
 
   useEffect(() => {
     if (!session || !launch || !agentSelection.selectedAssistantId) return;
@@ -114,6 +122,7 @@ export function useExternalConversationLaunch({
 
     void applyLaunchOptions().catch((error) => {
       console.error('[GuidPage] Failed to apply external conversation options:', error);
+      onUnavailable?.();
     });
   }, [
     agentSelection,
@@ -121,6 +130,7 @@ export function useExternalConversationLaunch({
     availableMcpServers,
     launch,
     modelSelection,
+    onUnavailable,
     session,
     setDisabledBuiltinSkills,
     setEnabledSkills,

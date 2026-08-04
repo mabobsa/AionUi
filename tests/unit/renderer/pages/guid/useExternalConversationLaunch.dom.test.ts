@@ -196,6 +196,34 @@ describe('useExternalConversationLaunch', () => {
       expect(sendMessage).not.toHaveBeenCalled();
     });
   });
+
+  it('reports requested options that remain unavailable', async () => {
+    vi.useFakeTimers();
+    const onUnavailable = vi.fn();
+
+    renderHook(() =>
+      useExternalConversationLaunch({
+        agentSelection: createAgentSelection(),
+        allSkills: [],
+        availableMcpServers: [],
+        input: 'Review this card',
+        modelSelection: createModelSelection(),
+        onUnavailable,
+        sendMessage: vi.fn(),
+        session: createSession('missing-model'),
+        setDisabledBuiltinSkills: vi.fn(),
+        setEnabledSkills: vi.fn(),
+        setSelectedMcpServerIds: vi.fn(),
+      })
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15_000);
+    });
+
+    expect(onUnavailable).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
 });
 
 describe('useGuidSend external launch integration', () => {

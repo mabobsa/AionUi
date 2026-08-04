@@ -159,6 +159,24 @@ describe('static-server', () => {
     expect(json.path).toBe('/api/anything');
   });
 
+  it('does not expose the internal external-launch issuer through WebUI', async () => {
+    let backendRequests = 0;
+    const backend = await startMockBackend((_req, res) => {
+      backendRequests += 1;
+      res.end('unexpected');
+    });
+    stopBackend = backend.close;
+    handle = await startStaticServer({ staticDir, backendPort: backend.port, port: 0 });
+
+    const r = await fetch(`${handle.localUrl}/api/internal/external-conversation-launches?probe=1`, {
+      method: 'POST',
+    });
+
+    expect(r.status).toBe(404);
+    expect(await r.json()).toEqual({ error: 'NOT_FOUND' });
+    expect(backendRequests).toBe(0);
+  });
+
   it('/login reverse-proxies to backend (no local handler)', async () => {
     const backend = await startMockBackend((req, res) => {
       if (req.url === '/login' && req.method === 'POST') {
