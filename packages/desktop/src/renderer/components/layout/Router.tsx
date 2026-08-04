@@ -3,6 +3,7 @@ import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-d
 import AppLoader from '@renderer/components/layout/AppLoader';
 import DocumentTitle from '@renderer/components/layout/DocumentTitle';
 import { useAuth } from '@renderer/hooks/context/AuthContext';
+import { buildLoginPath, resolveLoginReturnTo } from '@renderer/utils/navigation';
 import { TEAM_MODE_ENABLED } from '@/common/config/constants';
 const Conversation = React.lazy(() => import('@renderer/pages/conversation'));
 const Guid = React.lazy(() => import('@renderer/pages/guid'));
@@ -42,16 +43,22 @@ const CapabilitiesRedirect: React.FC = () => {
 
 const ProtectedLayout: React.FC<{ layout: React.ReactElement }> = ({ layout }) => {
   const { status } = useAuth();
+  const location = useLocation();
 
   if (status === 'checking') {
     return <AppLoader />;
   }
 
   if (status !== 'authenticated') {
-    return <Navigate to='/login' replace />;
+    return <Navigate to={buildLoginPath(location.pathname, location.search)} replace />;
   }
 
   return React.cloneElement(layout);
+};
+
+const LoginRedirect: React.FC = () => {
+  const { search } = useLocation();
+  return <Navigate to={resolveLoginReturnTo(search)} replace />;
 };
 
 const PanelRoute: React.FC<{ layout: React.ReactElement }> = ({ layout }) => {
@@ -61,10 +68,7 @@ const PanelRoute: React.FC<{ layout: React.ReactElement }> = ({ layout }) => {
     <HashRouter>
       <DocumentTitle />
       <Routes>
-        <Route
-          path='/login'
-          element={status === 'authenticated' ? <Navigate to='/guid' replace /> : withRouteFallback(LoginPage)}
-        />
+        <Route path='/login' element={status === 'authenticated' ? <LoginRedirect /> : withRouteFallback(LoginPage)} />
         <Route element={<ProtectedLayout layout={layout} />}>
           <Route index element={<Navigate to='/guid' replace />} />
           <Route path='/guid' element={withRouteFallback(Guid)} />
