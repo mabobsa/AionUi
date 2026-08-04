@@ -139,7 +139,8 @@ export default defineConfig(({ mode }) => {
         reportCompressedSize: false,
         rollupOptions: {
           input: {
-            index: resolve('packages/desktop/src/index.ts'),
+            index: resolve('packages/desktop/src/bootstrap.ts'),
+            mainApplication: resolve('packages/desktop/src/index.ts'),
             // Built-in MCP server entry points (compiled by scripts/build-mcp-servers.js via esbuild,
             // not vite — esbuild bundles all deps for self-contained execution by external node processes)
           },
