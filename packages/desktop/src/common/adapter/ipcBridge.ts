@@ -1504,6 +1504,7 @@ export const excelPreview = {
 // ---------------------------------------------------------------------------
 
 export const deepLink = {
+  ready: bridge.buildProvider<void, void>('deep-link.ready'),
   received: bridge.buildEmitter<{
     action: string;
     params: Record<string, string>;
