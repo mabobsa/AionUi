@@ -36,6 +36,7 @@ import type {
   UpdateAssistantRequest,
 } from '../types/agent/assistantTypes';
 import type {
+  ConversationRuntimeConfigResponse,
   EnsureConversationRuntimeResponse,
   GetConfigOptionsResponse,
   SetConfigOptionRequest,
@@ -292,6 +293,9 @@ export const conversation = {
   restartRuntime: httpPost<EnsureConversationRuntimeResponse, { conversation_id: string }>(
     (p) => `/api/conversations/${p.conversation_id}/runtime/restart`,
     () => undefined
+  ),
+  getRuntimeConfig: httpGet<ConversationRuntimeConfigResponse, { conversation_id: string }>(
+    (p) => `/api/conversations/${p.conversation_id}/runtime-config`
   ),
   activeLease: httpPost<void, { conversation_id: string }>(
     (p) => `/api/conversations/${p.conversation_id}/active-lease`,
