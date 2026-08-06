@@ -20,11 +20,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import WorkspaceCollapse from '../components/WorkspaceCollapse';
 import ConversationRow from './ConversationRow';
+import ProjectGroupHeader from './components/ProjectGroupHeader';
 import SortableConversationRow from './SortableConversationRow';
 import { useBatchSelection } from './hooks/useBatchSelection';
 import { useConversationActions } from './hooks/useConversationActions';
 import { useConversations } from './hooks/useConversations';
 import { useDragAndDrop } from './hooks/useDragAndDrop';
+import { useProjectGitBranches } from './hooks/useProjectGitBranches';
 import type { ConversationRowProps, WorkspaceGroupedHistoryProps } from './types';
 
 const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
@@ -238,6 +240,11 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
     return groups;
   }, [timelineSections]);
 
+  // Git branch per project folder, read from each workspace's .git/HEAD file.
+  const projectGitBranches = useProjectGitBranches(
+    useMemo(() => projectGroups.map((g) => g.workspace), [projectGroups])
+  );
+
   // Conversations section: keep timeline grouping (today/yesterday/...) but only show non-workspace conversations.
   const conversationOnlySections = useMemo(
     () =>
@@ -444,9 +451,11 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
                       stickyHeader
                       stickyTop={28}
                       header={
-                        <span className='text-14px font-[500] truncate flex-1 text-t-primary min-w-0'>
-                          {group.displayName}
-                        </span>
+                        <ProjectGroupHeader
+                          workspace={group.workspace}
+                          displayName={group.displayName}
+                          branch={projectGitBranches[group.workspace]}
+                        />
                       }
                       trailing={
                         <span className='flex items-center gap-6px'>
