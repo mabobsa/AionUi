@@ -558,4 +558,49 @@ describe('useAcpModelInfo', () => {
     });
     expect(result.current.canSwitch).toBe(false);
   });
+
+  it('does not reuse another conversation legacy model while the current catalog is unavailable', async () => {
+    ensureRuntimeInvokeMock.mockResolvedValue({ recovered: true, config_options: [], runtime: null });
+    const { result, rerender } = renderHook(
+      ({ conversationId, backend, initialModelId }) =>
+        useAcpModelInfo({
+          conversation_id: conversationId,
+          backend,
+          initialModelId,
+        }),
+      {
+        initialProps: {
+          conversationId: 'codex-conv',
+          backend: 'codex',
+          initialModelId: 'gpt-5.6-sol',
+        },
+        wrapper: createSwrWrapper(),
+      }
+    );
+
+    await waitFor(() => {
+      expect(responseStreamHandlers.length).toBeGreaterThan(0);
+    });
+    act(() => {
+      emitStream({
+        type: 'codex_model_info',
+        conversation_id: 'codex-conv',
+        data: { model: 'gpt-5.6-sol' },
+      } as unknown as IResponseMessage);
+    });
+    await waitFor(() => {
+      expect(result.current.model_info?.current_model_id).toBe('gpt-5.6-sol');
+    });
+
+    rerender({
+      conversationId: 'claude-conv',
+      backend: 'claude',
+      initialModelId: 'opus[1m]',
+    });
+
+    await waitFor(() => {
+      expect(result.current.model_info?.current_model_id).toBe('opus[1m]');
+    });
+    expect(result.current.canSwitch).toBe(false);
+  });
 });
