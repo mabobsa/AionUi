@@ -77,6 +77,23 @@ async function notifyConversationCreated(
   }
 }
 
+async function protectExternalConversationTitle(
+  conversationId: string,
+  conversationName: string | undefined,
+  failureMessage: string
+): Promise<void> {
+  const title = conversationName?.trim();
+  if (!title) return;
+
+  const protectedTitle = await ipcBridge.conversation.update.invoke({
+    id: conversationId,
+    updates: { name: title, name_source: 'user' },
+  });
+  if (!protectedTitle) {
+    throw new Error(failureMessage);
+  }
+}
+
 /**
  * Hook that manages the send logic for ACP and Aion CLI conversations.
  */
@@ -215,6 +232,7 @@ export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
           return;
         }
 
+        await protectExternalConversationTitle(conversation.id, conversationName, t('conversation.createFailed'));
         await notifyConversationCreated(onConversationCreated, conversation.id);
 
         if (isCustomWorkspace) {
@@ -271,6 +289,7 @@ export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
         return;
       }
 
+      await protectExternalConversationTitle(conversation.id, conversationName, t('conversation.createFailed'));
       await notifyConversationCreated(onConversationCreated, conversation.id);
 
       if (isCustomWorkspace) {

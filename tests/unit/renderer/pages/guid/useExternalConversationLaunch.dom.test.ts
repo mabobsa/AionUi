@@ -13,8 +13,9 @@ import type { GuidModelSelectionResult } from '@/renderer/pages/guid/hooks/useGu
 import { useGuidSend, type GuidSendDeps } from '@/renderer/pages/guid/hooks/useGuidSend';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { createConversationInvokeMock, swrMutateMock } = vi.hoisted(() => ({
+const { createConversationInvokeMock, updateConversationInvokeMock, swrMutateMock } = vi.hoisted(() => ({
   createConversationInvokeMock: vi.fn(),
+  updateConversationInvokeMock: vi.fn(),
   swrMutateMock: vi.fn(),
 }));
 
@@ -23,6 +24,9 @@ vi.mock('@/common', () => ({
     conversation: {
       create: {
         invoke: (...args: unknown[]) => createConversationInvokeMock(...args),
+      },
+      update: {
+        invoke: (...args: unknown[]) => updateConversationInvokeMock(...args),
       },
     },
   },
@@ -230,6 +234,8 @@ describe('useGuidSend external launch integration', () => {
   beforeEach(() => {
     createConversationInvokeMock.mockReset();
     createConversationInvokeMock.mockResolvedValue({ id: 'conv-1' });
+    updateConversationInvokeMock.mockReset();
+    updateConversationInvokeMock.mockResolvedValue(true);
     swrMutateMock.mockReset();
     swrMutateMock.mockResolvedValue(undefined);
   });
@@ -252,6 +258,10 @@ describe('useGuidSend external launch integration', () => {
     const payload = createConversationInvokeMock.mock.calls[0][0];
     const initialMessage = JSON.parse(sessionStorage.getItem('acp_initial_message_conv-1') ?? '{}');
     expect(payload.name).toBe('제품 로드맵: 제품 설계');
+    expect(updateConversationInvokeMock).toHaveBeenCalledWith({
+      id: 'conv-1',
+      updates: { name: '제품 로드맵: 제품 설계', name_source: 'user' },
+    });
     expect(initialMessage.input).toBe('# MindNProgress 작업 요청');
   });
 
@@ -282,6 +292,10 @@ describe('useGuidSend external launch integration', () => {
     });
 
     expect(createConversationInvokeMock.mock.calls[0][0].name).toBe('제품 로드맵: 제품 설계');
+    expect(updateConversationInvokeMock).toHaveBeenCalledWith({
+      id: 'conv-1',
+      updates: { name: '제품 로드맵: 제품 설계', name_source: 'user' },
+    });
   });
 
   it('continues opening an Aion CLI conversation when the conversation-created observer fails', async () => {
@@ -312,5 +326,23 @@ describe('useGuidSend external launch integration', () => {
     });
 
     expect(createConversationInvokeMock.mock.calls[0][0].name).toBe('hello');
+    expect(updateConversationInvokeMock).not.toHaveBeenCalled();
+  });
+
+  it('stops an external launch when its card title cannot be protected', async () => {
+    const deps = createGuidSendDeps();
+    deps.conversationName = '제품 로드맵: 제품 설계';
+    deps.onConversationCreated = vi.fn();
+    updateConversationInvokeMock.mockResolvedValue(false);
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const { result } = renderHook(() => useGuidSend(deps));
+
+    await act(async () => {
+      await expect(result.current.handleSend()).rejects.toThrow('conversation.createFailed');
+    });
+
+    expect(deps.onConversationCreated).not.toHaveBeenCalled();
+    expect(deps.navigate).not.toHaveBeenCalled();
   });
 });
