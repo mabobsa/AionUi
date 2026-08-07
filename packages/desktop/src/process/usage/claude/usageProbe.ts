@@ -12,11 +12,12 @@ import { spawn, type IPty } from 'node-pty';
 import { parseClaudeUsageOutput, stripClaudeUsageTerminalOutput } from './usageParser';
 
 const DEFAULT_SUCCESS_TTL_MS = 60_000;
-const DEFAULT_FAILURE_TTL_MS = 5 * 60_000;
+const DEFAULT_FAILURE_TTL_MS = 60_000;
 const DEFAULT_COMMAND_DELAY_MS = 8_000;
+const DEFAULT_READY_COMMAND_DELAY_MS = 750;
 const DEFAULT_EXIT_COMMAND_DELAY_MS = 1_000;
 const DEFAULT_SHUTDOWN_TIMEOUT_MS = 5_000;
-const DEFAULT_TIMEOUT_MS = 25_000;
+const DEFAULT_TIMEOUT_MS = 45_000;
 const MAX_CAPTURE_CHARS = 256 * 1024;
 const TRUST_CONFIRMATION = /quick safety check|trust this folder/i;
 const USAGE_DIALOG_DISMISSED = /settings dialog dismissed/i;
@@ -30,6 +31,7 @@ export type ClaudeUsageProbeOptions = {
   exitCommandDelayMs?: number;
   failureTtlMs?: number;
   now?: () => number;
+  readyCommandDelayMs?: number;
   spawnPty?: SpawnPty;
   successTtlMs?: number;
   timeoutMs?: number;
@@ -79,6 +81,7 @@ export class ClaudeUsageProbe {
   readonly #exitCommandDelayMs: number;
   readonly #failureTtlMs: number;
   readonly #now: () => number;
+  readonly #readyCommandDelayMs: number;
   readonly #spawnPty: SpawnPty;
   readonly #successTtlMs: number;
   readonly #timeoutMs: number;
@@ -93,6 +96,7 @@ export class ClaudeUsageProbe {
     this.#exitCommandDelayMs = options.exitCommandDelayMs ?? DEFAULT_EXIT_COMMAND_DELAY_MS;
     this.#failureTtlMs = options.failureTtlMs ?? DEFAULT_FAILURE_TTL_MS;
     this.#now = options.now ?? Date.now;
+    this.#readyCommandDelayMs = options.readyCommandDelayMs ?? DEFAULT_READY_COMMAND_DELAY_MS;
     this.#spawnPty = options.spawnPty ?? spawn;
     this.#successTtlMs = options.successTtlMs ?? DEFAULT_SUCCESS_TTL_MS;
     this.#timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
@@ -152,6 +156,7 @@ export class ClaudeUsageProbe {
 
       let captured = '';
       let completedSnapshot: ClaudeUsageSnapshot | undefined;
+      let commandSent = false;
       let exitCommandQueued = false;
       let exited = false;
       let settled = false;
@@ -159,6 +164,7 @@ export class ClaudeUsageProbe {
       let dataSubscription: { dispose(): void } | undefined;
       let exitSubscription: { dispose(): void } | undefined;
       let commandTimer: ReturnType<typeof setTimeout> | undefined;
+      let readyCommandTimer: ReturnType<typeof setTimeout> | undefined;
       let exitCommandTimer: ReturnType<typeof setTimeout> | undefined;
       let shutdownTimer: ReturnType<typeof setTimeout> | undefined;
       let timeoutTimer: ReturnType<typeof setTimeout> | undefined;
@@ -167,6 +173,7 @@ export class ClaudeUsageProbe {
         if (settled) return;
         settled = true;
         if (commandTimer) clearTimeout(commandTimer);
+        if (readyCommandTimer) clearTimeout(readyCommandTimer);
         if (exitCommandTimer) clearTimeout(exitCommandTimer);
         if (shutdownTimer) clearTimeout(shutdownTimer);
         if (timeoutTimer) clearTimeout(timeoutTimer);
@@ -186,15 +193,44 @@ export class ClaudeUsageProbe {
         }
       };
 
+      const writeIfActive = (value: string): boolean => {
+        if (settled || exited) return false;
+        try {
+          terminal.write(value);
+          return true;
+        } catch {
+          return false;
+        }
+      };
+
+      const sendUsageCommand = (): void => {
+        if (commandSent || !writeIfActive('/usage\r')) return;
+        commandSent = true;
+        if (commandTimer) clearTimeout(commandTimer);
+        if (readyCommandTimer) clearTimeout(readyCommandTimer);
+      };
+
+      const scheduleFallbackCommand = (): void => {
+        if (commandTimer) clearTimeout(commandTimer);
+        commandTimer = setTimeout(sendUsageCommand, this.#commandDelayMs);
+      };
+
+      const scheduleReadyCommand = (): void => {
+        if (commandSent || settled || exited) return;
+        if (readyCommandTimer) clearTimeout(readyCommandTimer);
+        readyCommandTimer = setTimeout(sendUsageCommand, this.#readyCommandDelayMs);
+      };
+
       const closeGracefully = (snapshot: ClaudeUsageSnapshot): void => {
         if (completedSnapshot) return;
         completedSnapshot = snapshot;
         if (commandTimer) clearTimeout(commandTimer);
+        if (readyCommandTimer) clearTimeout(readyCommandTimer);
         if (timeoutTimer) clearTimeout(timeoutTimer);
 
         // `/usage` is a settings dialog. Close it before sending `/exit`; sending
         // both commands back-to-back can concatenate `/exit` into a chat prompt.
-        terminal.write('\u001b');
+        writeIfActive('\u001b');
         shutdownTimer = setTimeout(() => finish(snapshot), DEFAULT_SHUTDOWN_TIMEOUT_MS);
       };
 
@@ -203,11 +239,8 @@ export class ClaudeUsageProbe {
         const plainOutput = stripClaudeUsageTerminalOutput(captured);
         if (!trustConfirmed && TRUST_CONFIRMATION.test(plainOutput)) {
           trustConfirmed = true;
-          terminal.write('y\r');
-          if (commandTimer) clearTimeout(commandTimer);
-          commandTimer = setTimeout(() => {
-            if (!settled && !exited) terminal.write('/usage\r');
-          }, this.#commandDelayMs);
+          writeIfActive('y\r');
+          scheduleFallbackCommand();
           return;
         }
 
@@ -215,14 +248,21 @@ export class ClaudeUsageProbe {
           if (!exitCommandQueued && USAGE_DIALOG_DISMISSED.test(plainOutput)) {
             exitCommandQueued = true;
             exitCommandTimer = setTimeout(() => {
-              if (!settled && !exited) terminal.write('/exit\r');
+              writeIfActive('/exit\r');
             }, this.#exitCommandDelayMs);
           }
           return;
         }
 
         const snapshot = parseClaudeUsageOutput(captured, new Date(this.#now()));
-        if (snapshot?.session && snapshot.weekly) closeGracefully(snapshot);
+        if (snapshot?.session && snapshot.weekly) {
+          closeGracefully(snapshot);
+        } else if (plainOutput.trim()) {
+          // Claude startup time varies with local configuration. Send /usage
+          // after the interactive screen has become quiet, while retaining the
+          // fixed delay as a fallback for CLI versions with no readable prompt.
+          scheduleReadyCommand();
+        }
       });
 
       exitSubscription = terminal.onExit(() => {
@@ -230,9 +270,7 @@ export class ClaudeUsageProbe {
         finish(completedSnapshot ?? parseClaudeUsageOutput(captured, new Date(this.#now())));
       });
 
-      commandTimer = setTimeout(() => {
-        if (!settled && !exited) terminal.write('/usage\r');
-      }, this.#commandDelayMs);
+      scheduleFallbackCommand();
 
       timeoutTimer = setTimeout(() => {
         const partial = parseClaudeUsageOutput(captured, new Date(this.#now()));

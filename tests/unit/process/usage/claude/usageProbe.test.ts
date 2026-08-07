@@ -148,6 +148,95 @@ describe('ClaudeUsageProbe', () => {
     expect(terminal.write).toHaveBeenCalledWith('y\r');
     expect(terminal.kill).not.toHaveBeenCalled();
   });
+
+  it('runs /usage after Claude renders its interactive screen', async () => {
+    vi.useFakeTimers();
+    try {
+      const terminal = new FakePty();
+      const spawnPty = vi.fn(() => terminal as unknown as IPty) as unknown as SpawnPty;
+      const probe = new ClaudeUsageProbe({
+        command: process.execPath,
+        commandDelayMs: 10_000,
+        readyCommandDelayMs: 100,
+        spawnPty,
+      });
+
+      const result = probe.getUsage(process.cwd());
+      terminal.emitData('Welcome to Claude Code\n');
+      await vi.advanceTimersByTimeAsync(99);
+      expect(terminal.write).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(terminal.write).toHaveBeenCalledTimes(1);
+      expect(terminal.write).toHaveBeenCalledWith('/usage\r');
+
+      terminal.emitData(completeUsage);
+      terminal.emitExit();
+      await expect(result).resolves.toMatchObject({
+        session: { utilization: 25 },
+        weekly: { utilization: 24 },
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not write a delayed command after Claude exits during startup', async () => {
+    vi.useFakeTimers();
+    try {
+      const terminal = new FakePty();
+      const spawnPty = vi.fn(() => terminal as unknown as IPty) as unknown as SpawnPty;
+      const probe = new ClaudeUsageProbe({
+        command: process.execPath,
+        commandDelayMs: 100,
+        spawnPty,
+      });
+
+      const result = probe.getUsage(process.cwd());
+      terminal.emitExit();
+      await expect(result).resolves.toBeNull();
+      await vi.advanceTimersByTimeAsync(100);
+
+      expect(terminal.write).not.toHaveBeenCalled();
+      expect(terminal.kill).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('retries a failed probe after the one-minute failure cache expires', async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      let now = new Date(2026, 6, 31, 7, 0, 0).getTime();
+      const terminals = [new FakePty(), new FakePty()];
+      const spawnPty = vi.fn(() => terminals.shift() as unknown as IPty) as unknown as SpawnPty;
+      const probe = new ClaudeUsageProbe({
+        command: process.execPath,
+        commandDelayMs: 10_000,
+        now: () => now,
+        spawnPty,
+        timeoutMs: 100,
+      });
+
+      const first = probe.getUsage(process.cwd());
+      await vi.advanceTimersByTimeAsync(100);
+      await expect(first).resolves.toBeNull();
+      expect(spawnPty).toHaveBeenCalledTimes(1);
+
+      now += 59_999;
+      await expect(probe.getUsage(process.cwd())).resolves.toBeNull();
+      expect(spawnPty).toHaveBeenCalledTimes(1);
+
+      now += 1;
+      const retried = probe.getUsage(process.cwd());
+      expect(spawnPty).toHaveBeenCalledTimes(2);
+      await vi.advanceTimersByTimeAsync(100);
+      await expect(retried).resolves.toBeNull();
+    } finally {
+      warn.mockRestore();
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('resolveExecutableFromPath', () => {
