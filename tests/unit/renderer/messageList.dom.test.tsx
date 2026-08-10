@@ -5,7 +5,7 @@
  */
 
 import React, { type PropsWithChildren } from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { IMessageAcpToolCall, IMessageText, IMessageToolGroup, TMessage } from '@/common/chat/chatLib';
 import type { MessageFileChangesProps } from '@/renderer/pages/conversation/Messages/MessageFileChanges';
@@ -16,6 +16,7 @@ import {
   useUpdateMessageList,
 } from '@/renderer/pages/conversation/Messages/hooks';
 import MessageList from '@/renderer/pages/conversation/Messages/MessageList';
+import { useFillMessageViewport } from '@/renderer/pages/conversation/hooks/useFillMessageViewport';
 
 const { parseDiffMock, useTeamPermissionMock } = vi.hoisted(() => ({
   parseDiffMock: vi.fn(),
@@ -603,5 +604,138 @@ describe('MessageList', () => {
     expect(screen.getByTestId('tool-summary')).toHaveTextContent(message.id);
     expect(screen.queryByTestId('file-changes')).not.toBeInTheDocument();
     expect(screen.queryByTestId('tool-group')).not.toBeInTheDocument();
+  });
+});
+
+const nextAnimationFrame = (): Promise<void> =>
+  new Promise((resolve) => {
+    requestAnimationFrame(() => resolve());
+  });
+
+const createViewportElements = (contentHeight: number, viewportHeight: number) => {
+  const scroller = {
+    clientHeight: viewportHeight,
+    scrollHeight: contentHeight,
+    scrollTop: 0,
+  };
+  const content = { scrollHeight: contentHeight };
+  return {
+    scroller,
+    content,
+    scrollerRef: { current: scroller as unknown as HTMLElement },
+    contentRef: { current: content as unknown as HTMLElement },
+  };
+};
+
+describe('useFillMessageViewport', () => {
+  it('keeps loading older cursors until collapsed messages fill the viewport', async () => {
+    const elements = createViewportElements(300, 600);
+    const loadPreviousPage = vi.fn().mockResolvedValue(true);
+
+    const { rerender } = renderHook(
+      ({ oldestCursor, renderedItemCount }) =>
+        useFillMessageViewport({
+          conversationId: 'conversation-1',
+          ...elements,
+          oldestCursor,
+          hasMoreBefore: true,
+          isLoadingBefore: false,
+          renderedItemCount,
+          loadPreviousPage,
+        }),
+      { initialProps: { oldestCursor: 'cursor-1', renderedItemCount: 5 } }
+    );
+    await waitFor(() => expect(loadPreviousPage).toHaveBeenCalledTimes(1));
+
+    rerender({ oldestCursor: 'cursor-2', renderedItemCount: 10 });
+    await waitFor(() => expect(loadPreviousPage).toHaveBeenCalledTimes(2));
+
+    elements.scroller.scrollHeight = 900;
+    elements.content.scrollHeight = 900;
+    rerender({ oldestCursor: 'cursor-3', renderedItemCount: 20 });
+    await act(async () => {
+      await nextAnimationFrame();
+      await nextAnimationFrame();
+    });
+
+    expect(loadPreviousPage).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the current messages in place after prepending an automatic page', async () => {
+    const elements = createViewportElements(300, 600);
+    let resolveLoad: ((loaded: boolean) => void) | undefined;
+    const loadPreviousPage = vi.fn(() => new Promise<boolean>((resolve) => (resolveLoad = resolve)));
+
+    renderHook(() =>
+      useFillMessageViewport({
+        conversationId: 'conversation-1',
+        ...elements,
+        oldestCursor: 'cursor-1',
+        hasMoreBefore: true,
+        isLoadingBefore: false,
+        renderedItemCount: 5,
+        loadPreviousPage,
+      })
+    );
+    await waitFor(() => expect(loadPreviousPage).toHaveBeenCalledTimes(1));
+
+    elements.scroller.scrollHeight = 750;
+    elements.content.scrollHeight = 750;
+    await act(async () => {
+      resolveLoad?.(true);
+      await nextAnimationFrame();
+    });
+
+    expect(elements.scroller.scrollTop).toBe(450);
+  });
+
+  it('does not repeatedly request the same cursor after a failed automatic load', async () => {
+    const elements = createViewportElements(300, 600);
+    const loadPreviousPage = vi.fn().mockResolvedValue(false);
+    const { rerender } = renderHook(
+      ({ renderedItemCount }) =>
+        useFillMessageViewport({
+          conversationId: 'conversation-1',
+          ...elements,
+          oldestCursor: 'cursor-1',
+          hasMoreBefore: true,
+          isLoadingBefore: false,
+          renderedItemCount,
+          loadPreviousPage,
+        }),
+      { initialProps: { renderedItemCount: 5 } }
+    );
+    await waitFor(() => expect(loadPreviousPage).toHaveBeenCalledTimes(1));
+
+    rerender({ renderedItemCount: 6 });
+    await act(async () => {
+      await nextAnimationFrame();
+      await nextAnimationFrame();
+    });
+
+    expect(loadPreviousPage).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not load automatically when the message list is already scrollable', async () => {
+    const elements = createViewportElements(900, 600);
+    const loadPreviousPage = vi.fn().mockResolvedValue(true);
+
+    renderHook(() =>
+      useFillMessageViewport({
+        conversationId: 'conversation-1',
+        ...elements,
+        oldestCursor: 'cursor-1',
+        hasMoreBefore: true,
+        isLoadingBefore: false,
+        renderedItemCount: 20,
+        loadPreviousPage,
+      })
+    );
+    await act(async () => {
+      await nextAnimationFrame();
+      await nextAnimationFrame();
+    });
+
+    expect(loadPreviousPage).not.toHaveBeenCalled();
   });
 });

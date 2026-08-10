@@ -7,6 +7,7 @@
 import type { IConversationArtifact } from '@/common/adapter/ipcBridge';
 import type { IMessageAcpToolCall, IMessageToolCall, IMessageToolGroup, TMessage } from '@/common/chat/chatLib';
 import { useConversationContextSafe } from '@/renderer/hooks/context/ConversationContext';
+import { useFillMessageViewport } from '@/renderer/pages/conversation/hooks/useFillMessageViewport';
 import { useConversationRuntimeView } from '@/renderer/pages/conversation/runtime/useConversationRuntimeView';
 import { getChatSurfaceWidthClass } from '@/renderer/pages/conversation/utils/chatSurfaceWidth';
 import { iconColors } from '@/renderer/styles/colors';
@@ -537,6 +538,17 @@ const MessageList: React.FC<{ className?: string; emptySlot?: React.ReactNode }>
     },
     [handleContentRef]
   );
+
+  useFillMessageViewport({
+    conversationId: conversationContext?.conversation_id,
+    scrollerRef: scrollerElementRef,
+    contentRef: contentElementRef,
+    oldestCursor: pagination.oldestCursor,
+    hasMoreBefore: pagination.hasMoreBefore,
+    isLoadingBefore: pagination.isLoadingBefore,
+    renderedItemCount: processedList.length,
+    loadPreviousPage: loadPreviousMessagePage,
+  });
 
   const handleMessageListScroll = useCallback(
     (event: React.UIEvent<HTMLDivElement>) => {
