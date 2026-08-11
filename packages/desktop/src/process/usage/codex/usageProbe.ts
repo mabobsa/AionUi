@@ -9,7 +9,7 @@ import type { CodexRateLimitWindow, CodexUsageSnapshot } from '@/common/types/pl
 import { spawn, type ChildProcessWithoutNullStreams, type SpawnOptionsWithoutStdio } from 'node:child_process';
 
 const DEFAULT_SUCCESS_TTL_MS = 60_000;
-const DEFAULT_FAILURE_TTL_MS = 5 * 60_000;
+const DEFAULT_FAILURE_TTL_MS = 60_000;
 const DEFAULT_TIMEOUT_MS = 15_000;
 const MAX_STDOUT_BUFFER_CHARS = 256 * 1024;
 const INITIALIZE_REQUEST_ID = 0;

@@ -6,7 +6,11 @@
 
 import { describe, expect, it } from 'vitest';
 import { formatClaudeUsagePillPercentages } from '@/renderer/components/layout/Titlebar/ClaudeUsageIndicator';
-import { getSubscriptionUsageTone } from '@/renderer/components/layout/Titlebar/subscriptionUsageTone';
+import {
+  getSubscriptionUsageTone,
+  isSubscriptionUsageFresh,
+  SUBSCRIPTION_USAGE_STALE_AFTER_MS,
+} from '@/renderer/components/layout/Titlebar/subscriptionUsageTone';
 
 describe('formatClaudeUsagePillPercentages', () => {
   it('shows the five-hour and weekly percentages together', () => {
@@ -28,6 +32,20 @@ describe('formatClaudeUsagePillPercentages', () => {
 
   it('returns undefined when neither quota reports a percentage', () => {
     expect(formatClaudeUsagePillPercentages(undefined, undefined)).toBeUndefined();
+  });
+});
+
+describe('subscription usage freshness', () => {
+  it('hides a snapshot when it reaches five minutes old', () => {
+    const updatedAt = 1_700_000_000_000;
+
+    expect(isSubscriptionUsageFresh(updatedAt, updatedAt + SUBSCRIPTION_USAGE_STALE_AFTER_MS - 1)).toBe(true);
+    expect(isSubscriptionUsageFresh(updatedAt, updatedAt + SUBSCRIPTION_USAGE_STALE_AFTER_MS)).toBe(false);
+  });
+
+  it('rejects missing or invalid timestamps', () => {
+    expect(isSubscriptionUsageFresh(0, 1)).toBe(false);
+    expect(isSubscriptionUsageFresh(Number.NaN, 1)).toBe(false);
   });
 });
 

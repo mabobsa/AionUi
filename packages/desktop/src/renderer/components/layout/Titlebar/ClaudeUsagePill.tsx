@@ -19,7 +19,12 @@ import {
 } from '@/renderer/hooks/useClaudeRateLimit';
 import { isElectronDesktop } from '@/renderer/utils/platform';
 import styles from './SubscriptionUsageIndicator.module.css';
-import { getSubscriptionUsageTone, type SubscriptionUsageTone } from './subscriptionUsageTone';
+import {
+  getSubscriptionUsageTone,
+  isSubscriptionUsageFresh,
+  SUBSCRIPTION_USAGE_STALE_AFTER_MS,
+  type SubscriptionUsageTone,
+} from './subscriptionUsageTone';
 
 /**
  * Titlebar widget mirroring Claude Code's `/usage`: shows the current session
@@ -99,7 +104,15 @@ const usageTone = (info: ClaudeRateLimitInfo | undefined): SubscriptionUsageTone
 const ClaudeUsagePill: React.FC = () => {
   const { t } = useTranslation();
   const location = useLocation();
-  const { session, weekly } = useClaudeRateLimit();
+  const { session, weekly, updatedAt } = useClaudeRateLimit();
+  const [, refreshFreshness] = React.useReducer((version: number) => version + 1, 0);
+
+  useEffect(() => {
+    const delayMs = updatedAt + SUBSCRIPTION_USAGE_STALE_AFTER_MS - Date.now();
+    if (updatedAt <= 0 || delayMs <= 0) return;
+    const timer = window.setTimeout(refreshFreshness, delayMs);
+    return () => window.clearTimeout(timer);
+  }, [updatedAt]);
 
   useEffect(() => {
     if (!isElectronDesktop()) return;
@@ -160,7 +173,7 @@ const ClaudeUsagePill: React.FC = () => {
     return () => window.clearInterval(timer);
   }, [location.pathname]);
 
-  if (!session && !weekly) return null;
+  if ((!session && !weekly) || !isSubscriptionUsageFresh(updatedAt)) return null;
 
   const statusText = (status: ClaudeRateLimitInfo['status']): string =>
     status === 'rejected'

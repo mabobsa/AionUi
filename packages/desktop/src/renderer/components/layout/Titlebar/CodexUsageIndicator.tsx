@@ -13,7 +13,12 @@ import { subscriptionUsageBridge } from '@/common/platform/subscriptionUsageBrid
 import type { CodexUsageSnapshot } from '@/common/types/platform/codexUsage';
 import { isElectronDesktop } from '@/renderer/utils/platform';
 import styles from './SubscriptionUsageIndicator.module.css';
-import { getSubscriptionUsageTone, type SubscriptionUsageTone } from './subscriptionUsageTone';
+import {
+  getSubscriptionUsageTone,
+  isSubscriptionUsageFresh,
+  SUBSCRIPTION_USAGE_STALE_AFTER_MS,
+  type SubscriptionUsageTone,
+} from './subscriptionUsageTone';
 
 const formatReset = (resetsAt: number | undefined): string | undefined => {
   if (typeof resetsAt !== 'number' || resetsAt <= 0) return undefined;
@@ -40,6 +45,15 @@ const CodexUsageIndicator: React.FC = () => {
   const { t } = useTranslation();
   const location = useLocation();
   const [usage, setUsage] = useState<CodexUsageSnapshot | null>(null);
+  const [, refreshFreshness] = React.useReducer((version: number) => version + 1, 0);
+
+  useEffect(() => {
+    if (!usage) return;
+    const delayMs = usage.updatedAt + SUBSCRIPTION_USAGE_STALE_AFTER_MS - Date.now();
+    if (delayMs <= 0) return;
+    const timer = window.setTimeout(refreshFreshness, delayMs);
+    return () => window.clearTimeout(timer);
+  }, [usage]);
 
   useEffect(() => {
     if (!isElectronDesktop()) return;
@@ -87,7 +101,7 @@ const CodexUsageIndicator: React.FC = () => {
     };
   }, [location.pathname]);
 
-  if (!usage) return null;
+  if (!usage || !isSubscriptionUsageFresh(usage.updatedAt)) return null;
 
   const tone = getSubscriptionUsageTone(usage.weekly.usedPercent, usage.limitReached ? 100 : undefined);
   const percent = Math.round(usage.weekly.usedPercent);
