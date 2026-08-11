@@ -177,6 +177,25 @@ describe('static-server', () => {
     expect(backendRequests).toBe(0);
   });
 
+  it('does not expose internal conversation dispatch routes through WebUI', async () => {
+    let backendRequests = 0;
+    const backend = await startMockBackend((_req, res) => {
+      backendRequests += 1;
+      res.end('unexpected');
+    });
+    stopBackend = backend.close;
+    handle = await startStaticServer({ staticDir, backendPort: backend.port, port: 0 });
+
+    const issue = await fetch(`${handle.localUrl}/api/internal/external-conversation-dispatches`, {
+      method: 'POST',
+    });
+    const status = await fetch(`${handle.localUrl}/api/internal/external-conversation-dispatches/operation-1`);
+
+    expect(issue.status).toBe(404);
+    expect(status.status).toBe(404);
+    expect(backendRequests).toBe(0);
+  });
+
   it('/login reverse-proxies to backend (no local handler)', async () => {
     const backend = await startMockBackend((req, res) => {
       if (req.url === '/login' && req.method === 'POST') {
