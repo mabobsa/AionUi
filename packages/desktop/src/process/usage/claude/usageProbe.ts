@@ -13,8 +13,8 @@ import { parseClaudeUsageOutput, stripClaudeUsageTerminalOutput } from './usageP
 
 const DEFAULT_SUCCESS_TTL_MS = 60_000;
 const DEFAULT_FAILURE_TTL_MS = 60_000;
-const DEFAULT_COMMAND_DELAY_MS = 8_000;
-const DEFAULT_READY_COMMAND_DELAY_MS = 750;
+const DEFAULT_COMMAND_DELAY_MS = 25_000;
+const DEFAULT_READY_COMMAND_DELAY_MS = 12_000;
 const DEFAULT_EXIT_COMMAND_DELAY_MS = 1_000;
 const DEFAULT_SHUTDOWN_TIMEOUT_MS = 5_000;
 const DEFAULT_TIMEOUT_MS = 45_000;
@@ -157,7 +157,7 @@ export class ClaudeUsageProbe {
       let captured = '';
       let completedSnapshot: ClaudeUsageSnapshot | undefined;
       let commandSent = false;
-      let exitCommandQueued = false;
+      let cleanupQueued = false;
       let exited = false;
       let settled = false;
       let trustConfirmed = false;
@@ -165,7 +165,7 @@ export class ClaudeUsageProbe {
       let exitSubscription: { dispose(): void } | undefined;
       let commandTimer: ReturnType<typeof setTimeout> | undefined;
       let readyCommandTimer: ReturnType<typeof setTimeout> | undefined;
-      let exitCommandTimer: ReturnType<typeof setTimeout> | undefined;
+      let cleanupTimer: ReturnType<typeof setTimeout> | undefined;
       let shutdownTimer: ReturnType<typeof setTimeout> | undefined;
       let timeoutTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -174,17 +174,18 @@ export class ClaudeUsageProbe {
         settled = true;
         if (commandTimer) clearTimeout(commandTimer);
         if (readyCommandTimer) clearTimeout(readyCommandTimer);
-        if (exitCommandTimer) clearTimeout(exitCommandTimer);
+        if (cleanupTimer) clearTimeout(cleanupTimer);
         if (shutdownTimer) clearTimeout(shutdownTimer);
         if (timeoutTimer) clearTimeout(timeoutTimer);
         dataSubscription?.dispose();
         exitSubscription?.dispose();
-        if (!exited) {
-          try {
-            terminal.kill();
-          } catch {
-            // The process may already have exited.
-          }
+        try {
+          // node-pty's Windows exit event closes its streams but does not
+          // release the ConPTY agent. Always kill the terminal so conhost.exe
+          // cannot accumulate after otherwise clean Claude exits.
+          terminal.kill();
+        } catch {
+          // The PTY may already have been fully released.
         }
         if (error) {
           reject(error);
@@ -228,8 +229,9 @@ export class ClaudeUsageProbe {
         if (readyCommandTimer) clearTimeout(readyCommandTimer);
         if (timeoutTimer) clearTimeout(timeoutTimer);
 
-        // `/usage` is a settings dialog. Close it before sending `/exit`; sending
-        // both commands back-to-back can concatenate `/exit` into a chat prompt.
+        // `/usage` is a settings dialog. Close it before releasing the PTY.
+        // Letting Claude exit first can strand the Windows ConPTY host because
+        // node-pty can no longer enumerate the finished console session.
         writeIfActive('\u001b');
         shutdownTimer = setTimeout(() => finish(snapshot), DEFAULT_SHUTDOWN_TIMEOUT_MS);
       };
@@ -245,10 +247,11 @@ export class ClaudeUsageProbe {
         }
 
         if (completedSnapshot) {
-          if (!exitCommandQueued && USAGE_DIALOG_DISMISSED.test(plainOutput)) {
-            exitCommandQueued = true;
-            exitCommandTimer = setTimeout(() => {
-              writeIfActive('/exit\r');
+          if (!cleanupQueued && USAGE_DIALOG_DISMISSED.test(plainOutput)) {
+            cleanupQueued = true;
+            const snapshot = completedSnapshot;
+            cleanupTimer = setTimeout(() => {
+              finish(snapshot);
             }, this.#exitCommandDelayMs);
           }
           return;

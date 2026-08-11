@@ -45,7 +45,7 @@ Resets Aug 4, 9pm
 const windowsPathExists = (path: string): boolean => path === 'C:\\tools\\claude.EXE';
 
 describe('ClaudeUsageProbe', () => {
-  it('waits for startup, runs /usage, exits cleanly, and caches concurrent reads', async () => {
+  it('waits for startup, runs /usage, releases the live PTY, and caches concurrent reads', async () => {
     vi.useFakeTimers();
     try {
       const terminal = new FakePty();
@@ -76,8 +76,8 @@ describe('ClaudeUsageProbe', () => {
       expect(terminal.write).toHaveBeenCalledWith('\u001b');
       terminal.emitData('Settings dialog dismissed');
       await vi.advanceTimersByTimeAsync(50);
-      expect(terminal.write).toHaveBeenCalledWith('/exit\r');
-      terminal.emitExit();
+      expect(terminal.write).not.toHaveBeenCalledWith('/exit\r');
+      expect(terminal.kill).toHaveBeenCalledTimes(1);
 
       await expect(first).resolves.toMatchObject({
         session: { utilization: 25 },
@@ -91,7 +91,7 @@ describe('ClaudeUsageProbe', () => {
         session: { utilization: 25 },
       });
       expect(spawnPty).toHaveBeenCalledTimes(1);
-      expect(terminal.kill).not.toHaveBeenCalled();
+      expect(terminal.kill).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
     }
@@ -128,6 +128,7 @@ describe('ClaudeUsageProbe', () => {
     await expect(result).resolves.toMatchObject({
       session: { utilization: 18 },
     });
+    expect(terminal.kill).toHaveBeenCalledTimes(1);
   });
 
   it('answers an interactive workspace trust prompt once', async () => {
@@ -146,24 +147,23 @@ describe('ClaudeUsageProbe', () => {
     await expect(result).resolves.toBeNull();
     expect(terminal.write).toHaveBeenCalledTimes(1);
     expect(terminal.write).toHaveBeenCalledWith('y\r');
-    expect(terminal.kill).not.toHaveBeenCalled();
+    expect(terminal.kill).toHaveBeenCalledTimes(1);
   });
 
-  it('runs /usage after Claude renders its interactive screen', async () => {
+  it('waits for Claude input to become interactive after rendering its screen', async () => {
     vi.useFakeTimers();
     try {
       const terminal = new FakePty();
       const spawnPty = vi.fn(() => terminal as unknown as IPty) as unknown as SpawnPty;
       const probe = new ClaudeUsageProbe({
         command: process.execPath,
-        commandDelayMs: 10_000,
-        readyCommandDelayMs: 100,
+        commandDelayMs: 30_000,
         spawnPty,
       });
 
       const result = probe.getUsage(process.cwd());
       terminal.emitData('Welcome to Claude Code\n');
-      await vi.advanceTimersByTimeAsync(99);
+      await vi.advanceTimersByTimeAsync(11_999);
       expect(terminal.write).not.toHaveBeenCalled();
       await vi.advanceTimersByTimeAsync(1);
       expect(terminal.write).toHaveBeenCalledTimes(1);
@@ -175,6 +175,7 @@ describe('ClaudeUsageProbe', () => {
         session: { utilization: 25 },
         weekly: { utilization: 24 },
       });
+      expect(terminal.kill).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
     }
@@ -197,7 +198,7 @@ describe('ClaudeUsageProbe', () => {
       await vi.advanceTimersByTimeAsync(100);
 
       expect(terminal.write).not.toHaveBeenCalled();
-      expect(terminal.kill).not.toHaveBeenCalled();
+      expect(terminal.kill).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
     }
@@ -208,7 +209,9 @@ describe('ClaudeUsageProbe', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
       let now = new Date(2026, 6, 31, 7, 0, 0).getTime();
-      const terminals = [new FakePty(), new FakePty()];
+      const firstTerminal = new FakePty();
+      const secondTerminal = new FakePty();
+      const terminals = [firstTerminal, secondTerminal];
       const spawnPty = vi.fn(() => terminals.shift() as unknown as IPty) as unknown as SpawnPty;
       const probe = new ClaudeUsageProbe({
         command: process.execPath,
@@ -222,6 +225,7 @@ describe('ClaudeUsageProbe', () => {
       await vi.advanceTimersByTimeAsync(100);
       await expect(first).resolves.toBeNull();
       expect(spawnPty).toHaveBeenCalledTimes(1);
+      expect(firstTerminal.kill).toHaveBeenCalledTimes(1);
 
       now += 59_999;
       await expect(probe.getUsage(process.cwd())).resolves.toBeNull();
@@ -232,6 +236,7 @@ describe('ClaudeUsageProbe', () => {
       expect(spawnPty).toHaveBeenCalledTimes(2);
       await vi.advanceTimersByTimeAsync(100);
       await expect(retried).resolves.toBeNull();
+      expect(secondTerminal.kill).toHaveBeenCalledTimes(1);
     } finally {
       warn.mockRestore();
       vi.useRealTimers();
