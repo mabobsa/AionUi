@@ -60,7 +60,7 @@ const usage: CodexUsageSnapshot = {
     resetsAt: 1_800_000_000,
   },
   limitReached: false,
-  fetchedAt: 1_700_000_000_000,
+  updatedAt: Date.now(),
 };
 
 describe('CodexUsageIndicator', () => {
@@ -92,7 +92,7 @@ describe('CodexUsageIndicator', () => {
       fixtures.listener?.({
         weekly: { usedPercent: 1, resetsAt: 1_800_000_000 },
         limitReached: false,
-        updatedAt: 1_700_000_000_000,
+        updatedAt: Date.now(),
       });
     });
 
