@@ -140,6 +140,41 @@ describe('CodexUsageProbe', () => {
     expect(JSON.stringify(warn.mock.calls)).not.toContain('secret provider detail');
     warn.mockRestore();
   });
+
+  it('retries a failed probe after the one-minute failure cache expires', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      let now = 1_700_000_000_000;
+      const firstChild = new FakeProcess();
+      const secondChild = new FakeProcess();
+      const children = [firstChild, secondChild];
+      const spawnProcess = vi.fn(
+        () => children.shift() as unknown as ChildProcessWithoutNullStreams
+      ) as SpawnCodexProcess;
+      const probe = new CodexUsageProbe({
+        command: process.execPath,
+        args: ['app-server'],
+        now: () => now,
+        spawnProcess,
+      });
+
+      const first = probe.getUsage();
+      firstChild.stdout.write(`${JSON.stringify({ id: 0, error: { message: 'temporary failure' } })}\n`);
+      await expect(first).resolves.toBeNull();
+
+      now += 59_999;
+      await expect(probe.getUsage()).resolves.toBeNull();
+      expect(spawnProcess).toHaveBeenCalledTimes(1);
+
+      now += 1;
+      const retried = probe.getUsage();
+      expect(spawnProcess).toHaveBeenCalledTimes(2);
+      secondChild.stdout.write(`${JSON.stringify({ id: 0, error: { message: 'temporary failure' } })}\n`);
+      await expect(retried).resolves.toBeNull();
+    } finally {
+      warn.mockRestore();
+    }
+  });
 });
 
 describe('resolveCodexAppServerCommand', () => {

@@ -86,12 +86,12 @@ describe('ConversationUsageIndicator', () => {
       fixtures.claudeListener?.({
         session: { rateLimitType: 'five_hour', utilization: 1, utilizationUnit: 'percent' },
         weekly: { rateLimitType: 'seven_day', utilization: 30, utilizationUnit: 'percent' },
-        updatedAt: 1_700_000_000_000,
+        updatedAt: Date.now(),
       });
       fixtures.codexListener?.({
         weekly: { usedPercent: 1 },
         limitReached: false,
-        updatedAt: 1_700_000_000_000,
+        updatedAt: Date.now(),
       });
     });
 
@@ -106,12 +106,12 @@ describe('ConversationUsageIndicator', () => {
       fixtures.claudeListener?.({
         session: { rateLimitType: 'five_hour', utilization: 97, utilizationUnit: 'percent' },
         weekly: { rateLimitType: 'seven_day', utilization: 39, utilizationUnit: 'percent' },
-        updatedAt: 1_700_000_000_000,
+        updatedAt: Date.now(),
       });
       fixtures.codexListener?.({
         weekly: { usedPercent: 15 },
         limitReached: false,
-        updatedAt: 1_700_000_000_000,
+        updatedAt: Date.now(),
       });
     });
 
@@ -126,10 +126,39 @@ describe('ConversationUsageIndicator', () => {
       fixtures.codexListener?.({
         weekly: { usedPercent: 15 },
         limitReached: true,
-        updatedAt: 1_700_000_000_000,
+        updatedAt: Date.now(),
       });
     });
 
     expect(screen.getByLabelText('Codex Usage')).toHaveClass(styles.limit);
+  });
+
+  it('hides Claude and Codex usage when their snapshots become five minutes old', async () => {
+    vi.useFakeTimers();
+    try {
+      const updatedAt = Date.now();
+      render(<ConversationUsageIndicator />);
+
+      await act(async () => {
+        fixtures.claudeListener?.({
+          session: { rateLimitType: 'five_hour', utilization: 31, utilizationUnit: 'percent' },
+          updatedAt,
+        });
+        fixtures.codexListener?.({
+          weekly: { usedPercent: 29 },
+          limitReached: false,
+          updatedAt,
+        });
+      });
+      expect(screen.getByLabelText('Claude Usage')).toBeInTheDocument();
+      expect(screen.getByLabelText('Codex Usage')).toBeInTheDocument();
+
+      await act(async () => vi.advanceTimersByTimeAsync(5 * 60_000));
+
+      expect(screen.queryByLabelText('Claude Usage')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Codex Usage')).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

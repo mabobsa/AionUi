@@ -56,23 +56,39 @@ const derive = (): ClaudeRateLimitState => ({
 // does not loop (getSnapshot must return the same reference when nothing changed).
 let snapshot: ClaudeRateLimitState = derive();
 
+const mergeRateLimit = (info: ClaudeRateLimitInfo | undefined): boolean => {
+  if (!info?.rateLimitType) return false;
+  store.set(info.rateLimitType, { ...store.get(info.rateLimitType), ...info });
+  return true;
+};
+
+const hasRateLimitChanges = (info: ClaudeRateLimitInfo): boolean => {
+  const current = info.rateLimitType ? store.get(info.rateLimitType) : undefined;
+  return Object.entries(info).some(([key, value]) => current?.[key as keyof ClaudeRateLimitInfo] !== value);
+};
+
+const publishSnapshot = (nextUpdatedAt: number): void => {
+  updatedAt = nextUpdatedAt;
+  snapshot = derive();
+  for (const listener of listeners) listener();
+};
+
 /**
  * Feed a rate-limit info object into the global store. Called from the ACP
  * message stream handler when `_meta["_claude/rateLimit"]` is present.
  */
 export const pushClaudeRateLimit = (info: ClaudeRateLimitInfo | undefined | null): void => {
-  if (!info || !info.rateLimitType) return;
-  store.set(info.rateLimitType, { ...store.get(info.rateLimitType), ...info });
-  updatedAt = Date.now();
-  snapshot = derive();
-  for (const listener of listeners) listener();
+  if (!mergeRateLimit(info ?? undefined)) return;
+  publishSnapshot(Date.now());
 };
 
 /** Merge the account-wide snapshot returned by the desktop Claude usage probe. */
 export const pushClaudeUsageSnapshot = (usage: ClaudeUsageSnapshot | undefined | null): void => {
   if (!usage) return;
-  pushClaudeRateLimit(usage.session);
-  pushClaudeRateLimit(usage.weekly);
+  const sessionChanged = mergeRateLimit(usage.session);
+  const weeklyChanged = mergeRateLimit(usage.weekly);
+  if (!sessionChanged && !weeklyChanged) return;
+  publishSnapshot(usage.updatedAt);
 };
 
 /** Apply the cached AionCore usage endpoint shape to the titlebar store. */
@@ -82,7 +98,9 @@ export const pushClaudeRateLimitFromUsageSnapshot = (usage: unknown): void => {
   if (!meta || typeof meta !== 'object') return;
   const info = (meta as { '_claude/rateLimit'?: unknown })['_claude/rateLimit'];
   if (!info || typeof info !== 'object') return;
-  pushClaudeRateLimit(info as ClaudeRateLimitInfo);
+  const rateLimitInfo = info as ClaudeRateLimitInfo;
+  if (!rateLimitInfo.rateLimitType || !hasRateLimitChanges(rateLimitInfo)) return;
+  pushClaudeRateLimit(rateLimitInfo);
 };
 
 const subscribe = (onChange: () => void): (() => void) => {
