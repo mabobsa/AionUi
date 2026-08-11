@@ -71,6 +71,24 @@ describe('useClaudeRateLimit store', () => {
     });
   });
 
+  it('does not refresh the timestamp when the cached usage metadata is unchanged', () => {
+    const usage = {
+      _meta: {
+        '_claude/rateLimit': {
+          rateLimitType: 'five_hour',
+          utilization: 0.83,
+          resetsAt: 1_800_000_200,
+        },
+      },
+    };
+    pushClaudeRateLimitFromUsageSnapshot(usage);
+    const first = getClaudeRateLimitSnapshot();
+
+    pushClaudeRateLimitFromUsageSnapshot(usage);
+
+    expect(getClaudeRateLimitSnapshot()).toBe(first);
+  });
+
   it('ignores malformed cached usage metadata', () => {
     const before = getClaudeRateLimitSnapshot();
     pushClaudeRateLimitFromUsageSnapshot({ _meta: { '_claude/rateLimit': 'invalid' } });
@@ -104,5 +122,15 @@ describe('useClaudeRateLimit store', () => {
     const before = getClaudeRateLimitSnapshot();
     pushClaudeUsageSnapshot(null);
     expect(getClaudeRateLimitSnapshot()).toBe(before);
+  });
+
+  it('preserves the provider timestamp for staleness checks', () => {
+    const providerUpdatedAt = 1_700_000_123_000;
+    pushClaudeUsageSnapshot({
+      session: { rateLimitType: 'five_hour', utilization: 31 },
+      updatedAt: providerUpdatedAt,
+    });
+
+    expect(getClaudeRateLimitSnapshot().updatedAt).toBe(providerUpdatedAt);
   });
 });
