@@ -33,7 +33,10 @@ export type StaticServerHandle = {
 };
 
 const DEFAULT_PORT = 25808;
-const INTERNAL_EXTERNAL_LAUNCH_PATH = '/api/internal/external-conversation-launches';
+const BLOCKED_INTERNAL_API_PREFIXES = [
+  '/api/internal/external-conversation-launches',
+  '/api/internal/external-conversation-dispatches',
+];
 
 type HttpProxyTarget = {
   hostname: string;
@@ -226,7 +229,7 @@ export async function startStaticServer(opts: StaticServerOptions): Promise<Stat
       }
 
       const pathname = new URL(req.url, 'http://webui.local').pathname;
-      if (pathname === INTERNAL_EXTERNAL_LAUNCH_PATH) {
+      if (BLOCKED_INTERNAL_API_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
         res.writeHead(404, { 'content-type': 'application/json' });
         res.end(JSON.stringify({ error: 'NOT_FOUND' }));
         return;
