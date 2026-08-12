@@ -349,11 +349,17 @@ describe('useAutoScroll', () => {
     );
 
     attachElements(result, scroller, content);
+    act(() => {
+      vi.runAllTimers();
+    });
+    vi.mocked(scroller.scrollTo).mockClear();
 
     act(() => {
       rerender({
         messages: [createLeftMessage('hello'), createRightMessage('question')],
       });
+    });
+    act(() => {
       vi.runAllTimers();
     });
 
@@ -361,6 +367,47 @@ describe('useAutoScroll', () => {
       top: 600,
       behavior: 'auto',
     });
+  });
+
+  it('does not treat prepended history as a new user message', () => {
+    const scroller = createScroller({ scrollTop: 600 });
+    const content = createContent();
+    const currentUserMessage = createRightMessage('question');
+    const { result, rerender } = renderHook(
+      ({ messages }) =>
+        useAutoScroll({
+          messages,
+          itemCount: messages.length,
+        }),
+      {
+        initialProps: {
+          messages: [currentUserMessage] as TMessage[],
+        },
+      }
+    );
+
+    attachElements(result, scroller, content);
+    act(() => {
+      vi.runAllTimers();
+    });
+    vi.mocked(scroller.scrollTo).mockClear();
+
+    act(() => {
+      result.current.handleWheel({ deltaX: 0, deltaY: -320 } as React.WheelEvent<HTMLDivElement>);
+    });
+    fireScroll(result.current.handleScroll, scroller, 120);
+
+    scroller.scrollHeight = 1400;
+    act(() => {
+      rerender({
+        messages: [createLeftMessage('older reply'), { ...currentUserMessage }],
+      });
+    });
+    act(() => {
+      vi.runAllTimers();
+    });
+
+    expect(scroller.scrollTo).not.toHaveBeenCalled();
   });
 
   it('scrolls a target element into view for explicit message jumps', () => {
