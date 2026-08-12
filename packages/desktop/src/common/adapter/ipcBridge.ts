@@ -871,6 +871,11 @@ type RawFileMetadata = {
   is_directory?: boolean;
 };
 
+export type WorkspaceGitBranch = {
+  workspace: string;
+  branch: string | null;
+};
+
 /** Map backend snake_case metadata to the camelCase {@link IFileMetadata}. */
 function fromBackendFileMetadata(raw: RawFileMetadata): IFileMetadata {
   return {
@@ -911,6 +916,7 @@ export const fs = {
   getImageBase64: httpPost<string | null, { path: string; workspace?: string }>('/api/fs/image-base64'),
   fetchRemoteImage: httpPost<string, { url: string }>('/api/fs/fetch-remote-image'),
   readFile: httpPost<string | null, { path: string; workspace?: string }>('/api/fs/read'),
+  getGitBranches: httpPost<WorkspaceGitBranch[], { workspaces: string[] }>('/api/fs/git-branches'),
   writeFile: httpPost<boolean, { path: string; data: string; workspace?: string }>('/api/fs/write'),
   getFileMetadata: httpPost<IFileMetadata, { path: string; workspace?: string }>('/api/fs/metadata'),
   // ── ChatFileRef content endpoints (PR-2: preview I/O by ref identity) ──────

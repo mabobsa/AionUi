@@ -23,35 +23,52 @@ export const parseGitHead = (raw: string | null): string | null => {
   return null;
 };
 
-/** How often to re-read `.git/HEAD` so external branch switches get reflected. */
+/** How often to refresh Git branches so external branch switches get reflected. */
 const GIT_BRANCH_POLL_MS = 5000;
 
 /**
- * Resolve the Git branch for each project workspace by reading its
- * `.git/HEAD` file directly (no git binary required). Returns a map of
- * workspace path → branch name (or `null` when the folder is not a repo).
+ * Resolve the Git branch for all project workspaces with one backend request.
+ * Returns a map of workspace path → branch name (or `null` when the folder is
+ * not a repository).
  */
 export const useProjectGitBranches = (workspaces: string[]): Record<string, string | null> => {
   const [branches, setBranches] = useState<Record<string, string | null>>({});
-  // Stable dependency so the effect only re-runs when the set of workspaces changes.
-  const workspacesKey = workspaces.join('|');
+  // Stable dependency so order changes and duplicate workspaces do not restart polling.
+  const workspacesKey = JSON.stringify([...new Set(workspaces.filter(Boolean))].toSorted());
 
   useEffect(() => {
     let cancelled = false;
+    let refreshPromise: Promise<void> | null = null;
+    const targetWorkspaces = JSON.parse(workspacesKey) as string[];
+    const targetWorkspaceSet = new Set(targetWorkspaces);
 
-    const refresh = async (): Promise<void> => {
-      const entries = await Promise.all(
-        workspaces.map(async (workspace) => {
-          try {
-            const head = await ipcBridge.fs.readFile.invoke({ path: `${workspace}/.git/HEAD`, workspace });
-            return [workspace, parseGitHead(head)] as const;
-          } catch {
-            return [workspace, null] as const;
+    const refresh = (): Promise<void> => {
+      if (refreshPromise) return refreshPromise;
+      refreshPromise = (async () => {
+        const nextBranches: Record<string, string | null> = Object.fromEntries(
+          targetWorkspaces.map((workspace): [string, null] => [workspace, null])
+        );
+        try {
+          const response = await ipcBridge.fs.getGitBranches.invoke({ workspaces: targetWorkspaces });
+          for (const item of response) {
+            if (targetWorkspaceSet.has(item.workspace)) {
+              nextBranches[item.workspace] = typeof item.branch === 'string' ? item.branch : null;
+            }
           }
-        })
-      );
-      if (!cancelled) setBranches(Object.fromEntries(entries));
+        } catch {
+          // A batch-level failure keeps every requested workspace explicitly unknown.
+        }
+        if (!cancelled) setBranches(nextBranches);
+      })().finally(() => {
+        refreshPromise = null;
+      });
+      return refreshPromise;
     };
+
+    if (targetWorkspaces.length === 0) {
+      setBranches({});
+      return;
+    }
 
     void refresh();
     // Poll so branch switches made outside the app (e.g. in a terminal) get reflected.
@@ -67,7 +84,6 @@ export const useProjectGitBranches = (workspaces: string[]): Record<string, stri
       clearInterval(intervalId);
       window.removeEventListener('focus', onFocus);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspacesKey]);
 
   return branches;
