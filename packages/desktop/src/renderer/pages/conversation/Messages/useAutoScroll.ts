@@ -206,9 +206,15 @@ export function useAutoScroll({ messages, itemCount }: UseAutoScrollOptions): Us
     const previousLastMessage = previousLastMessageRef.current;
     const isNewMessage = currentListLength > previousLength;
     const isLastMessageUpdated = currentListLength > 0 && lastMessage !== previousLastMessage;
+    const isHistoryPrepend =
+      isNewMessage && previousLastMessage !== undefined && lastMessage?.id === previousLastMessage.id;
 
     previousListLengthRef.current = currentListLength;
     previousLastMessageRef.current = lastMessage;
+
+    // Cursor pagination grows the list at the start while preserving its tail.
+    // MessageList restores the visual anchor, so auto-follow must not compete with it.
+    if (isHistoryPrepend) return;
 
     if (!isNewMessage) {
       if (isLastMessageUpdated) {
