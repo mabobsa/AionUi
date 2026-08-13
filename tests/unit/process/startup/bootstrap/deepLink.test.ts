@@ -26,14 +26,14 @@ vi.mock('@/common', () => ({
 }));
 
 function createWindow() {
-  const webContentsListeners = new Map<string, () => void>();
+  const webContentsListeners = new Map<string, (...args: unknown[]) => void>();
   const windowListeners = new Map<string, () => void>();
   const window = {
     isDestroyed: () => false,
     on: (event: string, handler: () => void) => windowListeners.set(event, handler),
     webContents: {
       isDestroyed: () => false,
-      on: (event: string, handler: () => void) => webContentsListeners.set(event, handler),
+      on: (event: string, handler: (...args: unknown[]) => void) => webContentsListeners.set(event, handler),
     },
   } as unknown as BrowserWindow;
   return { window, webContentsListeners };
@@ -71,7 +71,7 @@ describe('deep-link renderer readiness', () => {
     deepLink.setDeepLinkMainWindow(window);
     await mocks.readyProvider?.();
 
-    webContentsListeners.get('did-start-loading')?.();
+    webContentsListeners.get('did-start-navigation')?.({ isMainFrame: true, isSameDocument: false });
     deepLink.handleDeepLinkUrl('aionui://navigate?route=%2Fconversation%2Freloaded');
     expect(mocks.emit).not.toHaveBeenCalled();
 
@@ -80,6 +80,57 @@ describe('deep-link renderer readiness', () => {
     expect(mocks.emit).toHaveBeenCalledWith({
       action: 'navigate',
       params: { route: '/conversation/reloaded' },
+    });
+  });
+
+  it('keeps links flowing while a subframe loads', async () => {
+    const deepLink = await import('@/process/utils/deepLink');
+    const { window, webContentsListeners } = createWindow();
+    deepLink.registerDeepLinkReadyProvider();
+    deepLink.setDeepLinkMainWindow(window);
+    await mocks.readyProvider?.();
+
+    webContentsListeners.get('did-start-navigation')?.({ isMainFrame: false, isSameDocument: false });
+    deepLink.handleDeepLinkUrl('aionui://navigate?route=%2Fconversation%2Fafter-subframe-load');
+
+    expect(mocks.emit).toHaveBeenCalledWith({
+      action: 'navigate',
+      params: { route: '/conversation/after-subframe-load' },
+    });
+  });
+
+  it('keeps links flowing during same-document navigation', async () => {
+    const deepLink = await import('@/process/utils/deepLink');
+    const { window, webContentsListeners } = createWindow();
+    deepLink.registerDeepLinkReadyProvider();
+    deepLink.setDeepLinkMainWindow(window);
+    await mocks.readyProvider?.();
+
+    webContentsListeners.get('did-start-navigation')?.({ isMainFrame: true, isSameDocument: true });
+    deepLink.handleDeepLinkUrl('aionui://navigate?route=%2Fconversation%2Fafter-hash-change');
+
+    expect(mocks.emit).toHaveBeenCalledWith({
+      action: 'navigate',
+      params: { route: '/conversation/after-hash-change' },
+    });
+  });
+
+  it('buffers links after the renderer exits until its replacement subscribes', async () => {
+    const deepLink = await import('@/process/utils/deepLink');
+    const { window, webContentsListeners } = createWindow();
+    deepLink.registerDeepLinkReadyProvider();
+    deepLink.setDeepLinkMainWindow(window);
+    await mocks.readyProvider?.();
+
+    webContentsListeners.get('render-process-gone')?.();
+    deepLink.handleDeepLinkUrl('aionui://navigate?route=%2Fconversation%2Fafter-crash');
+    expect(mocks.emit).not.toHaveBeenCalled();
+
+    await mocks.readyProvider?.();
+
+    expect(mocks.emit).toHaveBeenCalledWith({
+      action: 'navigate',
+      params: { route: '/conversation/after-crash' },
     });
   });
 
