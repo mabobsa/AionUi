@@ -7,6 +7,7 @@
 import type { BrowserWindow } from 'electron';
 import { ipcBridge } from '@/common';
 import { AIONUI_PROTOCOL_SCHEME, createBufferedEventRelay, findDeepLinkUrl } from '../startup/bootstrap/protocol';
+import { registerRendererReadinessInvalidation } from '../startup/bootstrap/rendererReadiness';
 
 export const PROTOCOL_SCHEME = AIONUI_PROTOCOL_SCHEME;
 
@@ -67,7 +68,7 @@ const markDeepLinkRendererNotReady = (): void => {
 export const setDeepLinkMainWindow = (win: BrowserWindow): void => {
   markDeepLinkRendererNotReady();
   mainWindowRef = win;
-  win.webContents.on('did-start-loading', markDeepLinkRendererNotReady);
+  registerRendererReadinessInvalidation(win.webContents, markDeepLinkRendererNotReady);
   win.on('closed', () => {
     if (mainWindowRef !== win) return;
     markDeepLinkRendererNotReady();
