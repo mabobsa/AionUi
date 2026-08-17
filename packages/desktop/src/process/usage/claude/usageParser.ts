@@ -44,7 +44,7 @@ const OSC_SEQUENCE = new RegExp(
   'g'
 );
 const CSI_SEQUENCE = new RegExp(`${ESCAPE_CHARACTER}\\[[0-?]*[ -/]*[@-~]`, 'g');
-const USED_PERCENT = /(\d{1,3}(?:\.\d+)?)%\s+used/i;
+const USED_PERCENT = /(\d+(?:\.\d+)?)%\s+used/i;
 
 type Clock = {
   hours: number;
@@ -137,7 +137,7 @@ const parseBucket = (
   if (!match) return undefined;
 
   const utilization = Number(match[1]);
-  if (!Number.isFinite(utilization) || utilization < 0 || utilization > 100) return undefined;
+  if (!Number.isFinite(utilization) || utilization < 0) return undefined;
 
   const resetLine = section.find((line) => /^resets\s+/i.test(line));
   const resetsAt = resetLine ? parseClaudeUsageResetAt(resetLine.replace(/^resets\s+/i, ''), now) : undefined;

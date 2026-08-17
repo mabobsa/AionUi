@@ -9,14 +9,9 @@ import { Dashboard } from '@icon-park/react';
 import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
-import { ipcBridge } from '@/common';
 import { subscriptionUsageBridge } from '@/common/platform/subscriptionUsageBridge';
 import type { ClaudeRateLimitInfo, ClaudeUtilizationUnit } from '@/common/types/platform/claudeUsage';
-import {
-  pushClaudeRateLimitFromUsageSnapshot,
-  pushClaudeUsageSnapshot,
-  useClaudeRateLimit,
-} from '@/renderer/hooks/useClaudeRateLimit';
+import { pushClaudeUsageSnapshot, useClaudeRateLimit } from '@/renderer/hooks/useClaudeRateLimit';
 import { isElectronDesktop } from '@/renderer/utils/platform';
 import styles from './SubscriptionUsageIndicator.module.css';
 import {
@@ -52,7 +47,7 @@ const toPercent = (
         : utilization <= 1
           ? utilization * 100
           : utilization;
-  return Math.max(0, Math.min(100, Math.round(pct)));
+  return Math.max(0, Math.round(pct));
 };
 
 export const formatClaudeUsagePillPercentages = (
@@ -149,28 +144,6 @@ const ClaudeUsagePill: React.FC = () => {
       window.removeEventListener('focus', refresh);
       document.removeEventListener('visibilitychange', refreshWhenVisible);
     };
-  }, [location.pathname]);
-
-  useEffect(() => {
-    const conversationId = location.pathname.match(/^\/conversation\/([^/]+)/)?.[1];
-    if (!conversationId) return;
-
-    let requestInFlight = false;
-    const refresh = (): void => {
-      if (requestInFlight) return;
-      requestInFlight = true;
-      void ipcBridge.conversation.getUsage
-        .invoke({ conversation_id: conversationId })
-        .then(pushClaudeRateLimitFromUsageSnapshot)
-        .catch((): void => {})
-        .finally(() => {
-          requestInFlight = false;
-        });
-    };
-
-    refresh();
-    const timer = window.setInterval(refresh, 2000);
-    return () => window.clearInterval(timer);
   }, [location.pathname]);
 
   if ((!session && !weekly) || !isSubscriptionUsageFresh(updatedAt)) return null;
