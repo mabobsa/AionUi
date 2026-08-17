@@ -30,6 +30,10 @@ describe('formatClaudeUsagePillPercentages', () => {
     expect(formatClaudeUsagePillPercentages(1, 0.3, 'ratio', 'ratio')).toBe('100% · 30%');
   });
 
+  it('shows an exact over-limit percentage without clamping the label', () => {
+    expect(formatClaudeUsagePillPercentages(103, 37, 'percent', 'percent')).toBe('103% · 37%');
+  });
+
   it('returns undefined when neither quota reports a percentage', () => {
     expect(formatClaudeUsagePillPercentages(undefined, undefined)).toBeUndefined();
   });
@@ -55,6 +59,7 @@ describe('getSubscriptionUsageTone', () => {
     [80, 'warning'],
     [99, 'warning'],
     [100, 'limit'],
+    [103, 'limit'],
   ] as const)('classifies %s percent as %s', (usedPercent, expected) => {
     expect(getSubscriptionUsageTone(usedPercent)).toBe(expected);
   });

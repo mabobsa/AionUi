@@ -62,11 +62,6 @@ const mergeRateLimit = (info: ClaudeRateLimitInfo | undefined): boolean => {
   return true;
 };
 
-const hasRateLimitChanges = (info: ClaudeRateLimitInfo): boolean => {
-  const current = info.rateLimitType ? store.get(info.rateLimitType) : undefined;
-  return Object.entries(info).some(([key, value]) => current?.[key as keyof ClaudeRateLimitInfo] !== value);
-};
-
 const publishSnapshot = (nextUpdatedAt: number): void => {
   updatedAt = nextUpdatedAt;
   snapshot = derive();
@@ -89,18 +84,6 @@ export const pushClaudeUsageSnapshot = (usage: ClaudeUsageSnapshot | undefined |
   const weeklyChanged = mergeRateLimit(usage.weekly);
   if (!sessionChanged && !weeklyChanged) return;
   publishSnapshot(usage.updatedAt);
-};
-
-/** Apply the cached AionCore usage endpoint shape to the titlebar store. */
-export const pushClaudeRateLimitFromUsageSnapshot = (usage: unknown): void => {
-  if (!usage || typeof usage !== 'object') return;
-  const meta = (usage as { _meta?: unknown })._meta;
-  if (!meta || typeof meta !== 'object') return;
-  const info = (meta as { '_claude/rateLimit'?: unknown })['_claude/rateLimit'];
-  if (!info || typeof info !== 'object') return;
-  const rateLimitInfo = info as ClaudeRateLimitInfo;
-  if (!rateLimitInfo.rateLimitType || !hasRateLimitChanges(rateLimitInfo)) return;
-  pushClaudeRateLimit(rateLimitInfo);
 };
 
 const subscribe = (onChange: () => void): (() => void) => {

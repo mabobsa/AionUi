@@ -79,6 +79,17 @@ describe('ConversationUsageIndicator', () => {
     fixtures.codexListener = undefined;
   });
 
+  it('uses the account-wide Claude probe without polling a conversation usage snapshot', async () => {
+    render(<ConversationUsageIndicator />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(fixtures.claudeInvoke).toHaveBeenCalledWith({ conversationId: 'first' });
+    expect(fixtures.conversationUsageInvoke).not.toHaveBeenCalled();
+  });
+
   it('renders Claude and Codex publisher updates immediately with exact percentages', async () => {
     render(<ConversationUsageIndicator />);
 
@@ -99,12 +110,12 @@ describe('ConversationUsageIndicator', () => {
     expect(screen.getByLabelText('Codex Usage')).toHaveTextContent('1%');
   });
 
-  it('colors Claude by its higher quota while keeping low Codex usage normal', async () => {
+  it('shows exact over-limit Claude usage while keeping low Codex usage normal', async () => {
     render(<ConversationUsageIndicator />);
 
     await act(async () => {
       fixtures.claudeListener?.({
-        session: { rateLimitType: 'five_hour', utilization: 97, utilizationUnit: 'percent' },
+        session: { rateLimitType: 'five_hour', utilization: 103, utilizationUnit: 'percent' },
         weekly: { rateLimitType: 'seven_day', utilization: 39, utilizationUnit: 'percent' },
         updatedAt: Date.now(),
       });
@@ -115,7 +126,8 @@ describe('ConversationUsageIndicator', () => {
       });
     });
 
-    expect(screen.getByLabelText('Claude Usage')).toHaveClass(styles.warning);
+    expect(screen.getByLabelText('Claude Usage')).toHaveTextContent('103% · 39%');
+    expect(screen.getByLabelText('Claude Usage')).toHaveClass(styles.limit);
     expect(screen.getByLabelText('Codex Usage')).not.toHaveClass(styles.warning, styles.limit);
   });
 
