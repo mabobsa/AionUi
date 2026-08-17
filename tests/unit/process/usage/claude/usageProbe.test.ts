@@ -97,6 +97,35 @@ describe('ClaudeUsageProbe', () => {
     }
   });
 
+  it('caches successful usage for two minutes', async () => {
+    let now = new Date(2026, 6, 31, 7, 0, 0).getTime();
+    const firstTerminal = new FakePty();
+    const secondTerminal = new FakePty();
+    const terminals = [firstTerminal, secondTerminal];
+    const spawnPty = vi.fn(() => terminals.shift() as unknown as IPty) as unknown as SpawnPty;
+    const probe = new ClaudeUsageProbe({
+      command: process.execPath,
+      now: () => now,
+      spawnPty,
+    });
+
+    const first = probe.getUsage(process.cwd());
+    firstTerminal.emitData(completeUsage);
+    firstTerminal.emitExit();
+    await expect(first).resolves.toMatchObject({ session: { utilization: 25 } });
+
+    now += 119_999;
+    await expect(probe.getUsage(process.cwd())).resolves.toMatchObject({ session: { utilization: 25 } });
+    expect(spawnPty).toHaveBeenCalledTimes(1);
+
+    now += 1;
+    const refreshed = probe.getUsage(process.cwd());
+    expect(spawnPty).toHaveBeenCalledTimes(2);
+    secondTerminal.emitData(completeUsage);
+    secondTerminal.emitExit();
+    await expect(refreshed).resolves.toMatchObject({ session: { utilization: 25 } });
+  });
+
   it('returns and caches null when the executable cannot be resolved', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const spawnPty = vi.fn();
@@ -204,7 +233,31 @@ describe('ClaudeUsageProbe', () => {
     }
   });
 
-  it('retries a failed probe after the one-minute failure cache expires', async () => {
+  it('allows two minutes before timing out', async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const terminal = new FakePty();
+      const spawnPty = vi.fn(() => terminal as unknown as IPty) as unknown as SpawnPty;
+      const probe = new ClaudeUsageProbe({
+        command: process.execPath,
+        spawnPty,
+      });
+
+      const result = probe.getUsage(process.cwd());
+      await vi.advanceTimersByTimeAsync(119_999);
+      expect(terminal.kill).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(result).resolves.toBeNull();
+      expect(terminal.kill).toHaveBeenCalledTimes(1);
+    } finally {
+      warn.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it('retries a failed probe after the two-minute failure cache expires', async () => {
     vi.useFakeTimers();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
@@ -227,7 +280,7 @@ describe('ClaudeUsageProbe', () => {
       expect(spawnPty).toHaveBeenCalledTimes(1);
       expect(firstTerminal.kill).toHaveBeenCalledTimes(1);
 
-      now += 59_999;
+      now += 119_999;
       await expect(probe.getUsage(process.cwd())).resolves.toBeNull();
       expect(spawnPty).toHaveBeenCalledTimes(1);
 
