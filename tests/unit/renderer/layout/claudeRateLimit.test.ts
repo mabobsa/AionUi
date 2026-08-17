@@ -8,7 +8,6 @@ import { describe, expect, it } from 'vitest';
 import {
   getClaudeRateLimitSnapshot,
   pushClaudeRateLimit,
-  pushClaudeRateLimitFromUsageSnapshot,
   pushClaudeUsageSnapshot,
 } from '@/renderer/hooks/useClaudeRateLimit';
 
@@ -50,49 +49,6 @@ describe('useClaudeRateLimit store', () => {
     const after = getClaudeRateLimitSnapshot();
     expect(after).not.toBe(before);
     expect(after.session?.utilization).toBe(0.7);
-  });
-
-  it('hydrates from the cached usage endpoint metadata', () => {
-    pushClaudeRateLimitFromUsageSnapshot({
-      used: 42,
-      _meta: {
-        '_claude/rateLimit': {
-          rateLimitType: 'five_hour',
-          utilization: 0.82,
-          status: 'allowed_warning',
-        },
-      },
-    });
-
-    expect(getClaudeRateLimitSnapshot().session).toMatchObject({
-      rateLimitType: 'five_hour',
-      utilization: 0.82,
-      status: 'allowed_warning',
-    });
-  });
-
-  it('does not refresh the timestamp when the cached usage metadata is unchanged', () => {
-    const usage = {
-      _meta: {
-        '_claude/rateLimit': {
-          rateLimitType: 'five_hour',
-          utilization: 0.83,
-          resetsAt: 1_800_000_200,
-        },
-      },
-    };
-    pushClaudeRateLimitFromUsageSnapshot(usage);
-    const first = getClaudeRateLimitSnapshot();
-
-    pushClaudeRateLimitFromUsageSnapshot(usage);
-
-    expect(getClaudeRateLimitSnapshot()).toBe(first);
-  });
-
-  it('ignores malformed cached usage metadata', () => {
-    const before = getClaudeRateLimitSnapshot();
-    pushClaudeRateLimitFromUsageSnapshot({ _meta: { '_claude/rateLimit': 'invalid' } });
-    expect(getClaudeRateLimitSnapshot()).toBe(before);
   });
 
   it('keeps probed utilization when a sparse live event updates the status', () => {

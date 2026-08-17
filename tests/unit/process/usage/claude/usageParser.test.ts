@@ -59,10 +59,16 @@ describe('Claude usage output parser', () => {
     expect(result?.weekly).toBeUndefined();
   });
 
+  it('preserves current-session usage beyond one hundred percent', () => {
+    const result = parseClaudeUsageOutput(`Current session\n103% used\nCurrent week (all models)\n37% used`);
+
+    expect(result?.session?.utilization).toBe(103);
+    expect(result?.weekly?.utilization).toBe(37);
+  });
+
   it('returns null for unrelated or malformed output', () => {
     expect(parseClaudeUsageOutput('Claude Code is ready')).toBeNull();
     expect(parseClaudeUsageOutput('Current session\nunknown\nResets soon')).toBeNull();
-    expect(parseClaudeUsageOutput('Current session\n101% used')).toBeNull();
   });
 
   it('removes ANSI and OSC terminal control sequences', () => {
