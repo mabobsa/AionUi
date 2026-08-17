@@ -205,7 +205,7 @@ describe('SubscriptionUsagePublisher background refresh', () => {
     publisher.stop();
   });
 
-  it('waits sixty seconds between completed background refreshes', async () => {
+  it('waits two minutes between completed background refreshes', async () => {
     vi.useFakeTimers();
     const capture = captureSnapshots();
     const getCodexUsage = vi.fn(async () => codexUsage);
@@ -225,7 +225,7 @@ describe('SubscriptionUsagePublisher background refresh', () => {
     await flushPromises();
     expect(getCodexUsage).toHaveBeenCalledTimes(1);
 
-    await vi.advanceTimersByTimeAsync(59_999);
+    await vi.advanceTimersByTimeAsync(119_999);
     expect(getCodexUsage).toHaveBeenCalledTimes(1);
     await vi.advanceTimersByTimeAsync(1);
     expect(getCodexUsage).toHaveBeenCalledTimes(2);
