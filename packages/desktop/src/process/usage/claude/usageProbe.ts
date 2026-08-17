@@ -11,13 +11,13 @@ import { delimiter, extname, join } from 'node:path';
 import { spawn, type IPty } from 'node-pty';
 import { parseClaudeUsageOutput, stripClaudeUsageTerminalOutput } from './usageParser';
 
-const DEFAULT_SUCCESS_TTL_MS = 60_000;
-const DEFAULT_FAILURE_TTL_MS = 60_000;
+const DEFAULT_SUCCESS_TTL_MS = 120_000;
+const DEFAULT_FAILURE_TTL_MS = 120_000;
 const DEFAULT_COMMAND_DELAY_MS = 25_000;
 const DEFAULT_READY_COMMAND_DELAY_MS = 12_000;
 const DEFAULT_EXIT_COMMAND_DELAY_MS = 1_000;
 const DEFAULT_SHUTDOWN_TIMEOUT_MS = 5_000;
-const DEFAULT_TIMEOUT_MS = 45_000;
+const DEFAULT_TIMEOUT_MS = 120_000;
 const MAX_CAPTURE_CHARS = 256 * 1024;
 const TRUST_CONFIRMATION = /quick safety check|trust this folder/i;
 const USAGE_DIALOG_DISMISSED = /settings dialog dismissed/i;

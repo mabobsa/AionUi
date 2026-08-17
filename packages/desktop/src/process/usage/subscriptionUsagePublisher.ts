@@ -27,7 +27,7 @@ import { clearSubscriptionUsageSnapshot, writeSubscriptionUsageSnapshot } from '
 
 const DEFAULT_LOADING_RETRY_MS = 2_000;
 const DEFAULT_INITIAL_REFRESH_DELAY_MS = 2_000;
-const DEFAULT_REFRESH_INTERVAL_MS = 60_000;
+const DEFAULT_REFRESH_INTERVAL_MS = 120_000;
 const CONVERSATION_LOOKUP_LIMIT = 10_000;
 
 export type SubscriptionUsageConversation = {
