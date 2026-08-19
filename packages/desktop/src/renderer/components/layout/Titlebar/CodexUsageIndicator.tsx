@@ -32,14 +32,13 @@ const formatReset = (resetsAt: number | undefined): string | undefined => {
   });
 };
 
-const toneClass = (tone: SubscriptionUsageTone, kind: 'text' | 'bg'): string =>
-  tone === 'limit'
-    ? `${kind}-danger-6`
-    : tone === 'warning'
-      ? `${kind}-warning-6`
-      : kind === 'text'
-        ? 'text-t-secondary'
-        : 'bg-primary-6';
+const toneClasses: Record<SubscriptionUsageTone, { text: string; bg: string }> = {
+  normal: { text: 'text-t-secondary', bg: 'bg-primary-6' },
+  warning: { text: 'text-warning-6', bg: 'bg-warning-6' },
+  limit: { text: 'text-danger-6', bg: 'bg-danger-6' },
+};
+
+const toneClass = (tone: SubscriptionUsageTone, kind: 'text' | 'bg'): string => toneClasses[tone][kind];
 
 const CodexUsageIndicator: React.FC = () => {
   const { t } = useTranslation();
@@ -118,7 +117,14 @@ const CodexUsageIndicator: React.FC = () => {
           </span>
           <span className={`text-12px font-600 ${toneClass(tone, 'text')}`}>{percent}%</span>
         </div>
-        <div className='h-6px w-full overflow-hidden rounded-999px bg-fill-2'>
+        <div
+          className='h-6px w-full overflow-hidden rounded-999px bg-fill-2'
+          role='progressbar'
+          aria-label={t('common.claudeUsage.weekly', { defaultValue: 'Weekly (all models)' })}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.min(100, percent)}
+        >
           <div
             className={`h-full rounded-999px ${toneClass(tone, 'bg')}`}
             style={{ width: `${Math.min(100, percent)}%` }}
