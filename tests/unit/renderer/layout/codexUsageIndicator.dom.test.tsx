@@ -45,7 +45,12 @@ vi.mock('react-i18next', () => ({
 }));
 
 vi.mock('@arco-design/web-react', () => ({
-  Popover: ({ children }: { children: React.ReactNode }) => children,
+  Popover: ({ children, content }: { children: React.ReactNode; content: React.ReactNode }) => (
+    <>
+      {children}
+      {content}
+    </>
+  ),
 }));
 
 vi.mock('@icon-park/react', () => ({
@@ -75,12 +80,12 @@ describe('CodexUsageIndicator', () => {
     fixtures.invoke.mockResolvedValueOnce(usage).mockReturnValueOnce(new Promise(() => {}));
     const view = render(<CodexUsageIndicator />);
 
-    await waitFor(() => expect(screen.getByText('29%')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByLabelText('Codex Usage')).toHaveTextContent('29%'));
 
     fixtures.pathname = '/conversation/second';
     view.rerender(<CodexUsageIndicator />);
 
-    expect(screen.getByText('29%')).toBeInTheDocument();
+    expect(screen.getByLabelText('Codex Usage')).toHaveTextContent('29%');
     expect(fixtures.invoke).toHaveBeenLastCalledWith({ conversationId: 'second' });
   });
 
@@ -96,7 +101,25 @@ describe('CodexUsageIndicator', () => {
       });
     });
 
-    expect(screen.getByText('1%')).toBeInTheDocument();
+    expect(screen.getByLabelText('Codex Usage')).toHaveTextContent('1%');
     expect(fixtures.invoke).toHaveBeenCalledTimes(1);
+  });
+
+  it('fills the weekly progress bar to match warning-level usage', async () => {
+    fixtures.invoke.mockReturnValue(new Promise(() => {}));
+    render(<CodexUsageIndicator />);
+
+    await act(async () => {
+      fixtures.listener?.({
+        weekly: { usedPercent: 96, resetsAt: 1_800_000_000 },
+        limitReached: false,
+        updatedAt: Date.now(),
+      });
+    });
+
+    const progress = screen.getByRole('progressbar', { name: 'Weekly (all models)' });
+    expect(progress).toHaveAttribute('aria-valuenow', '96');
+    expect(progress.firstElementChild).toHaveClass('bg-warning-6');
+    expect(progress.firstElementChild).toHaveStyle({ width: '96%' });
   });
 });
