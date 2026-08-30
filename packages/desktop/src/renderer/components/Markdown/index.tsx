@@ -65,9 +65,9 @@ const MarkdownView: React.FC<MarkdownViewProps> = React.memo(
         const href = (e.currentTarget as HTMLAnchorElement).href;
         if (!href) return;
         // Prefer the built-in browser tab for http(s) links; fall back to the
-        // system browser for other schemes or when no Preview panel is available.
+        // system browser for Ctrl-click, other schemes, or when no Preview panel is available.
         const httpUrl = parseHttpUrl(href);
-        if (httpUrl && preview) {
+        if (httpUrl && preview && !e.ctrlKey) {
           preview.openBrowserTab(httpUrl);
           return;
         }
