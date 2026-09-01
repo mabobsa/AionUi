@@ -21,6 +21,7 @@ import { migrateAssistantsToBackend } from './migrateAssistants';
 import {
   buildMindNProgressMcpServer,
   buildMnPSuiteOptionalMcpBootstrap,
+  isLegacyMnPSuiteMindNProgressMcpServer,
   isMnPSuiteManagedMcpServer,
   MINDNPROGRESS_MCP_NAME,
 } from '../startup/bootstrap/mnpSuiteMcp';
@@ -343,7 +344,10 @@ async function ensureBootstrapMcpServersInDb(configFile: ConfigFile): Promise<vo
     if (!existingServer) {
       continue;
     }
-    if (!isMnPSuiteManagedMcpServer(existingServer)) {
+    const isManagedServer =
+      isMnPSuiteManagedMcpServer(existingServer) ||
+      (desiredServer.name === MINDNPROGRESS_MCP_NAME && isLegacyMnPSuiteMindNProgressMcpServer(existingServer));
+    if (!isManagedServer) {
       suiteServerConflicts += 1;
       console.warn('[Migration] skipped MnP Suite MCP name conflict: %s', desiredServer.name);
       continue;
