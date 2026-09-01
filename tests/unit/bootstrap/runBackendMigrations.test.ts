@@ -220,6 +220,39 @@ describe('runBackendMigrations', () => {
     expect(warnSpy).toHaveBeenCalledWith('[Migration] skipped MnP Suite MCP name conflict: %s', 'MindNProgress');
   });
 
+  it('adopts the unmarked required server created by older MnP Suite installers', async () => {
+    const { directory, entryPath } = makeTemporarySuiteFiles();
+    const legacyEntryPath = path.join(directory, 'legacy-server.mjs');
+    vi.stubEnv('MINDNPROGRESS_MCP_ENTRY', entryPath);
+    listServersMock.mockResolvedValue([
+      {
+        ...imageServer(),
+        id: 'legacy-managed-mnp',
+        name: 'MindNProgress',
+        description: 'Required local MCP server for MindNProgress conversations',
+        enabled: false,
+        builtin: false,
+        original_json: JSON.stringify({
+          mcpServers: { MindNProgress: { command: 'node', args: [legacyEntryPath] } },
+        }),
+        transport: { type: 'stdio', command: 'node', args: [legacyEntryPath] },
+      },
+    ]);
+
+    await runBackendMigrations(configFile as never);
+
+    expect(updateServerMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'legacy-managed-mnp',
+        data: expect.objectContaining({
+          transport: { type: 'stdio', command: 'node', args: [entryPath] },
+          original_json: expect.stringContaining('MnPSuite'),
+        }),
+      })
+    );
+    expect(toggleServerMock).toHaveBeenCalledWith({ id: 'legacy-managed-mnp' });
+  });
+
   it('updates and enables a managed server when its installation path changes', async () => {
     const { entryPath } = makeTemporarySuiteFiles();
     vi.stubEnv('MINDNPROGRESS_MCP_ENTRY', entryPath);

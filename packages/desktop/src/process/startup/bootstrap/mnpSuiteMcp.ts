@@ -13,6 +13,7 @@ export const MINDNPROGRESS_MCP_ENTRY_ENV = 'MINDNPROGRESS_MCP_ENTRY';
 export const MNP_SUITE_MCP_CONFIG_ENV = 'MNP_SUITE_MCP_CONFIG';
 export const MNP_SUITE_MANAGED_BY = 'MnPSuite';
 export const MNP_SUITE_OPTIONAL_MCP_NAMES = ['dooray-mcp', 'pptx-mcp'] as const;
+const MINDNPROGRESS_MCP_DESCRIPTION = 'Required local MCP server for MindNProgress conversations';
 
 type McpImportServer = Partial<IMcpServer> & Pick<IMcpServer, 'name' | 'transport'>;
 type MnPSuiteMcpDescriptor = {
@@ -63,7 +64,7 @@ export function buildMindNProgressMcpServer(
   const args = [normalizedEntryPath];
   return {
     name: MINDNPROGRESS_MCP_NAME,
-    description: 'Required local MCP server for MindNProgress conversations',
+    description: MINDNPROGRESS_MCP_DESCRIPTION,
     enabled: true,
     builtin: false,
     transport: { type: 'stdio', command, args },
@@ -142,6 +143,40 @@ export function isMnPSuiteManagedMcpServer(server: Pick<IMcpServer, 'original_js
   try {
     const parsed = JSON.parse(server.original_json || '{}') as { mnpSuite?: { managedBy?: unknown } };
     return parsed.mnpSuite?.managedBy === MNP_SUITE_MANAGED_BY;
+  } catch {
+    return false;
+  }
+}
+
+export function isLegacyMnPSuiteMindNProgressMcpServer(
+  server: Pick<IMcpServer, 'name' | 'description' | 'builtin' | 'transport' | 'original_json'>
+): boolean {
+  if (
+    server.name.trim().toLowerCase() !== MINDNPROGRESS_MCP_NAME.toLowerCase() ||
+    server.description !== MINDNPROGRESS_MCP_DESCRIPTION ||
+    server.builtin !== false ||
+    server.transport.type !== 'stdio' ||
+    server.transport.command !== 'node' ||
+    server.transport.args?.length !== 1 ||
+    !path.isAbsolute(server.transport.args[0])
+  ) {
+    return false;
+  }
+
+  try {
+    const parsed = JSON.parse(server.original_json || '{}') as {
+      mcpServers?: Record<string, { command?: unknown; args?: unknown }>;
+    };
+    if (Object.keys(parsed).length !== 1 || !parsed.mcpServers || Object.keys(parsed.mcpServers).length !== 1) {
+      return false;
+    }
+    const config = parsed.mcpServers[MINDNPROGRESS_MCP_NAME];
+    return (
+      config?.command === 'node' &&
+      Array.isArray(config.args) &&
+      config.args.length === 1 &&
+      config.args[0] === server.transport.args[0]
+    );
   } catch {
     return false;
   }

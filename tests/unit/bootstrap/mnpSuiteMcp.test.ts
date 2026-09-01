@@ -4,6 +4,7 @@ import path from 'node:path';
 import {
   buildMindNProgressMcpServer,
   buildMnPSuiteOptionalMcpBootstrap,
+  isLegacyMnPSuiteMindNProgressMcpServer,
   isMnPSuiteManagedMcpServer,
 } from '@/process/startup/bootstrap/mnpSuiteMcp';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -37,6 +38,27 @@ describe('buildMindNProgressMcpServer', () => {
   it('rejects relative and missing entry paths', () => {
     expect(buildMindNProgressMcpServer('mcp/server.mjs')).toBeNull();
     expect(buildMindNProgressMcpServer(path.join(makeTemporaryDirectory(), 'missing.mjs'))).toBeNull();
+  });
+
+  it('recognizes the exact unmarked server shape created by older MnP Suite installers', () => {
+    const entryPath = path.join(makeTemporaryDirectory(), 'server.mjs');
+    const legacyServer = {
+      name: 'MindNProgress',
+      description: 'Required local MCP server for MindNProgress conversations',
+      builtin: false,
+      transport: { type: 'stdio' as const, command: 'node', args: [entryPath] },
+      original_json: JSON.stringify({
+        mcpServers: { MindNProgress: { command: 'node', args: [entryPath] } },
+      }),
+    };
+
+    expect(isLegacyMnPSuiteMindNProgressMcpServer(legacyServer)).toBe(true);
+    expect(
+      isLegacyMnPSuiteMindNProgressMcpServer({
+        ...legacyServer,
+        transport: { type: 'stdio', command: 'custom-node', args: [entryPath] },
+      })
+    ).toBe(false);
   });
 });
 
