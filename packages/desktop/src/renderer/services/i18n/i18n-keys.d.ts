@@ -751,6 +751,7 @@ export type I18nKey =
   | 'conversation.history.markAsUnread'
   | 'conversation.history.newConversationInProject'
   | 'conversation.history.noHistory'
+  | 'conversation.history.permanentDelete'
   | 'conversation.history.pin'
   | 'conversation.history.pinFailed'
   | 'conversation.history.pinned'

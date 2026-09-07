@@ -50,6 +50,7 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
     onEditStart,
     onCreateCronTask,
     onArchive,
+    onPermanentDelete,
     onExport,
     onCopy,
     onCopyAll,
@@ -283,6 +284,7 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
               onCopy={onCopy}
               onCopyAll={onCopyAll}
               onArchive={onArchive}
+              onPermanentDelete={onPermanentDelete}
               onTogglePin={onTogglePin}
               onToggleManualUnread={onToggleManualUnread}
               isManualUnread={isManualUnread}

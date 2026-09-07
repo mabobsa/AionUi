@@ -95,6 +95,7 @@
     "forkedFrom": "Ответвление от «{{name}}»",
     "forkedConversation": "Ответвлённая беседа",
     "archive": "Архивировать",
+    "permanentDelete": "Удалить навсегда",
     "archiveSuccess": "Архивировано",
     "archiveFailed": "Не удалось архивировать",
     "batchArchive": "Batch archive",

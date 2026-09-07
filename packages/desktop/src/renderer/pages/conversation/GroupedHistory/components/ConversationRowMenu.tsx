@@ -5,7 +5,7 @@
  */
 
 import { Dropdown, Menu } from '@arco-design/web-react';
-import { Copy, CopyOne, EditOne, Export, FolderClose, Inbox, MoreOne, Star, Timer } from '@icon-park/react';
+import { Copy, CopyOne, DeleteOne, EditOne, Export, FolderClose, Inbox, MoreOne, Star, Timer } from '@icon-park/react';
 import classNames from 'classnames';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
@@ -25,6 +25,7 @@ type ConversationRowMenuProps = Pick<
   | 'onCopy'
   | 'onCopyAll'
   | 'onArchive'
+  | 'onPermanentDelete'
   | 'onTogglePin'
   | 'onToggleManualUnread'
   | 'isManualUnread'
@@ -46,6 +47,7 @@ const ConversationRowMenu: React.FC<ConversationRowMenuProps> = ({
   onCopy,
   onCopyAll,
   onArchive,
+  onPermanentDelete,
   onTogglePin,
   onToggleManualUnread,
   isManualUnread,
@@ -62,6 +64,7 @@ const ConversationRowMenu: React.FC<ConversationRowMenuProps> = ({
       createCronTask: () => onCreateCronTask(conversation),
       export: onExport ? () => onExport(conversation) : undefined,
       archive: () => onArchive(conversation),
+      permanentDelete: onPermanentDelete ? () => onPermanentDelete(conversation) : undefined,
     };
     conversationActions[key]?.();
   };
@@ -126,6 +129,14 @@ const ConversationRowMenu: React.FC<ConversationRowMenuProps> = ({
               <span>{t('conversation.history.archive')}</span>
             </div>
           </Menu.Item>
+          {onPermanentDelete && (
+            <Menu.Item key='permanentDelete'>
+              <div className='flex items-center gap-8px text-danger-6'>
+                <DeleteOne theme='outline' size='14' />
+                <span>{t('conversation.history.permanentDelete')}</span>
+              </div>
+            </Menu.Item>
+          )}
         </Menu>
       }
       trigger='click'

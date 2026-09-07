@@ -101,6 +101,18 @@ describe('conversation scheduled-task menu item', () => {
     expect(screen.queryByText('conversation.history.createCronTask')).not.toBeInTheDocument();
   });
 
+  it('offers permanent deletion after archive and targets the selected conversation', async () => {
+    const onPermanentDelete = vi.fn();
+    render(<ConversationRow {...makeProps({ onPermanentDelete })} />);
+
+    const archiveItem = await screen.findByText('conversation.history.archive');
+    const permanentDeleteItem = screen.getByText('conversation.history.permanentDelete');
+
+    expect(archiveItem.compareDocumentPosition(permanentDeleteItem) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fireEvent.click(permanentDeleteItem);
+    await waitFor(() => expect(onPermanentDelete).toHaveBeenCalledWith(conversation));
+  });
+
   it('toggles the bookmark without opening the conversation', () => {
     const onTogglePin = vi.fn();
     const onConversationClick = vi.fn();

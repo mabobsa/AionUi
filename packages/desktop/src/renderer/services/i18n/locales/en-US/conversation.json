@@ -91,6 +91,7 @@
     "forkedFrom": "Forked from “{{name}}”",
     "forkedConversation": "Forked conversation",
     "archive": "Archive",
+    "permanentDelete": "Delete permanently",
     "archiveSuccess": "Archived",
     "archiveFailed": "Archive failed",
     "batchArchive": "Batch archive",

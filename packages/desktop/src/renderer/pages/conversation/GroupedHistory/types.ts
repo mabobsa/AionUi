@@ -64,6 +64,7 @@ export type ConversationRowProps = {
   onEditStart: (conversation: TChatConversation) => void;
   onCreateCronTask: (conversation: TChatConversation) => void;
   onArchive: (conversation: TChatConversation) => void;
+  onPermanentDelete?: (conversation: TChatConversation) => void;
   onExport?: (conversation: TChatConversation) => void;
   onCopy?: (conversation: TChatConversation) => void;
   onCopyAll?: (conversation: TChatConversation) => void;
