@@ -91,6 +91,7 @@
     "forkedFrom": "Verzweigt von „{{name}}“",
     "forkedConversation": "Verzweigte Unterhaltung",
     "archive": "Archivieren",
+    "permanentDelete": "Endgültig löschen",
     "archiveSuccess": "Archiviert",
     "archiveFailed": "Archivieren fehlgeschlagen",
     "batchArchive": "Batch archive",

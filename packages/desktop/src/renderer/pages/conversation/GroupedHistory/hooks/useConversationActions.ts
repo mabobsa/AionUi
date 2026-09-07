@@ -18,6 +18,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { isConversationPinned } from '../utils/groupingHelpers';
 import { useConversationCopyActions } from './conversationActions/useConversationCopyActions';
+import { useConversationPermanentDelete } from './conversationActions/useConversationPermanentDelete';
 
 type UseConversationActionsParams = {
   batchMode: boolean;
@@ -96,6 +97,7 @@ export const useConversationActions = ({
     [id, navigate]
   );
   const { handleCopyLastOutput, handleCopyAll } = useConversationCopyActions();
+  const handlePermanentDelete = useConversationPermanentDelete(removeConversation);
 
   const handleBatchArchive = useCallback(() => {
     if (selectedConversationIds.size === 0) {
@@ -327,6 +329,7 @@ export const useConversationActions = ({
     handleConversationClick,
     handleBatchArchive,
     handleArchive,
+    handlePermanentDelete,
     handleEditStart,
     handleRenameConfirm,
     handleRenameCancel,

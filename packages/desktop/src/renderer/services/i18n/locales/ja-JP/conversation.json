@@ -91,6 +91,7 @@
     "forkedFrom": "「{{name}}」から分岐",
     "forkedConversation": "分岐した会話",
     "archive": "アーカイブ",
+    "permanentDelete": "完全に削除",
     "archiveSuccess": "アーカイブしました",
     "archiveFailed": "アーカイブに失敗しました",
     "batchArchive": "Batch archive",

@@ -91,6 +91,7 @@
     "forkedFrom": "انشعاب از «{{name}}»",
     "forkedConversation": "گفتگوی منشعب",
     "archive": "بایگانی",
+    "permanentDelete": "حذف دائمی",
     "archiveSuccess": "بایگانی شد",
     "archiveFailed": "بایگانی ناموفق بود",
     "batchArchive": "Batch archive",

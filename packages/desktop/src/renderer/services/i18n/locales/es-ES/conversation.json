@@ -91,6 +91,7 @@
     "forkedFrom": "Bifurcada de “{{name}}”",
     "forkedConversation": "Conversación bifurcada",
     "archive": "Archivar",
+    "permanentDelete": "Eliminar permanentemente",
     "archiveSuccess": "Archivado",
     "archiveFailed": "Error al archivar",
     "batchArchive": "Batch archive",

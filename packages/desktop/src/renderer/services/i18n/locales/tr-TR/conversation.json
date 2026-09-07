@@ -91,6 +91,7 @@
     "forkedFrom": "“{{name}}” konuşmasından çatallandı",
     "forkedConversation": "Çatallanmış konuşma",
     "archive": "Arşivle",
+    "permanentDelete": "Kalıcı olarak sil",
     "archiveSuccess": "Arşivlendi",
     "archiveFailed": "Arşivleme başarısız",
     "batchArchive": "Batch archive",

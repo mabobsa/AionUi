@@ -10,17 +10,25 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   copyTextMock,
+  emitterEmitMock,
   getMessagesMock,
   messageErrorMock,
+  messageSuccessMock,
+  modalConfirmMock,
   navigateMock,
+  removeConversationMock,
   requestPrefillMock,
   routeState,
   updateConversationMock,
 } = vi.hoisted(() => ({
   copyTextMock: vi.fn(),
+  emitterEmitMock: vi.fn(),
   getMessagesMock: vi.fn(),
   messageErrorMock: vi.fn(),
+  messageSuccessMock: vi.fn(),
+  modalConfirmMock: vi.fn(),
   navigateMock: vi.fn(),
+  removeConversationMock: vi.fn(),
   requestPrefillMock: vi.fn(),
   routeState: { id: 'current-conversation' as string | undefined },
   updateConversationMock: vi.fn(),
@@ -44,7 +52,7 @@ vi.mock('react-router-dom', async () => {
 vi.mock('@/common', () => ({
   ipcBridge: {
     conversation: {
-      remove: { invoke: vi.fn() },
+      remove: { invoke: removeConversationMock },
       update: { invoke: updateConversationMock },
     },
     database: {
@@ -64,11 +72,11 @@ vi.mock('@/renderer/utils/chat/getLastAssistantText', () => ({
 vi.mock('@arco-design/web-react', () => ({
   Message: {
     error: messageErrorMock,
-    success: vi.fn(),
+    success: messageSuccessMock,
     warning: vi.fn(),
   },
   Modal: {
-    confirm: vi.fn(),
+    confirm: modalConfirmMock,
   },
 }));
 
@@ -81,7 +89,7 @@ vi.mock('@/renderer/pages/conversation/utils/conversationCache', () => ({
 }));
 
 vi.mock('@/renderer/utils/emitter', () => ({
-  emitter: { emit: vi.fn() },
+  emitter: { emit: emitterEmitMock },
 }));
 
 vi.mock('@/renderer/utils/ui/focus', () => ({
@@ -221,5 +229,56 @@ describe('conversation copy actions', () => {
     });
 
     expect(messageErrorMock).toHaveBeenCalledWith('conversation.history.bookmarkUpdateFailed');
+  });
+});
+
+describe('permanent conversation deletion', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    routeState.id = 'current-conversation';
+    removeConversationMock.mockResolvedValue(true);
+  });
+
+  it('asks for irreversible confirmation before deleting', () => {
+    const conversation = makeConversation('current-conversation', 'acp');
+    const { result } = renderActions();
+
+    act(() => result.current.handlePermanentDelete(conversation));
+
+    expect(removeConversationMock).not.toHaveBeenCalled();
+    expect(modalConfirmMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'conversation.history.permanentDelete',
+        content: 'settings.archived.deleteConfirmContent',
+        okButtonProps: { status: 'danger' },
+      })
+    );
+  });
+
+  it('deletes the conversation and leaves its active route after confirmation', async () => {
+    const conversation = makeConversation('current-conversation', 'acp');
+    const { result } = renderActions();
+    act(() => result.current.handlePermanentDelete(conversation));
+    const { onOk } = modalConfirmMock.mock.calls[0][0] as { onOk: () => Promise<void> };
+
+    await act(onOk);
+
+    expect(removeConversationMock).toHaveBeenCalledWith({ id: 'current-conversation' });
+    expect(navigateMock).toHaveBeenCalledWith('/');
+    expect(messageSuccessMock).toHaveBeenCalledWith('conversation.history.deleteSuccess');
+  });
+
+  it('reports failure without leaving the active route when deletion is rejected', async () => {
+    removeConversationMock.mockResolvedValue(false);
+    const conversation = makeConversation('current-conversation', 'acp');
+    const { result } = renderActions();
+    act(() => result.current.handlePermanentDelete(conversation));
+    const { onOk } = modalConfirmMock.mock.calls[0][0] as { onOk: () => Promise<void> };
+
+    await act(onOk);
+
+    expect(messageErrorMock).toHaveBeenCalledWith('conversation.history.deleteFailed');
+    expect(navigateMock).not.toHaveBeenCalled();
+    expect(emitterEmitMock).not.toHaveBeenCalled();
   });
 });

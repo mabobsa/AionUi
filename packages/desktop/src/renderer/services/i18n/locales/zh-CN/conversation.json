@@ -91,6 +91,7 @@
     "forkedFrom": "分叉自「{{name}}」",
     "forkedConversation": "分叉会话",
     "archive": "归档",
+    "permanentDelete": "永久删除",
     "archiveSuccess": "已归档",
     "archiveFailed": "归档失败",
     "batchArchive": "批量归档",

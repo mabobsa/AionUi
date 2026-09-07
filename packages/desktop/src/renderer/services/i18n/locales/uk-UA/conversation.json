@@ -95,6 +95,7 @@
     "forkedFrom": "Відгалуження від «{{name}}»",
     "forkedConversation": "Відгалужена розмова",
     "archive": "Архівувати",
+    "permanentDelete": "Видалити назавжди",
     "archiveSuccess": "Заархівовано",
     "archiveFailed": "Не вдалося заархівувати",
     "batchArchive": "Batch archive",
