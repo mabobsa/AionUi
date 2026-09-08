@@ -9,6 +9,7 @@ import { act, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ClaudeUsageSnapshot } from '@/common/types/platform/claudeUsage';
 import type { CodexUsageSnapshot } from '@/common/types/platform/codexUsage';
+import type { SubscriptionUsageSnapshot } from '@/common/types/platform/subscriptionUsage';
 import styles from '@/renderer/components/layout/Titlebar/SubscriptionUsageIndicator.module.css';
 
 const fixtures = vi.hoisted(() => ({
@@ -17,6 +18,8 @@ const fixtures = vi.hoisted(() => ({
   codexInvoke: vi.fn(),
   codexListener: undefined as ((usage: CodexUsageSnapshot) => void) | undefined,
   conversationUsageInvoke: vi.fn(),
+  electronDesktop: true,
+  webUsageInvoke: vi.fn(),
 }));
 
 vi.mock('react-router-dom', () => ({
@@ -50,8 +53,12 @@ vi.mock('@/common/platform/subscriptionUsageBridge', () => ({
   },
 }));
 
+vi.mock('@/common/adapter/httpBridge', () => ({
+  httpGet: () => ({ invoke: fixtures.webUsageInvoke }),
+}));
+
 vi.mock('@/renderer/utils/platform', () => ({
-  isElectronDesktop: () => true,
+  isElectronDesktop: () => fixtures.electronDesktop,
 }));
 
 vi.mock('react-i18next', () => ({
@@ -61,7 +68,23 @@ vi.mock('react-i18next', () => ({
 }));
 
 vi.mock('@arco-design/web-react', () => ({
-  Popover: ({ children }: { children: React.ReactNode }) => children,
+  Button: ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button {...props}>{children}</button>
+  ),
+  Popover: ({
+    children,
+    content,
+    trigger,
+  }: {
+    children: React.ReactNode;
+    content: React.ReactNode;
+    trigger: string;
+  }) => (
+    <div data-popover-trigger={trigger}>
+      {children}
+      <div>{content}</div>
+    </div>
+  ),
 }));
 
 vi.mock('@icon-park/react', () => ({
@@ -75,6 +98,8 @@ describe('ConversationUsageIndicator', () => {
     fixtures.claudeInvoke.mockReset().mockResolvedValue(null);
     fixtures.codexInvoke.mockReset().mockResolvedValue(null);
     fixtures.conversationUsageInvoke.mockReset().mockResolvedValue(null);
+    fixtures.electronDesktop = true;
+    fixtures.webUsageInvoke.mockReset().mockResolvedValue(null);
     fixtures.claudeListener = undefined;
     fixtures.codexListener = undefined;
   });
@@ -172,5 +197,55 @@ describe('ConversationUsageIndicator', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('shows desktop-style provider pills and a click detail trigger in WebUI', async () => {
+    fixtures.electronDesktop = false;
+    const now = new Date().toISOString();
+    const webUsage: SubscriptionUsageSnapshot = {
+      schemaVersion: 1,
+      state: 'ready',
+      generatedAt: now,
+      updatedAt: now,
+      retryAfterMs: null,
+      claude: {
+        state: 'ready',
+        updatedAt: now,
+        session: { usedPercent: 17, resetsAt: null },
+        weekly: { usedPercent: 41, resetsAt: null },
+      },
+      codex: {
+        state: 'ready',
+        updatedAt: now,
+        weekly: { usedPercent: 73, resetsAt: null, windowDurationMins: 10_080 },
+        limitReached: false,
+      },
+    };
+    fixtures.webUsageInvoke.mockResolvedValue(webUsage);
+
+    render(<ConversationUsageIndicator />);
+
+    expect(await screen.findByLabelText('Claude Usage')).toHaveTextContent('17% · 41%');
+    expect(screen.getByLabelText('Codex Usage')).toHaveTextContent('73%');
+    const mobileTrigger = screen.getByRole('button', { name: 'Claude Usage / Codex Usage' });
+    expect(mobileTrigger).toHaveTextContent('73%');
+    expect(mobileTrigger.parentElement).toHaveAttribute('data-popover-trigger', 'click');
+    expect(fixtures.webUsageInvoke).toHaveBeenCalledTimes(1);
+    expect(fixtures.claudeInvoke).not.toHaveBeenCalled();
+    expect(fixtures.codexInvoke).not.toHaveBeenCalled();
+  });
+
+  it('keeps WebUI usage hidden when the desktop snapshot is unavailable', async () => {
+    fixtures.electronDesktop = false;
+    fixtures.webUsageInvoke.mockResolvedValue(null);
+
+    render(<ConversationUsageIndicator />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByLabelText('Claude Usage')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Codex Usage')).not.toBeInTheDocument();
   });
 });
