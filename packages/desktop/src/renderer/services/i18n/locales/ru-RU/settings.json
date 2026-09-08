@@ -1436,5 +1436,40 @@
   "crossSessionMessageDesc": "Разрешить агентам отправлять сообщения в ваши другие беседы. При отключении также отключается упоминание @@ в поле ввода.",
   "crossSessionMessageDisabledBanner": "Сообщения между беседами отключены, упоминание @@ недоступно.",
   "crossSessionMessageResume": "Включить снова",
-  "crossSessionMessageUpdateFailed": "Не удалось обновить настройку сообщений между беседами"
+  "crossSessionMessageUpdateFailed": "Не удалось обновить настройку сообщений между беседами",
+  "groupIntegrations": "Интеграции",
+  "mindnprogressRunner": {
+    "navLabel": "MindNProgress Runner",
+    "title": "MindNProgress Runner",
+    "description": "Подключите этот AionUi как Runner подчинённого компьютера MindNProgress и управляйте его состоянием.",
+    "statusLoadFailed": "Не удалось загрузить состояние Runner.",
+    "pairFailed": "Не удалось подключить Runner.",
+    "pairSuccess": "MindNProgress Runner подключён.",
+    "pairConfirmTitle": "Подключить MindNProgress Runner?",
+    "pairConfirmContent": "Подключить AionUi на этом устройстве к {{server}} как подмашину «{{machineId}}»? Продолжайте, только если это нужное устройство, вы доверяете серверу и сами начали подключение из MindNProgress.",
+    "restartFailed": "Не удалось перезапустить Runner.",
+    "disconnectConfirmTitle": "Отключить Runner?",
+    "disconnectConfirmContent": "Учётные данные Runner будут удалены из AionUi, а вспомогательный процесс остановлен.",
+    "disconnectFailed": "Не удалось отключить Runner.",
+    "disconnectSuccess": "Runner отключён.",
+    "secureStorageUnavailable": "Runner нельзя подключить: безопасное хранилище учётных данных ОС недоступно.",
+    "connectGuide": "Зарегистрируйте подчинённый компьютер в настройках распределённой работы MindNProgress и выберите «Подключить AionUi». Команды терминала и копирование токена не требуются.",
+    "connectionStatus": "Состояние подключения",
+    "machine": "Компьютер",
+    "server": "Сервер MindNProgress",
+    "lastConnected": "Последнее подключение",
+    "neverConnected": "Подключений не было",
+    "notConfigured": "Подчинённый компьютер MindNProgress не подключён.",
+    "retry": "Перезапустить Runner",
+    "disconnect": "Отключить",
+    "lifecycleNote": "Runner автоматически запускается вместе с AionUi и перед остановкой при выходе из AionUi завершает активные запросы.",
+    "states": {
+      "not-configured": "Не настроен",
+      "starting": "Запускается",
+      "connected": "Подключён",
+      "reconnecting": "Переподключение",
+      "error": "Ошибка",
+      "stopped": "Остановлен"
+    }
+  }
 }

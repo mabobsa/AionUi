@@ -1424,5 +1424,40 @@
   "crossSessionMessageDesc": "允許 Agent 向你的其他對話傳送訊息。關閉後，輸入框的 @@ 對話提及與投遞功能會同時停用。",
   "crossSessionMessageDisabledBanner": "跨對話訊息已關閉，輸入框的 @@ 對話提及不可用。",
   "crossSessionMessageResume": "重新開啟",
-  "crossSessionMessageUpdateFailed": "跨對話訊息設定更新失敗"
+  "crossSessionMessageUpdateFailed": "跨對話訊息設定更新失敗",
+  "groupIntegrations": "整合",
+  "mindnprogressRunner": {
+    "navLabel": "MindNProgress Runner",
+    "title": "MindNProgress Runner",
+    "description": "將此 AionUi 連線為 MindNProgress 子機器 Runner 並管理其狀態。",
+    "statusLoadFailed": "無法載入 Runner 狀態。",
+    "pairFailed": "Runner 連線失敗。",
+    "pairSuccess": "MindNProgress Runner 已連線。",
+    "pairConfirmTitle": "連線 MindNProgress Runner？",
+    "pairConfirmContent": "要將目前裝置的 AionUi 以子機器「{{machineId}}」連線到 {{server}}嗎？僅在這是預期裝置、您信任該伺服器，且是從 MindNProgress 主動發起連線時才繼續。",
+    "restartFailed": "無法重新啟動 Runner。",
+    "disconnectConfirmTitle": "中斷 Runner 連線？",
+    "disconnectConfirmContent": "這將刪除 AionUi 中儲存的 Runner 認證並停止附屬程序。",
+    "disconnectFailed": "無法中斷 Runner 連線。",
+    "disconnectSuccess": "Runner 已中斷連線。",
+    "secureStorageUnavailable": "作業系統的安全認證儲存空間無法使用，因此無法連線 Runner。",
+    "connectGuide": "請在 MindNProgress 的分散式工作設定中註冊子機器，然後選擇「連線 AionUi」。不需要終端機命令或複製權杖。",
+    "connectionStatus": "連線狀態",
+    "machine": "機器",
+    "server": "MindNProgress 伺服器",
+    "lastConnected": "上次連線",
+    "neverConnected": "從未連線",
+    "notConfigured": "尚未連線 MindNProgress 子機器。",
+    "retry": "重新啟動 Runner",
+    "disconnect": "中斷連線",
+    "lifecycleNote": "Runner 會隨 AionUi 自動啟動，並在 AionUi 結束時完成進行中的請求後停止。",
+    "states": {
+      "not-configured": "未設定",
+      "starting": "啟動中",
+      "connected": "已連線",
+      "reconnecting": "重新連線中",
+      "error": "錯誤",
+      "stopped": "已停止"
+    }
+  }
 }

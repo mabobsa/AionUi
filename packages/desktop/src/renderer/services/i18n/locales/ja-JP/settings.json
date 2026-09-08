@@ -1424,5 +1424,40 @@
   "crossSessionMessageDesc": "エージェントが他の会話にメッセージを送れるようにします。オフにすると入力欄の @@ 会話メンションも無効になります。",
   "crossSessionMessageDisabledBanner": "会話間メッセージはオフです。入力欄の @@ 会話メンションは使用できません。",
   "crossSessionMessageResume": "再度オンにする",
-  "crossSessionMessageUpdateFailed": "会話間メッセージ設定の更新に失敗しました"
+  "crossSessionMessageUpdateFailed": "会話間メッセージ設定の更新に失敗しました",
+  "groupIntegrations": "連携",
+  "mindnprogressRunner": {
+    "navLabel": "MindNProgress Runner",
+    "title": "MindNProgress Runner",
+    "description": "このAionUiをMindNProgressのサブマシンRunnerとして接続し、状態を管理します。",
+    "statusLoadFailed": "Runnerの状態を読み込めませんでした。",
+    "pairFailed": "Runnerの接続に失敗しました。",
+    "pairSuccess": "MindNProgress Runnerを接続しました。",
+    "pairConfirmTitle": "MindNProgress Runnerを接続しますか？",
+    "pairConfirmContent": "この端末のAionUiを{{server}}のサブマシン「{{machineId}}」として接続します。意図した端末であり、サーバーを信頼し、MindNProgressから自分で接続を開始した場合のみ続行してください。",
+    "restartFailed": "Runnerを再起動できませんでした。",
+    "disconnectConfirmTitle": "Runnerを切断しますか？",
+    "disconnectConfirmContent": "AionUiに保存されたRunner認証情報を削除し、サイドカーを停止します。",
+    "disconnectFailed": "Runnerを切断できませんでした。",
+    "disconnectSuccess": "Runnerを切断しました。",
+    "secureStorageUnavailable": "OSの安全な認証情報ストレージを利用できないため、Runnerを接続できません。",
+    "connectGuide": "MindNProgressの分散作業設定でサブマシンを登録し、「AionUiを接続」を選択してください。ターミナルコマンドやトークンのコピーは不要です。",
+    "connectionStatus": "接続状態",
+    "machine": "マシン",
+    "server": "MindNProgressサーバー",
+    "lastConnected": "最終接続",
+    "neverConnected": "接続履歴なし",
+    "notConfigured": "接続されたMindNProgressサブマシンはありません。",
+    "retry": "Runnerを再起動",
+    "disconnect": "切断",
+    "lifecycleNote": "RunnerはAionUiと同時に自動起動し、AionUi終了時に処理中のリクエストを整理して停止します。",
+    "states": {
+      "not-configured": "未設定",
+      "starting": "起動中",
+      "connected": "接続済み",
+      "reconnecting": "再接続中",
+      "error": "エラー",
+      "stopped": "停止"
+    }
+  }
 }

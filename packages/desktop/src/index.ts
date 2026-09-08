@@ -73,6 +73,7 @@ import {
   setIsQuitting,
 } from './process/utils/tray';
 import { readCloseToTraySetting } from './process/utils/closeToTraySetting';
+import { mindNProgressRunnerManager } from './process/startup/bootstrap/mindnprogressRunner';
 // @ts-expect-error - electron-squirrel-startup doesn't have types
 import electronSquirrelStartup from 'electron-squirrel-startup';
 
@@ -868,6 +869,13 @@ const handleAppReady = async (): Promise<void> => {
     if (backendStartedOk && bootBackendPort) {
       await ensureAdminUserOnce(bootBackendPort);
     }
+
+    if (backendStartedOk && bootBackendPort && !isWebUIMode && !isResetPasswordMode) {
+      await mindNProgressRunnerManager.initialize(bootBackendPort).catch((error) => {
+        console.error('[MindNProgress Runner] Failed to initialize sidecar:', error);
+      });
+      mark('mindNProgressRunner');
+    }
   }
 
   // One-shot backend migrations are deferred until after the renderer finishes
@@ -1161,6 +1169,7 @@ installQuitCleanup({
     disposeCronResumeListener?.();
     disposeCronResumeListener = null;
   },
+  stopSidecars: () => mindNProgressRunnerManager.shutdown(),
   // Stop aioncore subprocess — backend shutdown kills all agent children
   // transitively (no separate frontend workerTaskManager remains).
   stopBackend: () => backendManager.stop(),

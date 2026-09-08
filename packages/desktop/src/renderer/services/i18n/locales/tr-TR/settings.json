@@ -1422,5 +1422,40 @@
   "crossSessionMessageDesc": "Aracıların diğer sohbetlerinize mesaj göndermesine izin verir. Kapatmak giriş alanındaki @@ sohbet etiketini de devre dışı bırakır.",
   "crossSessionMessageDisabledBanner": "Sohbetler arası mesajlar kapalı, @@ sohbet etiketi kullanılamıyor.",
   "crossSessionMessageResume": "Yeniden aç",
-  "crossSessionMessageUpdateFailed": "Sohbetler arası mesaj ayarı güncellenemedi"
+  "crossSessionMessageUpdateFailed": "Sohbetler arası mesaj ayarı güncellenemedi",
+  "groupIntegrations": "Entegrasyonlar",
+  "mindnprogressRunner": {
+    "navLabel": "MindNProgress Runner",
+    "title": "MindNProgress Runner",
+    "description": "Bu AionUi'yi bir MindNProgress alt makine Runner'ı olarak bağlayın ve durumunu yönetin.",
+    "statusLoadFailed": "Runner durumu yüklenemedi.",
+    "pairFailed": "Runner bağlanamadı.",
+    "pairSuccess": "MindNProgress Runner bağlandı.",
+    "pairConfirmTitle": "MindNProgress Runner bağlansın mı?",
+    "pairConfirmContent": "Bu cihazdaki AionUi, {{server}} sunucusuna ‘{{machineId}}’ alt makinesi olarak bağlansın mı? Yalnızca doğru cihazdaysanız, sunucuya güveniyorsanız ve bağlantıyı MindNProgress üzerinden başlattıysanız devam edin.",
+    "restartFailed": "Runner yeniden başlatılamadı.",
+    "disconnectConfirmTitle": "Runner bağlantısı kesilsin mi?",
+    "disconnectConfirmContent": "Bu işlem AionUi'de saklanan Runner kimlik bilgisini siler ve yan süreci durdurur.",
+    "disconnectFailed": "Runner bağlantısı kesilemedi.",
+    "disconnectSuccess": "Runner bağlantısı kesildi.",
+    "secureStorageUnavailable": "Güvenli işletim sistemi kimlik bilgisi deposu kullanılamadığı için Runner bağlanamıyor.",
+    "connectGuide": "MindNProgress Dağıtılmış Çalışma ayarlarında bir alt makine kaydedin ve ardından ‘AionUi'yi Bağla’yı seçin. Terminal komutu veya belirteç kopyalama gerekmez.",
+    "connectionStatus": "Bağlantı durumu",
+    "machine": "Makine",
+    "server": "MindNProgress sunucusu",
+    "lastConnected": "Son bağlantı",
+    "neverConnected": "Hiç bağlanmadı",
+    "notConfigured": "Bağlı bir MindNProgress alt makinesi yok.",
+    "retry": "Runner'ı yeniden başlat",
+    "disconnect": "Bağlantıyı kes",
+    "lifecycleNote": "Runner, AionUi ile otomatik başlar ve AionUi kapatılırken etkin istekleri tamamladıktan sonra durur.",
+    "states": {
+      "not-configured": "Yapılandırılmadı",
+      "starting": "Başlatılıyor",
+      "connected": "Bağlandı",
+      "reconnecting": "Yeniden bağlanıyor",
+      "error": "Hata",
+      "stopped": "Durduruldu"
+    }
+  }
 }

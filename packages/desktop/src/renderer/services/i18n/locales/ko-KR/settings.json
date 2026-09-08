@@ -1424,5 +1424,40 @@
   "crossSessionMessageDesc": "에이전트가 다른 대화로 메시지를 보낼 수 있게 합니다. 끄면 입력창의 @@ 대화 멘션도 비활성화됩니다.",
   "crossSessionMessageDisabledBanner": "대화 간 메시지가 꺼져 있어 입력창의 @@ 대화 멘션을 사용할 수 없습니다.",
   "crossSessionMessageResume": "다시 켜기",
-  "crossSessionMessageUpdateFailed": "대화 간 메시지 설정 업데이트에 실패했습니다"
+  "crossSessionMessageUpdateFailed": "대화 간 메시지 설정 업데이트에 실패했습니다",
+  "groupIntegrations": "연동",
+  "mindnprogressRunner": {
+    "navLabel": "MindNProgress Runner",
+    "title": "MindNProgress Runner",
+    "description": "이 AionUi를 MindNProgress의 서브 머신 Runner로 연결하고 상태를 관리합니다.",
+    "statusLoadFailed": "Runner 상태를 불러오지 못했습니다.",
+    "pairFailed": "Runner 연결에 실패했습니다.",
+    "pairSuccess": "MindNProgress Runner를 연결했습니다.",
+    "pairConfirmTitle": "MindNProgress Runner를 연결할까요?",
+    "pairConfirmContent": "현재 장비의 AionUi를 {{server}}의 ‘{{machineId}}’ 서브 머신으로 연결합니다. 의도한 장비가 맞고 신뢰하는 서버이며 MindNProgress에서 직접 연결을 시작한 경우에만 계속하세요.",
+    "restartFailed": "Runner를 다시 시작하지 못했습니다.",
+    "disconnectConfirmTitle": "Runner 연결을 해제할까요?",
+    "disconnectConfirmContent": "이 AionUi에 저장된 Runner 자격 증명을 삭제하고 사이드카를 종료합니다.",
+    "disconnectFailed": "Runner 연결을 해제하지 못했습니다.",
+    "disconnectSuccess": "Runner 연결을 해제했습니다.",
+    "secureStorageUnavailable": "운영체제의 안전한 자격 증명 저장소를 사용할 수 없어 Runner를 연결할 수 없습니다.",
+    "connectGuide": "MindNProgress의 분산 작업 설정에서 서브 머신을 등록한 뒤 ‘AionUi 연결’을 누르세요. 터미널 명령이나 토큰 복사는 필요하지 않습니다.",
+    "connectionStatus": "연결 상태",
+    "machine": "머신",
+    "server": "MindNProgress 서버",
+    "lastConnected": "마지막 연결",
+    "neverConnected": "연결 기록 없음",
+    "notConfigured": "연결된 MindNProgress 서브 머신이 없습니다.",
+    "retry": "Runner 다시 시작",
+    "disconnect": "연결 해제",
+    "lifecycleNote": "Runner는 AionUi와 함께 자동으로 시작되며 AionUi가 종료될 때 진행 중인 요청을 정리한 뒤 종료됩니다.",
+    "states": {
+      "not-configured": "설정 안 됨",
+      "starting": "시작 중",
+      "connected": "연결됨",
+      "reconnecting": "재연결 중",
+      "error": "오류",
+      "stopped": "중지됨"
+    }
+  }
 }

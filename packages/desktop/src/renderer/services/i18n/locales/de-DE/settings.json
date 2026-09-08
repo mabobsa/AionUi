@@ -1422,5 +1422,40 @@
   "crossSessionMessageDesc": "Erlaubt Agenten, Nachrichten an Ihre anderen Unterhaltungen zu senden. Beim Ausschalten wird auch die @@-Erwähnung im Eingabefeld deaktiviert.",
   "crossSessionMessageDisabledBanner": "Nachrichten zwischen Unterhaltungen sind aus, die @@-Erwähnung ist nicht verfügbar.",
   "crossSessionMessageResume": "Wieder einschalten",
-  "crossSessionMessageUpdateFailed": "Einstellung konnte nicht aktualisiert werden"
+  "crossSessionMessageUpdateFailed": "Einstellung konnte nicht aktualisiert werden",
+  "groupIntegrations": "Integrationen",
+  "mindnprogressRunner": {
+    "navLabel": "MindNProgress Runner",
+    "title": "MindNProgress Runner",
+    "description": "Verbinde dieses AionUi als Runner eines MindNProgress-Nebenrechners und verwalte seinen Status.",
+    "statusLoadFailed": "Runner-Status konnte nicht geladen werden.",
+    "pairFailed": "Runner konnte nicht verbunden werden.",
+    "pairSuccess": "MindNProgress Runner verbunden.",
+    "pairConfirmTitle": "MindNProgress Runner verbinden?",
+    "pairConfirmContent": "AionUi auf diesem Gerät als Sub-Maschine „{{machineId}}“ mit {{server}} verbinden? Fahren Sie nur fort, wenn dies das vorgesehene Gerät ist, Sie dem Server vertrauen und die Verbindung in MindNProgress gestartet haben.",
+    "restartFailed": "Runner konnte nicht neu gestartet werden.",
+    "disconnectConfirmTitle": "Runner trennen?",
+    "disconnectConfirmContent": "Dadurch werden die in AionUi gespeicherten Runner-Anmeldedaten gelöscht und der Sidecar-Prozess beendet.",
+    "disconnectFailed": "Runner konnte nicht getrennt werden.",
+    "disconnectSuccess": "Runner getrennt.",
+    "secureStorageUnavailable": "Der Runner kann nicht verbunden werden, weil kein sicherer Anmeldedatenspeicher des Betriebssystems verfügbar ist.",
+    "connectGuide": "Registriere in den MindNProgress-Einstellungen für verteilte Arbeit einen Nebenrechner und wähle „AionUi verbinden“. Terminalbefehle oder das Kopieren eines Tokens sind nicht nötig.",
+    "connectionStatus": "Verbindungsstatus",
+    "machine": "Rechner",
+    "server": "MindNProgress-Server",
+    "lastConnected": "Zuletzt verbunden",
+    "neverConnected": "Noch nie verbunden",
+    "notConfigured": "Kein MindNProgress-Nebenrechner ist verbunden.",
+    "retry": "Runner neu starten",
+    "disconnect": "Trennen",
+    "lifecycleNote": "Der Runner startet automatisch mit AionUi und schließt aktive Anfragen ab, bevor er beim Beenden von AionUi stoppt.",
+    "states": {
+      "not-configured": "Nicht konfiguriert",
+      "starting": "Wird gestartet",
+      "connected": "Verbunden",
+      "reconnecting": "Verbindung wird wiederhergestellt",
+      "error": "Fehler",
+      "stopped": "Gestoppt"
+    }
+  }
 }

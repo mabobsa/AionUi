@@ -1422,5 +1422,40 @@
   "crossSessionMessageDesc": "به عامل‌ها اجازه می‌دهد به گفتگوهای دیگر شما پیام بفرستند. با خاموش کردن، منشن @@ در کادر ورودی نیز غیرفعال می‌شود.",
   "crossSessionMessageDisabledBanner": "پیام‌های بین گفتگوها خاموش است، منشن @@ در دسترس نیست.",
   "crossSessionMessageResume": "روشن کردن دوباره",
-  "crossSessionMessageUpdateFailed": "به‌روزرسانی تنظیم پیام‌های بین گفتگوها ناموفق بود"
+  "crossSessionMessageUpdateFailed": "به‌روزرسانی تنظیم پیام‌های بین گفتگوها ناموفق بود",
+  "groupIntegrations": "یکپارچه‌سازی‌ها",
+  "mindnprogressRunner": {
+    "navLabel": "MindNProgress Runner",
+    "title": "MindNProgress Runner",
+    "description": "این AionUi را به‌عنوان Runner یک رایانهٔ فرعی MindNProgress متصل و وضعیت آن را مدیریت کنید.",
+    "statusLoadFailed": "بارگیری وضعیت Runner ناموفق بود.",
+    "pairFailed": "اتصال Runner ناموفق بود.",
+    "pairSuccess": "MindNProgress Runner متصل شد.",
+    "pairConfirmTitle": "MindNProgress Runner متصل شود؟",
+    "pairConfirmContent": "AionUi این دستگاه به‌عنوان زیرماشین «{{machineId}}» به {{server}} متصل شود؟ فقط اگر این همان دستگاه موردنظر است، به سرور اعتماد دارید و اتصال را از MindNProgress آغاز کرده‌اید ادامه دهید.",
+    "restartFailed": "راه‌اندازی دوبارهٔ Runner ناموفق بود.",
+    "disconnectConfirmTitle": "اتصال Runner قطع شود؟",
+    "disconnectConfirmContent": "این کار اعتبارنامهٔ Runner ذخیره‌شده در AionUi را حذف و فرایند جانبی را متوقف می‌کند.",
+    "disconnectFailed": "قطع اتصال Runner ناموفق بود.",
+    "disconnectSuccess": "اتصال Runner قطع شد.",
+    "secureStorageUnavailable": "به‌دلیل در دسترس نبودن ذخیره‌ساز امن اعتبارنامهٔ سیستم‌عامل، اتصال Runner ممکن نیست.",
+    "connectGuide": "در تنظیمات کار توزیع‌شدهٔ MindNProgress یک رایانهٔ فرعی ثبت کنید و سپس «اتصال AionUi» را بزنید. نیازی به فرمان ترمینال یا کپی توکن نیست.",
+    "connectionStatus": "وضعیت اتصال",
+    "machine": "رایانه",
+    "server": "سرور MindNProgress",
+    "lastConnected": "آخرین اتصال",
+    "neverConnected": "هرگز متصل نشده",
+    "notConfigured": "هیچ رایانهٔ فرعی MindNProgress متصل نیست.",
+    "retry": "راه‌اندازی دوبارهٔ Runner",
+    "disconnect": "قطع اتصال",
+    "lifecycleNote": "Runner همراه AionUi به‌طور خودکار اجرا می‌شود و هنگام خروج از AionUi پس از تکمیل درخواست‌های فعال متوقف می‌شود.",
+    "states": {
+      "not-configured": "پیکربندی نشده",
+      "starting": "در حال اجرا",
+      "connected": "متصل",
+      "reconnecting": "در حال اتصال دوباره",
+      "error": "خطا",
+      "stopped": "متوقف"
+    }
+  }
 }
