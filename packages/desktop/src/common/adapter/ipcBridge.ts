@@ -675,6 +675,31 @@ export interface IAppRestartResult {
 
 export type IRendererLogLevel = 'debug' | 'info' | 'warn' | 'error';
 
+export type TMindNProgressRunnerState =
+  | 'not-configured'
+  | 'starting'
+  | 'connected'
+  | 'reconnecting'
+  | 'error'
+  | 'stopped';
+
+export interface IMindNProgressRunnerStatus {
+  configured: boolean;
+  secureStorageAvailable: boolean;
+  state: TMindNProgressRunnerState;
+  apiUrl: string | null;
+  machineId: string | null;
+  label: string | null;
+  lastConnectedAt: string | null;
+  lastError: string | null;
+}
+
+export interface IMindNProgressRunnerPairRequest {
+  apiUrl: string;
+  pairingCode: string;
+  expectedMachineId: string;
+}
+
 export interface IRendererLogEntry {
   level: IRendererLogLevel;
   tag: string;
@@ -741,6 +766,22 @@ export const application = {
   getStartOnBootStatus: bridge.buildProvider<IBridgeResponse<IStartOnBootStatus>, void>('app.get-start-on-boot-status'),
   setStartOnBoot: bridge.buildProvider<IBridgeResponse<IStartOnBootStatus>, { enabled: boolean }>(
     'app.set-start-on-boot'
+  ),
+  getMindNProgressRunnerStatus: bridge.buildProvider<IBridgeResponse<IMindNProgressRunnerStatus>, void>(
+    'app.get-mindnprogress-runner-status'
+  ),
+  pairMindNProgressRunner: bridge.buildProvider<
+    IBridgeResponse<IMindNProgressRunnerStatus>,
+    IMindNProgressRunnerPairRequest
+  >('app.pair-mindnprogress-runner'),
+  restartMindNProgressRunner: bridge.buildProvider<IBridgeResponse<IMindNProgressRunnerStatus>, void>(
+    'app.restart-mindnprogress-runner'
+  ),
+  disconnectMindNProgressRunner: bridge.buildProvider<IBridgeResponse<IMindNProgressRunnerStatus>, void>(
+    'app.disconnect-mindnprogress-runner'
+  ),
+  mindNProgressRunnerStatusChanged: bridge.buildEmitter<IMindNProgressRunnerStatus>(
+    'app.mindnprogress-runner-status-changed'
   ),
   getGpuStatus: bridge.buildProvider<IBridgeResponse<IGpuStatus>, void>('app.get-gpu-status'),
   setGpuOverride: bridge.buildProvider<IBridgeResponse<IGpuStatus>, { override: IGpuOverride | null }>(

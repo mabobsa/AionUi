@@ -1422,5 +1422,40 @@
   "crossSessionMessageDesc": "Let agents send messages to your other conversations. Turning this off also disables the @@ conversation mention in the input box.",
   "crossSessionMessageDisabledBanner": "Cross-conversation messages are off, so the @@ conversation mention is unavailable.",
   "crossSessionMessageResume": "Turn back on",
-  "crossSessionMessageUpdateFailed": "Failed to update the cross-conversation message setting"
+  "crossSessionMessageUpdateFailed": "Failed to update the cross-conversation message setting",
+  "groupIntegrations": "Integrations",
+  "mindnprogressRunner": {
+    "navLabel": "MindNProgress Runner",
+    "title": "MindNProgress Runner",
+    "description": "Connect this AionUi as a MindNProgress sub-machine Runner and manage its status.",
+    "statusLoadFailed": "Failed to load Runner status.",
+    "pairFailed": "Failed to connect the Runner.",
+    "pairSuccess": "MindNProgress Runner connected.",
+    "pairConfirmTitle": "Connect MindNProgress Runner?",
+    "pairConfirmContent": "Connect this device's AionUi to {{server}} as sub-machine ‘{{machineId}}’? Continue only if this is the intended device, you trust the server, and you started the connection from MindNProgress.",
+    "restartFailed": "Failed to restart the Runner.",
+    "disconnectConfirmTitle": "Disconnect the Runner?",
+    "disconnectConfirmContent": "This removes the Runner credential stored in AionUi and stops the sidecar.",
+    "disconnectFailed": "Failed to disconnect the Runner.",
+    "disconnectSuccess": "Runner disconnected.",
+    "secureStorageUnavailable": "Runner cannot be connected because secure operating-system credential storage is unavailable.",
+    "connectGuide": "Register a sub-machine in MindNProgress Distributed Work settings, then select ‘Connect AionUi’. No terminal command or token copy is required.",
+    "connectionStatus": "Connection status",
+    "machine": "Machine",
+    "server": "MindNProgress server",
+    "lastConnected": "Last connected",
+    "neverConnected": "Never connected",
+    "notConfigured": "No MindNProgress sub-machine is connected.",
+    "retry": "Restart Runner",
+    "disconnect": "Disconnect",
+    "lifecycleNote": "The Runner starts automatically with AionUi and drains active requests before stopping when AionUi exits.",
+    "states": {
+      "not-configured": "Not configured",
+      "starting": "Starting",
+      "connected": "Connected",
+      "reconnecting": "Reconnecting",
+      "error": "Error",
+      "stopped": "Stopped"
+    }
+  }
 }

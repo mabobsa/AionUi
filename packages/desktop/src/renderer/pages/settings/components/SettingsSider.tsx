@@ -31,6 +31,7 @@ export const BUILTIN_TAB_IDS = [
   'skills',
   'tools',
   'appearance',
+  'mindnprogress',
   'webui',
   'pet',
   'system',
@@ -57,6 +58,7 @@ export const LEGACY_ANCHOR_REMAP: Record<string, string> = {
 const GROUP_HEADER_BEFORE: Record<string, string> = {
   agent: 'settings.groupAiCore',
   appearance: 'settings.groupApp',
+  mindnprogress: 'settings.groupIntegrations',
   archived: 'settings.archived.title',
   about: 'settings.groupAbout',
 };
@@ -105,6 +107,12 @@ const SettingsSider: React.FC<{ collapsed?: boolean; tooltipEnabled?: boolean }>
         path: 'tools',
       },
       appearance: { id: 'appearance', label: t('settings.appearancePanel'), icon: <Computer />, path: 'appearance' },
+      mindnprogress: {
+        id: 'mindnprogress',
+        label: t('settings.mindnprogressRunner.navLabel'),
+        icon: <Communication />,
+        path: 'mindnprogress',
+      },
       webui: {
         id: 'webui',
         label: t('settings.webui'),
@@ -123,7 +131,9 @@ const SettingsSider: React.FC<{ collapsed?: boolean; tooltipEnabled?: boolean }>
     };
 
     // Start with ordered builtin IDs, hiding desktop-only tabs in browser mode
-    const result: SiderItem[] = BUILTIN_TAB_IDS.filter((id) => isDesktop || id !== 'pet').map((id) => builtinMap[id]);
+    const result: SiderItem[] = BUILTIN_TAB_IDS.filter(
+      (id) => isDesktop || (id !== 'pet' && id !== 'mindnprogress')
+    ).map((id) => builtinMap[id]);
 
     // Extension tabs with position anchoring
     const beforeMap = new Map<string, IExtensionSettingsTab[]>();

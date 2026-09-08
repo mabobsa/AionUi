@@ -18,6 +18,7 @@ import { getGpuStatus, setGpuUserOverride } from '@process/utils/gpuRecovery';
 import { initApplicationBridgeCore } from './applicationBridgeCore';
 import type { IStartOnBootStatus } from '@/common/adapter/ipcBridge';
 import { restartApplication } from './restartApplication';
+import { mindNProgressRunnerManager } from '@process/startup/bootstrap/mindnprogressRunner';
 
 let mainWindowRef: BrowserWindow | null = null;
 
@@ -103,6 +104,39 @@ export function setApplicationMainWindow(win: BrowserWindow): void {
 export function initApplicationBridge(): void {
   // Platform-agnostic handlers: systemInfo, updateSystemInfo, getPath
   initApplicationBridgeCore();
+
+  mindNProgressRunnerManager.onStatusChanged((status) => {
+    ipcBridge.application.mindNProgressRunnerStatusChanged.emit(status);
+  });
+
+  ipcBridge.application.getMindNProgressRunnerStatus.provider(async () => ({
+    success: true,
+    data: mindNProgressRunnerManager.getStatus(),
+  }));
+
+  ipcBridge.application.pairMindNProgressRunner.provider(async (request) => {
+    try {
+      return { success: true, data: await mindNProgressRunnerManager.pair(request) };
+    } catch (error) {
+      return { success: false, msg: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcBridge.application.restartMindNProgressRunner.provider(async () => {
+    try {
+      return { success: true, data: await mindNProgressRunnerManager.restart() };
+    } catch (error) {
+      return { success: false, msg: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcBridge.application.disconnectMindNProgressRunner.provider(async () => {
+    try {
+      return { success: true, data: await mindNProgressRunnerManager.disconnect() };
+    } catch (error) {
+      return { success: false, msg: error instanceof Error ? error.message : String(error) };
+    }
+  });
 
   ipcBridge.application.restart.provider(async () => {
     // Backend subprocess shutdown is handled by backendManager.stop() in the

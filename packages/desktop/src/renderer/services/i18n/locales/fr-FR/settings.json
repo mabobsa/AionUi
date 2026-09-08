@@ -1422,5 +1422,40 @@
   "crossSessionMessageDesc": "Permet aux agents d'envoyer des messages à vos autres conversations. La désactivation coupe aussi la mention @@ dans la zone de saisie.",
   "crossSessionMessageDisabledBanner": "Les messages entre conversations sont désactivés, la mention @@ est indisponible.",
   "crossSessionMessageResume": "Réactiver",
-  "crossSessionMessageUpdateFailed": "Échec de la mise à jour du réglage des messages entre conversations"
+  "crossSessionMessageUpdateFailed": "Échec de la mise à jour du réglage des messages entre conversations",
+  "groupIntegrations": "Intégrations",
+  "mindnprogressRunner": {
+    "navLabel": "MindNProgress Runner",
+    "title": "MindNProgress Runner",
+    "description": "Connectez cet AionUi comme Runner d’une machine secondaire MindNProgress et gérez son état.",
+    "statusLoadFailed": "Impossible de charger l’état du Runner.",
+    "pairFailed": "Impossible de connecter le Runner.",
+    "pairSuccess": "MindNProgress Runner connecté.",
+    "pairConfirmTitle": "Connecter MindNProgress Runner ?",
+    "pairConfirmContent": "Connecter l’AionUi de cet appareil à {{server}} comme machine secondaire « {{machineId}} » ? Continuez uniquement s’il s’agit du bon appareil, si vous faites confiance au serveur et si vous avez lancé la connexion depuis MindNProgress.",
+    "restartFailed": "Impossible de redémarrer le Runner.",
+    "disconnectConfirmTitle": "Déconnecter le Runner ?",
+    "disconnectConfirmContent": "Cette action supprime l’identifiant Runner stocké dans AionUi et arrête le processus compagnon.",
+    "disconnectFailed": "Impossible de déconnecter le Runner.",
+    "disconnectSuccess": "Runner déconnecté.",
+    "secureStorageUnavailable": "Le Runner ne peut pas être connecté, car le stockage sécurisé des identifiants du système n’est pas disponible.",
+    "connectGuide": "Enregistrez une machine secondaire dans les paramètres de travail distribué de MindNProgress, puis sélectionnez « Connecter AionUi ». Aucune commande de terminal ni copie de jeton n’est nécessaire.",
+    "connectionStatus": "État de la connexion",
+    "machine": "Machine",
+    "server": "Serveur MindNProgress",
+    "lastConnected": "Dernière connexion",
+    "neverConnected": "Jamais connecté",
+    "notConfigured": "Aucune machine secondaire MindNProgress n’est connectée.",
+    "retry": "Redémarrer le Runner",
+    "disconnect": "Déconnecter",
+    "lifecycleNote": "Le Runner démarre automatiquement avec AionUi et termine les requêtes actives avant de s’arrêter à la fermeture d’AionUi.",
+    "states": {
+      "not-configured": "Non configuré",
+      "starting": "Démarrage",
+      "connected": "Connecté",
+      "reconnecting": "Reconnexion",
+      "error": "Erreur",
+      "stopped": "Arrêté"
+    }
+  }
 }

@@ -1425,5 +1425,40 @@
   "crossSessionMessageDesc": "Permite que agentes enviem mensagens para suas outras conversas. Desativar também desliga a menção @@ na caixa de entrada.",
   "crossSessionMessageDisabledBanner": "As mensagens entre conversas estão desativadas, a menção @@ não está disponível.",
   "crossSessionMessageResume": "Ativar novamente",
-  "crossSessionMessageUpdateFailed": "Falha ao atualizar a configuração de mensagens entre conversas"
+  "crossSessionMessageUpdateFailed": "Falha ao atualizar a configuração de mensagens entre conversas",
+  "groupIntegrations": "Integrações",
+  "mindnprogressRunner": {
+    "navLabel": "MindNProgress Runner",
+    "title": "MindNProgress Runner",
+    "description": "Conecte este AionUi como Runner de uma máquina secundária do MindNProgress e gerencie seu estado.",
+    "statusLoadFailed": "Falha ao carregar o estado do Runner.",
+    "pairFailed": "Falha ao conectar o Runner.",
+    "pairSuccess": "MindNProgress Runner conectado.",
+    "pairConfirmTitle": "Conectar o MindNProgress Runner?",
+    "pairConfirmContent": "Conectar o AionUi deste dispositivo a {{server}} como submáquina “{{machineId}}”? Continue somente se este for o dispositivo correto, confiar no servidor e tiver iniciado a conexão pelo MindNProgress.",
+    "restartFailed": "Falha ao reiniciar o Runner.",
+    "disconnectConfirmTitle": "Desconectar o Runner?",
+    "disconnectConfirmContent": "Isso remove a credencial do Runner salva no AionUi e encerra o processo auxiliar.",
+    "disconnectFailed": "Falha ao desconectar o Runner.",
+    "disconnectSuccess": "Runner desconectado.",
+    "secureStorageUnavailable": "O Runner não pode ser conectado porque o armazenamento seguro de credenciais do sistema não está disponível.",
+    "connectGuide": "Registre uma máquina secundária nas configurações de Trabalho Distribuído do MindNProgress e selecione “Conectar AionUi”. Não é necessário usar o terminal nem copiar tokens.",
+    "connectionStatus": "Estado da conexão",
+    "machine": "Máquina",
+    "server": "Servidor MindNProgress",
+    "lastConnected": "Última conexão",
+    "neverConnected": "Nunca conectado",
+    "notConfigured": "Nenhuma máquina secundária do MindNProgress está conectada.",
+    "retry": "Reiniciar Runner",
+    "disconnect": "Desconectar",
+    "lifecycleNote": "O Runner inicia automaticamente com o AionUi e conclui as solicitações ativas antes de parar quando o AionUi é encerrado.",
+    "states": {
+      "not-configured": "Não configurado",
+      "starting": "Iniciando",
+      "connected": "Conectado",
+      "reconnecting": "Reconectando",
+      "error": "Erro",
+      "stopped": "Parado"
+    }
+  }
 }

@@ -141,6 +141,7 @@ export default defineConfig(({ mode }) => {
           input: {
             index: resolve('packages/desktop/src/bootstrap.ts'),
             mainApplication: resolve('packages/desktop/src/index.ts'),
+            'mindnprogress-runner': resolve('packages/desktop/src/process/resources/mindnprogressRunner/entry.ts'),
             // Built-in MCP server entry points (compiled by scripts/build-mcp-servers.js via esbuild,
             // not vite — esbuild bundles all deps for self-contained execution by external node processes)
           },
