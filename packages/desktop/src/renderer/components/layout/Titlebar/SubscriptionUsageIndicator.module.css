@@ -21,3 +21,42 @@
 .limit {
   background-color: var(--color-danger-light-1);
 }
+
+.webUsage,
+.webPills {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.clickable {
+  cursor: pointer;
+  color: inherit;
+}
+
+.mobileUsage {
+  display: none;
+}
+
+.mobileDetails {
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 720px) {
+  .webPills {
+    display: none;
+  }
+
+  .mobileUsage {
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+  }
+
+  .mobileTrigger {
+    height: 32px;
+    min-width: 32px;
+    padding: 0 7px;
+  }
+}
