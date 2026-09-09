@@ -18,13 +18,16 @@ import { useNavigate, useParams } from 'react-router-dom';
 import WorkspaceCollapse from '../components/WorkspaceCollapse';
 import ConversationRow from './ConversationRow';
 import BookmarkedConversationList from './components/BookmarkedConversationList';
+import ConversationActivityFilter from './components/ConversationActivityFilter';
 import HistoryViewTabs from './components/HistoryViewTabs';
 import ProjectGroupHeader from './components/ProjectGroupHeader';
 import { useBatchSelection } from './hooks/useBatchSelection';
+import { useConversationActivityFilter } from './hooks/useConversationActivityFilter';
 import { useConversationActions } from './hooks/useConversationActions';
 import { useConversations } from './hooks/useConversations';
 import { useProjectGitBranches } from './hooks/useProjectGitBranches';
 import type { ConversationRowProps, WorkspaceGroupedHistoryProps } from './types';
+import { buildGroupedHistory } from './utils/groupingHelpers';
 
 const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
   onSessionClick,
@@ -50,14 +53,23 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
     markManualUnread,
     clearManualUnread,
     expandedWorkspaces,
-    pinnedConversations,
-    timelineSections,
+    pinnedConversations: allPinnedConversations,
+    timelineSections: allTimelineSections,
     historyView,
     setHistoryView,
     handleToggleWorkspace,
     collapsedSections,
     toggleSection,
   } = useConversations();
+
+  const activityFilter = useConversationActivityFilter(conversations);
+  const { pinnedConversations, timelineSections } = useMemo(
+    () =>
+      activityFilter.enabled
+        ? buildGroupedHistory(activityFilter.filteredConversations, t)
+        : { pinnedConversations: allPinnedConversations, timelineSections: allTimelineSections },
+    [activityFilter.enabled, activityFilter.filteredConversations, allPinnedConversations, allTimelineSections, t]
+  );
 
   const SectionLabel = useCallback(
     ({ sectionKey, label, trailing }: { sectionKey: string; label: string; trailing?: React.ReactNode }) => {
@@ -103,7 +115,7 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
     allSelected,
     toggleSelectedConversation,
     handleToggleSelectAll,
-  } = useBatchSelection(batchMode, conversations);
+  } = useBatchSelection(batchMode, activityFilter.filteredConversations);
 
   const {
     renameModalVisible,
@@ -238,6 +250,20 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
     }
     return groups;
   }, [timelineSections]);
+
+  // Filtering changes which rows are visible, but a project-level archive must
+  // continue to act on the whole project rather than only the visible period.
+  const allProjectConversations = useMemo(() => {
+    const groups = new Map<string, TChatConversation[]>();
+    for (const conversation of conversations) {
+      const workspace = conversation.extra?.custom_workspace ? conversation.extra.workspace : undefined;
+      if (!workspace) continue;
+      const group = groups.get(workspace);
+      if (group) group.push(conversation);
+      else groups.set(workspace, [conversation]);
+    }
+    return groups;
+  }, [conversations]);
 
   // Git branch per project folder, read from each workspace's .git/HEAD file.
   const projectGitBranches = useProjectGitBranches(
@@ -383,11 +409,20 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
         {afterPinnedContent}
 
         {!collapsed && (
-          <HistoryViewTabs
-            activeView={historyView}
-            bookmarkCount={pinnedConversations.length}
-            onChange={setHistoryView}
-          />
+          <>
+            <HistoryViewTabs
+              activeView={historyView}
+              bookmarkCount={pinnedConversations.length}
+              onChange={setHistoryView}
+            />
+            <ConversationActivityFilter
+              enabled={activityFilter.enabled}
+              period={activityFilter.period}
+              onEnabledChange={activityFilter.setEnabled}
+              onPeriodChange={activityFilter.setPeriod}
+              onRefresh={activityFilter.refresh}
+            />
+          </>
         )}
 
         {historyView === 'bookmarks' && (
@@ -416,7 +451,10 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
                   <Menu
                     onClickMenuItem={(key) => {
                       if (key === 'archive') {
-                        handleArchiveProject(group.displayName, group.conversations);
+                        handleArchiveProject(
+                          group.displayName,
+                          allProjectConversations.get(group.workspace) ?? group.conversations
+                        );
                       }
                     }}
                   >
