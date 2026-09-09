@@ -21,6 +21,7 @@ import { ProjectPanelMobileOverlay } from '@renderer/components/layout/ProjectPa
 import { setCurrentProject, useCurrentProject } from '@renderer/pages/conversation/explorer/currentProjectStore';
 import { setCurrentConversation } from '@renderer/pages/conversation/explorer/currentConversationStore';
 import { useContainerWidth } from '@renderer/pages/conversation/hooks/useContainerWidth';
+import { useTabletPanelWidths } from '@renderer/pages/conversation/hooks/useTabletPanelWidths';
 import { useProjectExplorerColumnWidth } from '@renderer/hooks/ui/useProjectExplorerColumnWidth';
 import { useResizableSplit } from '@renderer/hooks/ui/useResizableSplit';
 import { useProjectPreviewRegionWidth } from '@renderer/hooks/ui/useProjectPreviewRegionWidth';
@@ -198,8 +199,11 @@ const Layout: React.FC<{
   const toggleExplorer = useCallback(() => {
     dispatchWorkspaceToggleEvent();
   }, []);
-  // Mobile overlay width: most of the viewport, capped.
-  const explorerMobileWidthPx = Math.min(420, Math.max(280, Math.round(viewportWidth * 0.85)));
+  // Phones keep the fixed overlay width; tablets restore their independently resized width.
+  const tabletPanels = useTabletPanelWidths(isMobile, viewportWidth);
+  const explorerMobileWidthPx = tabletPanels.resizable
+    ? tabletPanels.explorerWidthPx
+    : Math.min(420, Math.max(280, Math.round(viewportWidth * 0.85)));
   // P4 (②B): hoist the preview region to the Layout host for project
   // conversations so it is structurally persistent (no remount on same-project
   // switches). ChatLayout renders chat only in that case (previewHosted).
@@ -346,12 +350,14 @@ const Layout: React.FC<{
     };
   }, [navigate]);
 
-  const siderWidth = isMobile
-    ? Math.max(
-        MOBILE_SIDER_MIN_WIDTH,
-        Math.min(MOBILE_SIDER_MAX_WIDTH, Math.round(viewportWidth * MOBILE_SIDER_WIDTH_RATIO))
-      )
-    : desktopSiderWidth;
+  const siderWidth = tabletPanels.resizable
+    ? tabletPanels.siderWidthPx
+    : isMobile
+      ? Math.max(
+          MOBILE_SIDER_MIN_WIDTH,
+          Math.min(MOBILE_SIDER_MAX_WIDTH, Math.round(viewportWidth * MOBILE_SIDER_WIDTH_RATIO))
+        )
+      : desktopSiderWidth;
   useEffect(() => {
     collapsedRef.current = collapsed;
   }, [collapsed]);
@@ -474,12 +480,20 @@ const Layout: React.FC<{
                     } as any)
                   : sider}
               </ArcoLayout.Content>
-              {!isMobile &&
-                createSiderDragHandle({
-                  className: 'z-20',
-                  style: { right: '-4px', width: '8px' },
-                  linePlacement: 'start',
-                })}
+              {!isMobile
+                ? createSiderDragHandle({
+                    className: 'z-20',
+                    style: { right: '-4px', width: '8px' },
+                    linePlacement: 'start',
+                  })
+                : tabletPanels.resizable
+                  ? tabletPanels.createSiderDragHandle({
+                      className: 'z-20',
+                      style: { right: '-12px', width: '24px' },
+                      linePlacement: 'start',
+                      lineClassName: 'opacity-45 group-active:opacity-100',
+                    })
+                  : null}
             </ArcoLayout.Sider>
 
             {/* Content + project Explorer share one measured flex row (stage3
@@ -574,6 +588,17 @@ const Layout: React.FC<{
                 collapsed={explorerCollapsed}
                 onCollapse={toggleExplorer}
                 widthPx={explorerMobileWidthPx}
+                dragHandle={
+                  tabletPanels.resizable
+                    ? tabletPanels.createExplorerDragHandle({
+                        className: 'absolute start-0 top-0 bottom-0 z-20',
+                        style: { width: '24px' },
+                        reverse: true,
+                        linePlacement: 'start',
+                        lineClassName: 'opacity-45 group-active:opacity-100',
+                      })
+                    : undefined
+                }
               />
             )}
           </ArcoLayout>
