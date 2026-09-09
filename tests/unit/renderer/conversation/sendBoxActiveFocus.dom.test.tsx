@@ -6,7 +6,7 @@
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React, { useState } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const { layoutState } = vi.hoisted(() => ({
   layoutState: { isMobile: false },
@@ -125,6 +125,36 @@ vi.mock('@/renderer/components/media/UploadProgressBar', () => ({ default: () =>
 
 import SendBox from '@/renderer/components/chat/SendBox';
 
+const desktopElectronApi = window.electronAPI;
+const originalMatchMedia = window.matchMedia;
+
+const useWebEnvironment = (touchFirst: boolean): void => {
+  Object.defineProperty(window, 'electronAPI', { configurable: true, value: undefined, writable: true });
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: vi.fn(
+      (query: string) =>
+        ({
+          matches: touchFirst && (query === '(hover: none)' || query === '(pointer: coarse)'),
+          media: query,
+          onchange: null,
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        }) as unknown as MediaQueryList
+    ),
+    writable: true,
+  });
+};
+
+afterEach(() => {
+  layoutState.isMobile = false;
+  Object.defineProperty(window, 'electronAPI', { configurable: true, value: desktopElectronApi, writable: true });
+  Object.defineProperty(window, 'matchMedia', { configurable: true, value: originalMatchMedia, writable: true });
+});
+
 const SendBoxHarness = ({
   active,
   onFocused,
@@ -203,6 +233,15 @@ describe('SendBox active-controlled focus', () => {
     await waitFor(() => expect(textarea).toHaveFocus());
   });
 
+  it('keeps automatic focus on a fine-pointer WebUI desktop', async () => {
+    layoutState.isMobile = false;
+    useWebEnvironment(false);
+    render(<SendBoxHarness active={true} />);
+    const textarea = screen.getByTestId('sendbox-input') as HTMLTextAreaElement;
+
+    await waitFor(() => expect(textarea).toHaveFocus());
+  });
+
   it('focuses on mount when active is omitted (default true, preserves single-conversation behavior)', async () => {
     layoutState.isMobile = false;
     render(<SendBoxHarness />);
@@ -235,6 +274,30 @@ describe('SendBox active-controlled focus', () => {
     const textarea = screen.getByTestId('sendbox-input') as HTMLTextAreaElement;
     screen.getByRole('button', { name: 'outside' }).focus();
     expect(textarea).not.toHaveFocus();
+  });
+
+  it('does not force focus on a touch-first WebUI tablet using the desktop layout', async () => {
+    layoutState.isMobile = false;
+    useWebEnvironment(true);
+    render(<SendBoxHarness active={true} />);
+    const textarea = screen.getByTestId('sendbox-input') as HTMLTextAreaElement;
+
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
+
+    expect(textarea).not.toHaveFocus();
+  });
+
+  it('allows a touch-first WebUI tablet to focus the input after a direct tap', async () => {
+    layoutState.isMobile = false;
+    useWebEnvironment(true);
+    render(<SendBoxHarness active={true} />);
+    const textarea = screen.getByTestId('sendbox-input') as HTMLTextAreaElement;
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
+
+    fireEvent.touchStart(textarea);
+    act(() => textarea.focus());
+
+    expect(textarea).toHaveFocus();
   });
 
   it('calls onFocused when the textarea gains focus', () => {

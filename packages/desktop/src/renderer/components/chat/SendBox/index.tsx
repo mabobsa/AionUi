@@ -70,6 +70,7 @@ import SpeechInputButton from '@/renderer/components/chat/SpeechInputButton';
 import { appendSpeechTranscript } from '@/renderer/hooks/system/useSpeechInput';
 import { createChainedDispatch, useLiveTranscriptInsertion } from '@/renderer/hooks/system/useLiveTranscriptInsertion';
 import { getConversationInputHistory, isCaretOnFirstLine } from '@/renderer/utils/chat/messageHistory';
+import { shouldRequireExplicitInputFocus } from './touchFocusPolicy';
 import './sendbox.css';
 
 const constVoid = (): void => undefined;
@@ -343,6 +344,7 @@ const SendBox: React.FC<{
 }) => {
   const layout = useLayoutContext();
   const isMobile = layout?.isMobile ?? false;
+  const requiresExplicitInputFocus = shouldRequireExplicitInputFocus(isMobile);
   // Mobile compact mode: parent supplies the `+` action sheet, which collapses
   // tools/rightTools into a single launcher and lets the textarea start as a single line.
   const isMobileCompact = isMobile && Boolean(onMobilePlusClick);
@@ -426,14 +428,14 @@ const SendBox: React.FC<{
     return () => clearTimeout(timer);
   }, []);
 
-  // 移动端挂载后主动清除焦点，拦截路由切换导致的非用户触发聚焦
+  // Touch-first clients clear route-driven focus without changing their layout mode.
   useEffect(() => {
-    if (!isMobile) return;
+    if (!requiresExplicitInputFocus) return;
     const timer = setTimeout(() => {
       blurActiveElement();
     }, 0);
     return () => clearTimeout(timer);
-  }, [isMobile]);
+  }, [requiresExplicitInputFocus]);
 
   // 检测是否单行
   // Detect whether to use single-line or multi-line mode
@@ -749,7 +751,7 @@ const SendBox: React.FC<{
       return;
     }
     prefillDraftChainRef.current = null;
-    if (isMobile || focusedPrefillRequestIdRef.current === prefillFocusRequest.requestId) return;
+    if (requiresExplicitInputFocus || focusedPrefillRequestIdRef.current === prefillFocusRequest.requestId) return;
     const textarea = getTextareaElement();
     if (!textarea) return;
     focusedPrefillRequestIdRef.current = prefillFocusRequest.requestId;
@@ -757,7 +759,7 @@ const SendBox: React.FC<{
     const end = textarea.value.length;
     textarea.setSelectionRange(end, end);
     setCaretPosition(end);
-  }, [getTextareaElement, input, isMobile, prefillFocusRequest]);
+  }, [getTextareaElement, input, prefillFocusRequest, requiresExplicitInputFocus]);
 
   // Selection→focus latch: whether we've already granted focus for the current
   // active session. Reset when this box goes inactive so the next activation
@@ -771,7 +773,7 @@ const SendBox: React.FC<{
   }, [active]);
 
   useEffect(() => {
-    if (!active || isMobile || disabled) return;
+    if (!active || requiresExplicitInputFocus || disabled) return;
     if (activeFocusGrantedRef.current) return;
     const textarea = getTextareaElement();
     if (!textarea) return;
@@ -783,7 +785,7 @@ const SendBox: React.FC<{
     const end = textarea.value.length;
     textarea.setSelectionRange(end, end);
     setCaretPosition(end);
-  }, [active, disabled, isMobile, getTextareaElement]);
+  }, [active, disabled, getTextareaElement, requiresExplicitInputFocus]);
 
   const syncCaretPosition = useCallback(
     (target?: EventTarget | null) => {
@@ -1339,17 +1341,17 @@ const SendBox: React.FC<{
       }
     },
   });
-  const markMobileFocusIntent = useCallback(() => {
-    if (!isMobile) return;
+  const markExplicitFocusIntent = useCallback(() => {
+    if (!requiresExplicitInputFocus) return;
     mobileUserFocusIntentUntilRef.current = Date.now() + 1500;
-  }, [isMobile]);
+  }, [requiresExplicitInputFocus]);
 
   const handleInputFocus = useCallback(() => {
-    if (isMobile && Date.now() > mobileUserFocusIntentUntilRef.current) {
+    if (requiresExplicitInputFocus && Date.now() > mobileUserFocusIntentUntilRef.current) {
       blurActiveElement();
       return;
     }
-    if (isMobile && shouldBlockMobileInputFocus()) {
+    if (requiresExplicitInputFocus && shouldBlockMobileInputFocus()) {
       blurActiveElement();
       return;
     }
@@ -1357,7 +1359,7 @@ const SendBox: React.FC<{
     handlePasteFocus();
     setIsInputFocused(true);
     onFocused?.();
-  }, [handlePasteFocus, isMobile, onFocused]);
+  }, [handlePasteFocus, onFocused, requiresExplicitInputFocus]);
   const handleInputBlur = useCallback(() => {
     setIsInputFocused(false);
   }, []);
@@ -2150,7 +2152,7 @@ const SendBox: React.FC<{
               {renderHighlightedInputValue()}
             </div>
             <Input.TextArea
-              autoFocus={active && !isMobile}
+              autoFocus={active && !requiresExplicitInputFocus}
               disabled={disabled}
               spellCheck={false}
               value={input}
@@ -2182,8 +2184,8 @@ const SendBox: React.FC<{
               }}
               onChange={handleTextAreaChange}
               onPaste={onPaste}
-              onTouchStart={markMobileFocusIntent}
-              onMouseDown={markMobileFocusIntent}
+              onTouchStart={markExplicitFocusIntent}
+              onMouseDown={markExplicitFocusIntent}
               onClick={(event) => {
                 syncCaretPosition(event.target);
               }}
