@@ -5,16 +5,28 @@
  */
 
 import type { TMessage } from '@/common/chat/chatLib';
+import { selectionToMarkdown } from '@/renderer/components/Markdown';
 import { emitter } from '@/renderer/utils/emitter';
 import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
 import { useOptionalPreviewContext } from '@/renderer/pages/conversation/Preview/context/PreviewContext';
 import { openExternalUrl } from '@/renderer/utils/platform';
+import { copyText } from '@/renderer/utils/ui/clipboard';
+import { isPlatformPrimaryModifier, isShortcutBlockedByTarget } from '@/renderer/utils/ui/keyboardShortcuts';
 import { resolveSelectionHttpUrl } from '@/renderer/utils/url';
+import { Message } from '@arco-design/web-react';
 import { Browser, Earth, Quote } from '@icon-park/react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-type ReplyPos = { top: number; left: number; text: string; msgId: string; msgPos: string; url: string | null };
+type ReplyPos = {
+  top: number;
+  left: number;
+  text: string;
+  markdown: string;
+  msgId: string;
+  msgPos: string;
+  url: string | null;
+};
 
 /**
  * Get the current selection, checking Shadow DOM roots if needed.
@@ -78,6 +90,16 @@ function findMessageElement(sel: Selection): Element | null {
 
 const BUTTON_HEIGHT = 32;
 
+const isMarkdownCopyShortcut = (event: KeyboardEvent): boolean =>
+  !event.defaultPrevented &&
+  !event.isComposing &&
+  !event.repeat &&
+  event.altKey &&
+  !event.shiftKey &&
+  isPlatformPrimaryModifier(event) &&
+  event.key.toLowerCase() === 'm' &&
+  !isShortcutBlockedByTarget(event, 'embedded-editor');
+
 const SelectionReplyButton: React.FC<{ messages: TMessage[] }> = ({ messages }) => {
   const { t } = useTranslation();
   const layout = useLayoutContext();
@@ -123,6 +145,7 @@ const SelectionReplyButton: React.FC<{ messages: TMessage[] }> = ({ messages }) 
           top,
           left: Math.max(60, Math.min(rect.left + rect.width / 2, window.innerWidth - 60)),
           text,
+          markdown: selectionToMarkdown(sel),
           msgId,
           msgPos: msg?.position ?? 'left',
           // Resolve here while the live Selection (with its anchor/focus nodes) exists.
@@ -154,6 +177,24 @@ const SelectionReplyButton: React.FC<{ messages: TMessage[] }> = ({ messages }) 
       document.removeEventListener('scroll', onScroll, true);
     };
   }, [isMobile]);
+
+  useEffect(() => {
+    if (isMobile || !pos?.markdown) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!isMarkdownCopyShortcut(event)) {
+        return;
+      }
+
+      event.preventDefault();
+      void copyText(pos.markdown)
+        .then(() => Message.success(t('messages.copySuccess')))
+        .catch(() => Message.error(t('messages.copyFailed')));
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isMobile, pos?.markdown, t]);
 
   if (!pos) return null;
 

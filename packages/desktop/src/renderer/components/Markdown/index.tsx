@@ -27,6 +27,8 @@ import { MARKDOWN_REMARK_PLUGINS, MarkdownTable, MarkdownTd } from './markdownCo
 import { resolveLocalFileLinkPath, resolveLocalFileLinkReference } from './markdownUtils';
 import type { LocalFileLinkReference } from './markdownUtils';
 
+export { selectionToMarkdown } from './selectionMarkdown';
+
 const isLocalFilePath = (src: string): boolean => {
   if (src.startsWith('http://') || src.startsWith('https://')) return false;
   if (src.startsWith('data:')) return false;
