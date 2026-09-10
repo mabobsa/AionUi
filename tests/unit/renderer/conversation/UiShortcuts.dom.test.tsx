@@ -1,4 +1,5 @@
-import { act, cleanup, render, renderHook, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
+import type { TMessage } from '@/common/chat/chatLib';
 import type { NavigateFunction } from 'react-router-dom';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -12,6 +13,10 @@ const testState = vi.hoisted(() => ({
 const serviceMocks = vi.hoisted(() => ({
   loadMessages: vi.fn(() => new Promise<never>(() => {})),
   searchMessages: vi.fn().mockResolvedValue({ items: [], has_more: false }),
+}));
+
+const clipboardMocks = vi.hoisted(() => ({
+  copyText: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('react-router-dom', () => ({
@@ -30,6 +35,15 @@ vi.mock('@/renderer/pages/conversation/GroupedHistory/hooks/useVisibleConversati
 vi.mock('@/renderer/utils/platform', () => ({
   isElectronDesktop: () => testState.desktop,
   isMacOS: () => testState.mac,
+  openExternalUrl: vi.fn(),
+}));
+
+vi.mock('@/renderer/utils/ui/clipboard', () => ({
+  copyText: clipboardMocks.copyText,
+}));
+
+vi.mock('@/renderer/pages/conversation/Preview/context/PreviewContext', () => ({
+  useOptionalPreviewContext: () => null,
 }));
 
 vi.mock('@/renderer/utils/chat/messagePagination', () => ({
@@ -54,6 +68,7 @@ vi.mock('@/renderer/components/base', () => ({
 
 import { useConversationShortcuts } from '@/renderer/hooks/ui/useConversationShortcuts';
 import ConversationSearchPopover from '@/renderer/pages/conversation/GroupedHistory/ConversationSearchPopover';
+import SelectionReplyButton from '@/renderer/pages/conversation/Messages/components/SelectionReplyButton';
 import { useMinimapPanel } from '@/renderer/pages/conversation/components/ConversationTitleMinimap/useMinimapPanel';
 import { useWorkspaceCollapse } from '@/renderer/pages/conversation/hooks/useWorkspaceCollapse';
 import { isShortcutBlockedByTarget } from '@/renderer/utils/ui/keyboardShortcuts';
@@ -394,6 +409,89 @@ describe('common desktop UI shortcuts', () => {
 
     expect(firstToggle).not.toHaveBeenCalled();
     expect(secondToggle).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('selected message Markdown copy shortcut', () => {
+  beforeEach(() => {
+    testState.mac = false;
+    clipboardMocks.copyText.mockClear();
+  });
+
+  afterEach(() => {
+    cleanup();
+    document.body.innerHTML = '';
+  });
+
+  const selectMessageHtml = (html: string, selector?: string): void => {
+    const message = document.createElement('div');
+    message.id = 'message-message-1';
+    const content = document.createElement('div');
+    content.dataset.testid = 'message-text-content';
+    content.innerHTML = html;
+    message.appendChild(content);
+    document.body.appendChild(message);
+
+    const selectedElement = selector ? content.querySelector(selector) : content;
+    if (!selectedElement) throw new Error(`Missing selection target: ${selector}`);
+
+    const range = document.createRange();
+    range.selectNodeContents(selectedElement);
+    Object.defineProperty(range, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ bottom: 40, height: 20, left: 20, right: 120, top: 20, width: 100, x: 20, y: 20 }),
+    });
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.mouseUp(selectedElement);
+  };
+
+  it('copies the selected rendered fragment as GFM with Ctrl+Alt+M', async () => {
+    clipboardMocks.copyText.mockImplementationOnce(() => new Promise<void>(() => undefined));
+    render(<SelectionReplyButton messages={[{ id: 'message-1', position: 'left' } as TMessage]} />);
+    selectMessageHtml('<p><strong>Bold</strong> and <a href="https://example.com">link</a></p>');
+    await screen.findByText('common.reply');
+    await act(async () => undefined);
+
+    const event = dispatchShortcut(window, { key: 'm', ctrlKey: true, altKey: true });
+
+    await waitFor(() =>
+      expect(clipboardMocks.copyText).toHaveBeenCalledWith('**Bold** and [link](https://example.com)')
+    );
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('leaves the former Ctrl+Shift+M shortcut untouched after remapping', async () => {
+    render(<SelectionReplyButton messages={[{ id: 'message-1', position: 'left' } as TMessage]} />);
+    selectMessageHtml('<p>Selected text</p>');
+    await screen.findByText('common.reply');
+
+    const event = dispatchShortcut(window, { key: 'm', ctrlKey: true, shiftKey: true });
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(clipboardMocks.copyText).not.toHaveBeenCalled();
+  });
+
+  it('preserves a selected fenced code block and its language', async () => {
+    clipboardMocks.copyText.mockImplementationOnce(() => new Promise<void>(() => undefined));
+    render(<SelectionReplyButton messages={[{ id: 'message-1', position: 'left' } as TMessage]} />);
+    selectMessageHtml('<code class="language-ts">const value = 1;</code>', 'code');
+    await screen.findByText('common.reply');
+    await act(async () => undefined);
+
+    dispatchShortcut(window, { key: 'm', ctrlKey: true, altKey: true });
+
+    await waitFor(() => expect(clipboardMocks.copyText).toHaveBeenCalledWith('```ts\nconst value = 1;\n```'));
+  });
+
+  it('does not consume the shortcut when there is no message selection', () => {
+    render(<SelectionReplyButton messages={[]} />);
+
+    const event = dispatchShortcut(window, { key: 'm', ctrlKey: true, altKey: true });
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(clipboardMocks.copyText).not.toHaveBeenCalled();
   });
 });
 
