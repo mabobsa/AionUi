@@ -145,4 +145,15 @@ describe('deep-link renderer readiness', () => {
 
     expect(mocks.emit).not.toHaveBeenCalled();
   });
+
+  it('passes a short conversation ticket from the OS protocol to the renderer unchanged', async () => {
+    const deepLink = await import('@/process/utils/deepLink');
+    const { window } = createWindow();
+    deepLink.registerDeepLinkReadyProvider();
+    deepLink.setDeepLinkMainWindow(window);
+    const launchId = 'a'.repeat(64);
+    deepLink.handleDeepLinkUrl(`aionui://conversation/new?launchId=${launchId}`);
+    await mocks.readyProvider?.();
+    expect(mocks.emit).toHaveBeenCalledExactlyOnceWith({ action: 'conversation/new', params: { launchId } });
+  });
 });

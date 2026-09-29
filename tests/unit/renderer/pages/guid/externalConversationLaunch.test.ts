@@ -114,4 +114,28 @@ describe('external conversation launch payload', () => {
     expect(handleExternalConversationDeepLink({ action: 'navigate', params: {} }, navigate)).toBe(false);
     expect(navigateMock).not.toHaveBeenCalled();
   });
+
+  it('routes a desktop ticket to the server-backed launch flow without an inline prompt', () => {
+    const { navigate, navigateMock } = createNavigate();
+    const launchId = 'a'.repeat(64);
+    handleExternalConversationDeepLink({ action: 'conversation/new', params: { launchId } }, navigate);
+    expect(navigateMock).toHaveBeenCalledExactlyOnceWith(`/guid?external-launch=${launchId}`);
+    expect(readExternalConversationLaunch(`?external-launch=${launchId}`)).toBeNull();
+  });
+
+  it.each(['', 'short', 'A'.repeat(64), '../conversation/other', 'a'.repeat(65)])(
+    'rejects malformed tickets without falling back to the inline payload: %s',
+    (launchId) => {
+      const { navigate, navigateMock } = createNavigate();
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      handleExternalConversationDeepLink(
+        {
+          action: 'conversation/new',
+          params: { launchId, payload: JSON.stringify({ agentId: 'codex', prompt: 'ignored' }) },
+        },
+        navigate
+      );
+      expect(navigateMock).not.toHaveBeenCalled();
+    }
+  );
 });

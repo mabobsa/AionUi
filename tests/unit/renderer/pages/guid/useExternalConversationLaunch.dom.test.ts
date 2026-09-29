@@ -201,6 +201,29 @@ describe('useExternalConversationLaunch', () => {
     });
   });
 
+  it('does not auto-send the same ticket again when reopened before creation confirmation', async () => {
+    const sendMessage = vi.fn();
+    const session = { ...createSession(), source: 'web' as const, token: 'pending-desktop-ticket' };
+    const options = {
+      agentSelection: createAgentSelection(),
+      modelSelection: createModelSelection(),
+      allSkills: [],
+      availableMcpServers: [],
+      input: 'Review this card',
+      sendMessage,
+      session,
+      setDisabledBuiltinSkills: vi.fn(),
+      setEnabledSkills: vi.fn(),
+      setSelectedMcpServerIds: vi.fn(),
+    };
+    const first = renderHook(() => useExternalConversationLaunch(options));
+    await waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(1));
+    first.unmount();
+    renderHook(() => useExternalConversationLaunch(options));
+    await act(async () => {});
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+  });
+
   it('reports requested options that remain unavailable', async () => {
     vi.useFakeTimers();
     const onUnavailable = vi.fn();

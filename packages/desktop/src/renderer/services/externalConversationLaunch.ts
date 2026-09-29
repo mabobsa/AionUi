@@ -49,7 +49,18 @@ type CompleteExternalConversationLaunchResponse = {
 const EXTERNAL_LAUNCH_QUERY_KEY = 'external-launch';
 const pendingLaunches = new Map<string, ExternalConversationLaunchSession>();
 const claimedWebLaunches = new Map<string, Promise<ClaimExternalConversationLaunchResponse>>();
+const submittedWebLaunches = new Set<string>();
 let launchSequence = 0;
+
+/** Consume a ticket before sending, including while creation or its callback is still pending. */
+export function takeExternalConversationAutoSend(session: ExternalConversationLaunchSession): boolean {
+  if (session.source !== 'web') return true;
+  if (submittedWebLaunches.has(session.token)) return false;
+  submittedWebLaunches.add(session.token);
+  // StrictMode may share the claim while preparing; a submitted claim must never be replayed.
+  claimedWebLaunches.delete(session.token);
+  return true;
+}
 
 function parseLoopbackCompletionUrl(value: unknown): string | undefined {
   if (typeof value !== 'string' || !value) return undefined;
@@ -141,6 +152,17 @@ export function handleExternalConversationDeepLink(
 ): boolean {
   if (payload.action !== 'conversation/new') return false;
 
+  // Ticket links keep long prompts and callback credentials out of OS command lines.
+  if (payload.params.launchId !== undefined) {
+    if (!/^[0-9a-f]{64}$/.test(payload.params.launchId)) {
+      console.warn('[DeepLink] conversation/new action has an invalid launch ticket');
+      return true;
+    }
+    const search = new URLSearchParams({ [EXTERNAL_LAUNCH_QUERY_KEY]: payload.params.launchId });
+    void navigate(`/guid?${search.toString()}`);
+    return true;
+  }
+
   const launch = parseExternalConversationLaunch(payload.params.payload);
   if (!launch) {
     console.warn('[DeepLink] conversation/new action has an invalid payload');
@@ -206,6 +228,7 @@ export async function createWebExternalConversationLaunchSession(
     source: 'web',
     token: launchId,
     onConversationCreated: async (conversationId) => {
+      claimedWebLaunches.delete(launchId);
       try {
         const result = await httpRequest<CompleteExternalConversationLaunchResponse>(
           'POST',

@@ -5,7 +5,10 @@
  */
 
 import type { IMcpServer } from '@/common/config/storage';
-import type { ExternalConversationLaunchSession } from '@/renderer/services/externalConversationLaunch';
+import {
+  takeExternalConversationAutoSend,
+  type ExternalConversationLaunchSession,
+} from '@/renderer/services/externalConversationLaunch';
 import { useEffect, useRef, useState } from 'react';
 import type { GuidAssistantSelectionResult } from './useGuidAssistantSelection';
 import type { GuidModelSelectionResult } from './useGuidModelSelection';
@@ -141,6 +144,7 @@ export function useExternalConversationLaunch({
     if (!session || !launch?.autoSend || readyToken !== session.token || !input.trim()) return;
     if (sentTokenRef.current === session.token) return;
     sentTokenRef.current = session.token;
+    if (!takeExternalConversationAutoSend(session)) return;
     sendMessage();
   }, [input, launch?.autoSend, readyToken, sendMessage, session]);
 }
