@@ -222,6 +222,7 @@ const MobileActionSheet: React.FC<MobileActionSheetProps> = ({ open, onClose, ti
                     );
                   })
                 )}
+                {renderedSub.footer}
               </div>
             </div>
           )}

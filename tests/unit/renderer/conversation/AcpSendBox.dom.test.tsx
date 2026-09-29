@@ -34,6 +34,7 @@ const {
   draftContentRef,
   messageWarningMock,
   stopInvokeMock,
+  useMobileConversationMcpEntriesMock,
 } = vi.hoisted(() => ({
   sendMessageInvokeMock: vi.fn(),
   addOrUpdateMessageMock: vi.fn(),
@@ -49,6 +50,7 @@ const {
       key: string;
       submenu?: {
         onSelect?: (value: string) => void;
+        footer?: React.ReactNode;
       };
     }>,
   },
@@ -76,6 +78,7 @@ const {
   draftContentRef: { current: '' },
   messageWarningMock: vi.fn(),
   stopInvokeMock: vi.fn().mockResolvedValue(undefined),
+  useMobileConversationMcpEntriesMock: vi.fn(),
 }));
 
 vi.mock('@/common', () => ({
@@ -247,6 +250,9 @@ vi.mock('@/renderer/hooks/file/useOpenFileSelector', () => ({
 vi.mock('@/renderer/hooks/ui/useLatestRef', () => ({
   useLatestRef: <T,>(value: T) => ({ current: value }),
 }));
+vi.mock('@/renderer/pages/conversation/hooks/useMobileConversationMcpEntries', () => ({
+  useMobileConversationMcpEntries: useMobileConversationMcpEntriesMock,
+}));
 vi.mock('@/renderer/pages/conversation/Messages/hooks', () => ({
   useAddOrUpdateMessage: () => addOrUpdateMessageMock,
 }));
@@ -353,6 +359,7 @@ describe('AcpSendBox', () => {
     runtimeViewMock.supportsMidturnDelivery = false;
     draftContentRef.current = '';
     useTeamPermissionMock.mockReturnValue(null);
+    useMobileConversationMcpEntriesMock.mockReturnValue([]);
     useAcpConfigOptionsMock.mockReturnValue({
       setStatus: { state: 'idle' },
       mode: null,
@@ -624,6 +631,37 @@ describe('AcpSendBox', () => {
 
     expect(useAcpConfigOptionsMock).toHaveBeenCalledWith(expect.objectContaining({ enabled: true }));
     expect(screen.queryByTestId('mock-thought-selector')).not.toBeInTheDocument();
+  });
+
+  it('includes the MCP apply action inside the selected MCP submenu', () => {
+    isMobileMock.current = true;
+    useMobileConversationMcpEntriesMock.mockReturnValue([
+      {
+        key: 'mcp',
+        label: 'Selected MCP',
+        submenu: {
+          title: 'Selected MCP',
+          options: [],
+          onSelect: vi.fn(),
+          footer: <span>Apply selected MCP</span>,
+        },
+      },
+    ]);
+
+    render(
+      <AcpSendBox
+        conversation_id='conv-1'
+        backend='codex'
+        workspacePath='/tmp/workspace'
+        messageState={makeMessageState()}
+      />
+    );
+
+    expect(mobileActionSheetEntries.current.some((entry) => entry.key === 'mcp-reload')).toBe(false);
+    expect(mobileActionSheetEntries.current.find((entry) => entry.key === 'mcp')?.submenu?.footer).toBeDefined();
+    expect(useMobileConversationMcpEntriesMock).toHaveBeenCalledWith(
+      expect.objectContaining({ conversationId: 'conv-1', enabled: true })
+    );
   });
 
   it('applies runtime thought level from the mobile action sheet without persisting a global preference', async () => {

@@ -28,6 +28,7 @@ import { useSlashCommands } from '@/renderer/hooks/chat/useSlashCommands';
 import { useOpenFileSelector } from '@/renderer/hooks/file/useOpenFileSelector';
 import { useLatestRef } from '@/renderer/hooks/ui/useLatestRef';
 import ConversationFileAttachButton from '@/renderer/pages/conversation/components/ConversationFileAttachButton';
+import { useMobileConversationMcpEntries } from '@/renderer/pages/conversation/hooks/useMobileConversationMcpEntries';
 import {
   useConversationCommandQueue,
   type ConversationCommandQueueItem,
@@ -484,6 +485,11 @@ const AionrsSendBox: React.FC<{
     onLocalFilesAdded: handleFilesAdded,
     dividerBefore: true,
   });
+  const mobileMcpEntries = useMobileConversationMcpEntries({
+    conversationId: conversation_id,
+    currentMcpStatuses: loadedMcpStatuses,
+    enabled: isMobile && !teamPermission,
+  });
 
   const handleSheetModeChange = useCallback(
     async (mode: string) => {
@@ -625,7 +631,9 @@ const AionrsSendBox: React.FC<{
       });
     }
 
-    if (loadedMcpStatuses.length > 0) {
+    if (mobileMcpEntries.length > 0) {
+      entries.push(...mobileMcpEntries);
+    } else if (loadedMcpStatuses.length > 0) {
       const mcpOptions: MobileActionSheetOption[] = loadedMcpStatuses.map((item) => ({
         key: item.id,
         label: item.name,
@@ -660,6 +668,7 @@ const AionrsSendBox: React.FC<{
     isMobile,
     loadedMcpStatuses,
     loadedSkills,
+    mobileMcpEntries,
     modelSelection,
     runtimeConfig,
     runtimeMode,

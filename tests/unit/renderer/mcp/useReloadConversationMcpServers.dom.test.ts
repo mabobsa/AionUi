@@ -171,6 +171,23 @@ describe('useReloadConversationMcpServers', () => {
     });
   });
 
+  it('does not load or apply MCP servers when selection is disabled', async () => {
+    const { result } = renderHook(() =>
+      useReloadConversationMcpServers({
+        conversationId: 'conv-1',
+        enabled: false,
+      })
+    );
+
+    await waitFor(() => expect(result.current.isCatalogLoading).toBe(false));
+    await act(async () => {
+      await result.current.reloadMcpServers();
+    });
+
+    expect(ensureBackendMcpCatalogMock).not.toHaveBeenCalled();
+    expect(reloadMcpServersInvokeMock).not.toHaveBeenCalled();
+  });
+
   it('reports a reload failure without rebuilding the runtime', async () => {
     reloadMcpServersInvokeMock.mockRejectedValue(new Error('reload failed'));
     const { result } = renderHook(() =>

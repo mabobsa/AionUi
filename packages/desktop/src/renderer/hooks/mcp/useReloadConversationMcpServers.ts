@@ -35,6 +35,12 @@ export const useReloadConversationMcpServers = ({
   );
 
   useEffect(() => {
+    if (!enabled) {
+      setAvailableMcpServers([]);
+      setIsCatalogLoading(false);
+      return;
+    }
+
     let cancelled = false;
     setIsCatalogLoading(true);
     void ensureBackendMcpCatalog()
@@ -58,7 +64,7 @@ export const useReloadConversationMcpServers = ({
     return () => {
       cancelled = true;
     };
-  }, [conversationId]);
+  }, [conversationId, enabled]);
 
   useEffect(() => {
     setSelectedMcpServerIds(

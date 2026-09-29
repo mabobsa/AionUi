@@ -27,6 +27,7 @@ import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
 import { useOpenFileSelector } from '@/renderer/hooks/file/useOpenFileSelector';
 import { useLatestRef } from '@/renderer/hooks/ui/useLatestRef';
 import ConversationFileAttachButton from '@/renderer/pages/conversation/components/ConversationFileAttachButton';
+import { useMobileConversationMcpEntries } from '@/renderer/pages/conversation/hooks/useMobileConversationMcpEntries';
 import { useAddOrUpdateMessage } from '@/renderer/pages/conversation/Messages/hooks';
 import {
   useConversationCommandQueue,
@@ -535,6 +536,11 @@ Please check your local CLI tool authentication status`,
     openFileSelector,
     onLocalFilesAdded: handleFilesAdded,
   });
+  const mobileMcpEntries = useMobileConversationMcpEntries({
+    conversationId: conversation_id,
+    currentMcpStatuses: loadedMcpStatuses,
+    enabled: isMobile && !teamPermission,
+  });
 
   const sheetEntries = useMemo<MobileActionSheetEntry[]>(() => {
     if (!isMobile) return [];
@@ -652,7 +658,9 @@ Please check your local CLI tool authentication status`,
       });
     }
 
-    if (loadedMcpStatuses.length > 0) {
+    if (mobileMcpEntries.length > 0) {
+      entries.push(...mobileMcpEntries);
+    } else if (loadedMcpStatuses.length > 0) {
       const mcpOptions: MobileActionSheetOption[] = loadedMcpStatuses.map((item) => ({
         key: item.id,
         label: item.name,
@@ -687,6 +695,7 @@ Please check your local CLI tool authentication status`,
     isMobile,
     loadedMcpStatuses,
     loadedSkills,
+    mobileMcpEntries,
     model_info,
     runtimeMode,
     runtimeThoughtLevel,
