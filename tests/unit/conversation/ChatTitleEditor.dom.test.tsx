@@ -72,4 +72,21 @@ describe('ChatTitleEditor with a named conversation', () => {
     fireEvent.click(screen.getByTestId('chat-title-editor-trigger'));
     expect(setEditingTitle).toHaveBeenCalledWith(true);
   });
+
+  it('renders a title action without entering edit mode when the action is clicked', () => {
+    const { setEditingTitle } = renderEditor({
+      title: 'Document: Card',
+      leadingAction: <button data-testid='title-action'>sync</button>,
+    });
+
+    fireEvent.click(screen.getByTestId('title-action'));
+    expect(setEditingTitle).not.toHaveBeenCalled();
+    expect(screen.getByTestId('title-action').nextElementSibling).toBe(screen.getByTestId('chat-title-editor-trigger'));
+  });
+
+  it('highlights a title that differs from its linked source', () => {
+    renderEditor({ title: 'Old title', titleClassName: '!text-warning-6' });
+
+    expect(screen.getByText('Old title')).toHaveClass('!text-warning-6');
+  });
 });

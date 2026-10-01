@@ -9,7 +9,10 @@
   "openLinkFailed": "Échec de l'ouverture du lien",
   "mindnprogress": {
     "openLinkedCard": "Ouvrir la carte MindNProgress liée",
-    "selectionFailed": "Impossible de sélectionner la carte MindNProgress liée."
+    "selectionFailed": "Impossible de sélectionner la carte MindNProgress liée.",
+    "titleSyncTooltip": "Synchroniser avec le titre MindNProgress : {{title}}",
+    "titleSyncSuccess": "Le titre de la conversation a été synchronisé avec MindNProgress.",
+    "titleSyncFailed": "Impossible de synchroniser le titre de la conversation avec MindNProgress."
   },
   "imageGenerationModelDetected": "Modèle d'image détecté, l'outil image a été automatiquement activé. Modèle par défaut : {{platform}}:{{model}}",
   "auto_handling_permissions": "Gestion automatique de la demande de permission : {{request}}",

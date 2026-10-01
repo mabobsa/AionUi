@@ -11,7 +11,10 @@
   "openLinkFailed": "Не удалось открыть ссылку",
   "mindnprogress": {
     "openLinkedCard": "Открыть связанную карточку MindNProgress",
-    "selectionFailed": "Не удалось выбрать связанную карточку MindNProgress."
+    "selectionFailed": "Не удалось выбрать связанную карточку MindNProgress.",
+    "titleSyncTooltip": "Синхронизировать с заголовком MindNProgress: {{title}}",
+    "titleSyncSuccess": "Заголовок диалога синхронизирован с MindNProgress.",
+    "titleSyncFailed": "Не удалось синхронизировать заголовок диалога с MindNProgress."
   },
   "imageGenerationModelDetected": "Обнаружена модель для изображений, инструмент изображений автоматически включён. Модель по умолчанию: {{platform}}:{{model}}",
   "auto_handling_permissions": "Автоматическая обработка запроса разрешения: {{request}}",

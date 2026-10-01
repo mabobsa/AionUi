@@ -9,7 +9,10 @@
   "openLinkFailed": "Link konnte nicht geöffnet werden",
   "mindnprogress": {
     "openLinkedCard": "Verknüpfte MindNProgress-Karte öffnen",
-    "selectionFailed": "Die verknüpfte MindNProgress-Karte konnte nicht ausgewählt werden."
+    "selectionFailed": "Die verknüpfte MindNProgress-Karte konnte nicht ausgewählt werden.",
+    "titleSyncTooltip": "Mit dem MindNProgress-Titel synchronisieren: {{title}}",
+    "titleSyncSuccess": "Der Unterhaltungstitel wurde mit MindNProgress synchronisiert.",
+    "titleSyncFailed": "Der Unterhaltungstitel konnte nicht mit MindNProgress synchronisiert werden."
   },
   "imageGenerationModelDetected": "Bildmodell erkannt, Bildtool wurde automatisch aktiviert. Standardmodell: {{platform}}:{{model}}",
   "auto_handling_permissions": "Berechtigungsanfrage wird automatisch bearbeitet: {{request}}",

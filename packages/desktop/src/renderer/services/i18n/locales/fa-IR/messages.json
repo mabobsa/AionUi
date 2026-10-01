@@ -9,7 +9,10 @@
   "openLinkFailed": "باز کردن لینک ناموفق بود",
   "mindnprogress": {
     "openLinkedCard": "باز کردن کارت پیوندخوردهٔ MindNProgress",
-    "selectionFailed": "کارت پیوندخوردهٔ MindNProgress انتخاب نشد."
+    "selectionFailed": "کارت پیوندخوردهٔ MindNProgress انتخاب نشد.",
+    "titleSyncTooltip": "همگام‌سازی با عنوان MindNProgress: {{title}}",
+    "titleSyncSuccess": "عنوان گفتگو با MindNProgress همگام شد.",
+    "titleSyncFailed": "عنوان گفتگو با MindNProgress همگام نشد."
   },
   "imageGenerationModelDetected": "مدل تصویر شناسایی شد، ابزار تصویر به‌صورت خودکار فعال شد. مدل پیش‌فرض: {{platform}}:{{model}}",
   "auto_handling_permissions": "پردازش خودکار درخواست مجوز: {{request}}",

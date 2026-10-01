@@ -11,7 +11,10 @@
   "openLinkFailed": "Не вдалося відкрити посилання",
   "mindnprogress": {
     "openLinkedCard": "Відкрити пов’язану картку MindNProgress",
-    "selectionFailed": "Не вдалося вибрати пов’язану картку MindNProgress."
+    "selectionFailed": "Не вдалося вибрати пов’язану картку MindNProgress.",
+    "titleSyncTooltip": "Синхронізувати із заголовком MindNProgress: {{title}}",
+    "titleSyncSuccess": "Заголовок розмови синхронізовано з MindNProgress.",
+    "titleSyncFailed": "Не вдалося синхронізувати заголовок розмови з MindNProgress."
   },
   "imageGenerationModelDetected": "Виявлено модель зображень, інструмент зображень було автоматично ввімкнено. Модель за замовчуванням: {{platform}}:{{model}}",
   "auto_handling_permissions": "Автоматична обробка запиту на дозвіл: {{request}}",
