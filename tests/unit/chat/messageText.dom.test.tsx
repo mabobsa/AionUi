@@ -12,6 +12,7 @@ import { ipcBridge } from '@/common';
 import { ConversationProvider } from '@/renderer/hooks/context/ConversationContext';
 import { LayoutContext } from '@/renderer/hooks/context/LayoutContext';
 import MessageText, {
+  formatMessageTime,
   parseTeamContextResetNotice,
 } from '@/renderer/pages/conversation/Messages/components/MessageText';
 import { copyText } from '@/renderer/utils/ui/clipboard';
@@ -803,14 +804,18 @@ describe('MessageText fork entry point', () => {
 
   const renderWithCapability = (
     capability: { at_turn: boolean } | undefined,
-    props: { isLastMessage?: boolean; hasForkAnchor?: boolean } = {},
+    props: { isLastMessage?: boolean; hasForkAnchor?: boolean; message?: Partial<IMessageText> } = {},
     mobileWidth?: number
   ) => {
     if (mobileWidth !== undefined) {
       Object.defineProperty(window, 'innerWidth', { configurable: true, value: mobileWidth });
     }
     const message = (
-      <MessageText message={forkMessage()} isLastMessage={props.isLastMessage} hasForkAnchor={props.hasForkAnchor} />
+      <MessageText
+        message={forkMessage(props.message)}
+        isLastMessage={props.isLastMessage}
+        hasForkAnchor={props.hasForkAnchor}
+      />
     );
     render(
       <ConversationProvider
@@ -877,6 +882,21 @@ describe('MessageText fork entry point', () => {
     await waitFor(() => {
       expect(forkMocks.fork).toHaveBeenCalledWith({ conversation_id: 'conv-fork', message_id: 'msg-fork-1' });
     });
+  });
+
+  it('shows the message time as noninteractive information in the phone action menu', async () => {
+    const createdAt = new Date(2026, 0, 2, 3, 4).getTime();
+    renderWithCapability(
+      { at_turn: true },
+      { isLastMessage: false, hasForkAnchor: true, message: { created_at: createdAt } },
+      390
+    );
+
+    fireEvent.click(screen.getByTestId('message-actions-menu'));
+
+    const timeDisplay = await screen.findByTestId('message-time-menu-display');
+    expect(timeDisplay).toHaveTextContent(formatMessageTime(createdAt));
+    expect(timeDisplay.closest('button')).toBeNull();
   });
 
   it('does not offer fork in the phone menu when the agent has no capability', async () => {

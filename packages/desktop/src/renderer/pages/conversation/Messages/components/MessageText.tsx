@@ -283,6 +283,14 @@ const MessageText: React.FC<{
           </span>
         </Menu.Item>
       ) : null}
+      {message.created_at ? (
+        <div
+          className='mx-12px border-0 border-t border-solid border-[var(--color-border-2)] px-4px pt-8px pb-4px text-center text-12px text-t-secondary select-none'
+          data-testid='message-time-menu-display'
+        >
+          <time>{formatMessageTime(message.created_at)}</time>
+        </div>
+      ) : null}
     </Menu>
   );
 
