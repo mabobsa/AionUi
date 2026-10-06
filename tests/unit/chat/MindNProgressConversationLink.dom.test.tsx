@@ -134,6 +134,27 @@ describe('MindNProgressConversationLink', () => {
     );
   });
 
+  it('uses the latest group title for an automatically created coordinator document', () => {
+    const target = linkResponse(
+      'conversation-1',
+      true,
+      'JP 프로토콜·연동 · 통합 관리',
+      'JP 프로토콜·클라이언트 연동 · 통합 관리'
+    ).target!;
+    target.group = {
+      id: 'group-jp-protocol',
+      title: 'JP-프로토콜·연동',
+      role: 'coordinator',
+    };
+
+    expect(
+      buildMindNProgressConversationTitle(
+        target,
+        '[그룹 총괄] JP 프로토콜·연동 · 통합 관리: JP 프로토콜·클라이언트 연동 · 통합 관리'
+      )
+    ).toBe('[그룹 총괄] JP-프로토콜·연동 · 통합 관리: JP 프로토콜·클라이언트 연동 · 통합 관리');
+  });
+
   it('updates the Aion title and refreshes both conversation caches', async () => {
     vi.mocked(ipcBridge.conversation.update.invoke).mockResolvedValue(true);
     vi.mocked(refreshConversationCache).mockResolvedValue(undefined);

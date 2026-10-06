@@ -10,6 +10,11 @@ export type MindNProgressTarget = {
   cardId: string;
   cardTitle: string;
   archived: boolean;
+  group?: {
+    id: string;
+    title: string;
+    role: 'coordinator';
+  };
 };
 
 export type MindNProgressConversationLinkResponse = {

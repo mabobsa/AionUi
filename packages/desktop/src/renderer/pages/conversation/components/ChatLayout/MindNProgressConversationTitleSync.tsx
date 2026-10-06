@@ -13,10 +13,17 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const MINDNPROGRESS_WORKFLOW_TITLE_PREFIX = /^\[(?:배치 제안|Dooray 승인|문서 정리|그룹 총괄|지식정리)\]\s*/;
+const GROUP_COORDINATOR_DOCUMENT_SUFFIX = ' · 통합 관리';
 
 export function buildMindNProgressConversationTitle(target: MindNProgressTarget, currentTitle = ''): string {
   const workflowPrefix = currentTitle.match(MINDNPROGRESS_WORKFLOW_TITLE_PREFIX)?.[0] ?? '';
-  return `${workflowPrefix}${target.documentTitle.trim()}: ${target.cardTitle.trim()}`
+  const documentTitle = target.documentTitle.trim();
+  const groupTitle = target.group?.title.trim() ?? '';
+  const synchronizedDocumentTitle =
+    target.group?.role === 'coordinator' && groupTitle && documentTitle.endsWith(GROUP_COORDINATOR_DOCUMENT_SUFFIX)
+      ? `${groupTitle}${GROUP_COORDINATOR_DOCUMENT_SUFFIX}`
+      : documentTitle;
+  return `${workflowPrefix}${synchronizedDocumentTitle}: ${target.cardTitle.trim()}`
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 120);
