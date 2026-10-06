@@ -872,6 +872,19 @@ describe('MessageText fork entry point', () => {
     expect(screen.queryByTestId('message-actions-menu')).toBeNull();
   });
 
+  it('keeps the message time visible on a touch tablet', () => {
+    const createdAt = new Date(2026, 0, 2, 3, 4).getTime();
+    renderWithCapability(
+      { at_turn: true },
+      { isLastMessage: false, hasForkAnchor: true, message: { created_at: createdAt } },
+      820
+    );
+
+    const timeDisplay = screen.getByTestId('message-tablet-time');
+    expect(timeDisplay).toHaveTextContent(formatMessageTime(createdAt));
+    expect(timeDisplay).not.toHaveClass('opacity-0');
+  });
+
   it('offers fork from the phone action menu', async () => {
     renderWithCapability({ at_turn: true }, { isLastMessage: false, hasForkAnchor: true }, 390);
 

@@ -443,6 +443,11 @@ const MessageText: React.FC<{
           >
             {tabletCopyButton}
             {tabletForkButton}
+            {message.created_at ? (
+              <time className='text-12px text-t-secondary select-none' data-testid='message-tablet-time'>
+                {formatMessageTime(message.created_at)}
+              </time>
+            ) : null}
           </div>
         )}
         {useTouchActions && !isTablet && showCopyRow && (
