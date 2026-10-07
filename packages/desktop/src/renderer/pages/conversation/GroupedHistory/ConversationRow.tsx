@@ -24,6 +24,24 @@ import type { ConversationRowProps } from './types';
 import { isConversationPinned } from './utils/groupingHelpers';
 import ConversationBookmarkButton from './components/ConversationBookmarkButton';
 
+const getConversationTitlePopupContainer = (_node: HTMLElement): HTMLElement => document.body;
+const MNP_TITLE_TOOLTIP_STYLE: React.CSSProperties = { width: 'max-content', maxWidth: 'none' };
+const TITLE_OVERFLOW_TOLERANCE_PX = 1;
+
+const renderConversationTitleTooltip = (title: string): React.ReactNode => {
+  const separatorIndex = title.indexOf(':');
+  if (separatorIndex < 0) return title;
+
+  const documentTitle = title.slice(0, separatorIndex).trim();
+  const cardTitle = title.slice(separatorIndex + 1).trim();
+  return (
+    <div className='flex flex-col'>
+      <div className='whitespace-nowrap'>{documentTitle}</div>
+      <div className='whitespace-nowrap'>{cardTitle}</div>
+    </div>
+  );
+};
+
 const ConversationRow: React.FC<ConversationRowProps> = (props) => {
   const {
     conversation,
@@ -60,6 +78,8 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
     getJobStatus,
   } = props;
   const { t } = useTranslation();
+  const titleRef = React.useRef<HTMLSpanElement>(null);
+  const [isTitleTooltipVisible, setIsTitleTooltipVisible] = React.useState(false);
   const { info: assistantInfo } = usePresetAssistantInfo(conversation);
   const isPinned = isConversationPinned(conversation);
   // Fork-lineage badge: present only on forked conversations (extra.fork is
@@ -71,7 +91,19 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
     : undefined;
   const cronStatus = getJobStatus(conversation.id);
   const siderTooltipProps = getSiderTooltipProps(tooltipEnabled);
-  const inlineNameTooltipEnabled = !collapsed && !isMobile && !!conversation.name;
+  const titleTooltipProps = collapsed
+    ? siderTooltipProps
+    : {
+        className: 'conversation-title-tooltip-popup',
+        trigger: [] as [],
+        disabled: isMobile,
+        unmountOnExit: true,
+        popupHoverStay: false,
+        popupVisible: isTitleTooltipVisible,
+        getPopupContainer: getConversationTitlePopupContainer,
+      };
+  const conversationTitle = conversation.name || t('conversation.welcome.newConversation');
+  const hasMnPTitleSeparator = conversationTitle.includes(':');
 
   const renderLeadingIcon = () => {
     if (cronStatus !== 'none') {
@@ -119,6 +151,7 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
   };
 
   const handleRowClick = () => {
+    setIsTitleTooltipVisible(false);
     cleanupSiderTooltips();
     if (batchMode) {
       onToggleChecked(conversation);
@@ -130,11 +163,24 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
   const handleRowContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
+    setIsTitleTooltipVisible(false);
     cleanupSiderTooltips();
     if (batchMode) {
       return;
     }
     onOpenMenu(conversation);
+  };
+
+  const handleRowMouseEnter = () => {
+    if (collapsed || isMobile || !conversation.name) return;
+    const titleElement = titleRef.current;
+    setIsTitleTooltipVisible(
+      Boolean(titleElement && titleElement.scrollWidth > titleElement.clientWidth + TITLE_OVERFLOW_TOLERANCE_PX)
+    );
+  };
+
+  const handleRowMouseLeave = () => {
+    if (!collapsed) setIsTitleTooltipVisible(false);
   };
 
   // Waiting on the user takes visual precedence over the generating spinner: a
@@ -157,9 +203,10 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
   return (
     <Tooltip
       key={conversation.id}
-      {...siderTooltipProps}
-      content={conversation.name || t('conversation.welcome.newConversation')}
+      {...titleTooltipProps}
+      content={renderConversationTitleTooltip(conversationTitle)}
       position='right'
+      style={hasMnPTitleSeparator ? MNP_TITLE_TOOLTIP_STYLE : undefined}
     >
       <div
         id={'c-' + conversation.id}
@@ -176,6 +223,8 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
         )}
         onClick={handleRowClick}
         onContextMenu={handleRowContextMenu}
+        onMouseEnter={handleRowMouseEnter}
+        onMouseLeave={handleRowMouseLeave}
       >
         {batchMode && (
           <span
@@ -228,33 +277,28 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
             ))}
         </span>
         <FlexFullContainer className='h-24px min-w-0 flex-1 collapsed-hidden'>
-          <Tooltip
-            content={conversation.name}
-            disabled={!inlineNameTooltipEnabled}
-            trigger='hover'
-            popupVisible={inlineNameTooltipEnabled ? undefined : false}
-            unmountOnExit
-            popupHoverStay={false}
-            position='top'
-          >
-            <div className='chat-history__item-name overflow-hidden text-ellipsis flex items-center gap-4px w-full text-14px font-[500] lh-24px whitespace-nowrap min-w-0 text-t-primary'>
-              <span className='block overflow-hidden text-ellipsis whitespace-nowrap min-w-0'>{conversation.name}</span>
-              {forkLineage && (
-                <Tooltip
-                  content={
-                    forkParentName
-                      ? t('conversation.history.forkedFrom', { name: forkParentName })
-                      : t('conversation.history.forkedConversation')
-                  }
-                  position='top'
-                >
-                  <span className='flex-shrink-0 line-height-0 text-t-tertiary' data-testid='conversation-fork-badge'>
-                    <ForkBranchIcon size={12} />
-                  </span>
-                </Tooltip>
-              )}
-            </div>
-          </Tooltip>
+          <div className='chat-history__item-name overflow-hidden text-ellipsis flex items-center gap-4px w-full text-14px font-[500] lh-24px whitespace-nowrap min-w-0 text-t-primary'>
+            <span
+              ref={titleRef}
+              className='conversation-title-text block overflow-hidden text-ellipsis whitespace-nowrap min-w-0'
+            >
+              {conversation.name}
+            </span>
+            {forkLineage && (
+              <Tooltip
+                content={
+                  forkParentName
+                    ? t('conversation.history.forkedFrom', { name: forkParentName })
+                    : t('conversation.history.forkedConversation')
+                }
+                position='top'
+              >
+                <span className='flex-shrink-0 line-height-0 text-t-tertiary' data-testid='conversation-fork-badge'>
+                  <ForkBranchIcon size={12} />
+                </span>
+              </Tooltip>
+            )}
+          </div>
         </FlexFullContainer>
 
         {renderCompletionUnreadDot()}
