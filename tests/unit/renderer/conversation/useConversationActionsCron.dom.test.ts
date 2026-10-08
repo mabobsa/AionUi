@@ -111,16 +111,39 @@ const makeConversation = (id: string, type: TChatConversation['type']): TChatCon
   }) as TChatConversation;
 
 const renderActions = (onSessionClick?: () => void) =>
-  renderHook(() =>
-    useConversationActions({
-      batchMode: false,
-      onSessionClick,
-      selectedConversationIds: new Set(),
-      setSelectedConversationIds: vi.fn(),
-      toggleSelectedConversation: vi.fn(),
-      markAsRead: vi.fn(),
-    })
+  renderHook(
+    ({ visibleConversationOrderKey }: { visibleConversationOrderKey: string }) =>
+      useConversationActions({
+        batchMode: false,
+        onSessionClick,
+        selectedConversationIds: new Set(),
+        setSelectedConversationIds: vi.fn(),
+        toggleSelectedConversation: vi.fn(),
+        markAsRead: vi.fn(),
+        visibleConversationOrderKey,
+      }),
+    { initialProps: { visibleConversationOrderKey: '["first","second"]' } }
   );
+
+describe('conversation menu target stability', () => {
+  it('closes the open menu when automatic sorting changes the visible order', () => {
+    const { result, rerender } = renderActions();
+    act(() => result.current.handleOpenMenu(makeConversation('first', 'acp')));
+
+    rerender({ visibleConversationOrderKey: '["second","first"]' });
+
+    expect(result.current.dropdownVisibleId).toBeNull();
+  });
+
+  it('ignores a delayed close event from a different conversation menu', () => {
+    const { result } = renderActions();
+    act(() => result.current.handleOpenMenu(makeConversation('first', 'acp')));
+
+    act(() => result.current.handleMenuVisibleChange('second', false));
+
+    expect(result.current.dropdownVisibleId).toBe('first');
+  });
+});
 
 describe('create scheduled task conversation action', () => {
   beforeEach(() => {

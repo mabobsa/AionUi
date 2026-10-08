@@ -113,6 +113,31 @@ describe('conversation scheduled-task menu item', () => {
     await waitFor(() => expect(onPermanentDelete).toHaveBeenCalledWith(conversation));
   });
 
+  it('keeps the open menu bound to the conversation that opened it while the row changes', async () => {
+    const onArchive = vi.fn();
+    const refreshedConversation = {
+      ...conversation,
+      name: 'Conversation refreshed while its menu is open',
+      modified_at: 2,
+    };
+    const { rerender } = render(<ConversationRow {...makeProps({ onArchive })} />);
+    await screen.findByText('conversation.history.archive');
+
+    rerender(<ConversationRow {...makeProps({ conversation: refreshedConversation, onArchive })} />);
+    fireEvent.click(screen.getByText('conversation.history.archive'));
+
+    await waitFor(() => expect(onArchive).toHaveBeenCalledWith(conversation));
+  });
+
+  it('removes the menu content from the document after the menu closes', async () => {
+    const { rerender } = render(<ConversationRow {...makeProps()} />);
+    await screen.findByText('conversation.history.archive');
+
+    rerender(<ConversationRow {...makeProps({ menuVisible: false })} />);
+
+    await waitFor(() => expect(screen.queryByText('conversation.history.archive')).not.toBeInTheDocument());
+  });
+
   it('toggles the bookmark without opening the conversation', () => {
     const onTogglePin = vi.fn();
     const onConversationClick = vi.fn();

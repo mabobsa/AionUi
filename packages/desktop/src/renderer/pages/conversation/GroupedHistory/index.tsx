@@ -29,6 +29,7 @@ import { useProjectGitBranches } from './hooks/useProjectGitBranches';
 import type { ConversationRowProps, WorkspaceGroupedHistoryProps } from './types';
 import { resolveProjectGroupIndicatorStatus } from './utils/completionUnread';
 import { buildGroupedHistory } from './utils/groupingHelpers';
+import { buildVisibleConversationIds } from './utils/visibleConversationOrder';
 
 const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
   onSessionClick,
@@ -70,6 +71,19 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
         ? buildGroupedHistory(activityFilter.filteredConversations, t)
         : { pinnedConversations: allPinnedConversations, timelineSections: allTimelineSections },
     [activityFilter.enabled, activityFilter.filteredConversations, allPinnedConversations, allTimelineSections, t]
+  );
+  const visibleConversationOrderKey = useMemo(
+    () =>
+      JSON.stringify(
+        buildVisibleConversationIds({
+          pinnedConversations,
+          timelineSections,
+          expandedWorkspaces,
+          historyView,
+          siderCollapsed: collapsed,
+        })
+      ),
+    [collapsed, expandedWorkspaces, historyView, pinnedConversations, timelineSections]
   );
 
   const SectionLabel = useCallback(
@@ -154,6 +168,7 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
     markManualUnread,
     clearManualUnread,
     isManualUnread,
+    visibleConversationOrderKey,
   });
 
   // Fork-lineage badge support: resolve a parent conversation's display name

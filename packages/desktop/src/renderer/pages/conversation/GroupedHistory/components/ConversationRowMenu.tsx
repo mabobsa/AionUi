@@ -53,18 +53,26 @@ const ConversationRowMenu: React.FC<ConversationRowMenuProps> = ({
   isManualUnread,
 }) => {
   const { t } = useTranslation();
+  const actionConversationRef = React.useRef(conversation);
+
+  React.useLayoutEffect(() => {
+    if (!menuVisible) {
+      actionConversationRef.current = conversation;
+    }
+  }, [conversation, menuVisible]);
 
   const handleMenuItemClick = (key: string): void => {
+    const actionConversation = actionConversationRef.current;
     const conversationActions: Partial<Record<string, () => void>> = {
-      copy: onCopy ? () => onCopy(conversation) : undefined,
-      copyAll: onCopyAll ? () => onCopyAll(conversation) : undefined,
-      pin: () => onTogglePin(conversation),
-      toggleManualUnread: () => onToggleManualUnread(conversation),
-      rename: () => onEditStart(conversation),
-      createCronTask: () => onCreateCronTask(conversation),
-      export: onExport ? () => onExport(conversation) : undefined,
-      archive: () => onArchive(conversation),
-      permanentDelete: onPermanentDelete ? () => onPermanentDelete(conversation) : undefined,
+      copy: onCopy ? () => onCopy(actionConversation) : undefined,
+      copyAll: onCopyAll ? () => onCopyAll(actionConversation) : undefined,
+      pin: () => onTogglePin(actionConversation),
+      toggleManualUnread: () => onToggleManualUnread(actionConversation),
+      rename: () => onEditStart(actionConversation),
+      createCronTask: () => onCreateCronTask(actionConversation),
+      export: onExport ? () => onExport(actionConversation) : undefined,
+      archive: () => onArchive(actionConversation),
+      permanentDelete: onPermanentDelete ? () => onPermanentDelete(actionConversation) : undefined,
     };
     conversationActions[key]?.();
   };
@@ -142,9 +150,9 @@ const ConversationRowMenu: React.FC<ConversationRowMenuProps> = ({
       trigger='click'
       position='br'
       popupVisible={menuVisible}
-      onVisibleChange={(visible) => onMenuVisibleChange(conversation.id, visible)}
+      onVisibleChange={(visible) => onMenuVisibleChange(actionConversationRef.current.id, visible)}
       getPopupContainer={() => document.body}
-      unmountOnExit={false}
+      unmountOnExit
     >
       <span
         data-testid={`conversation-row-menu-${conversation.id}`}

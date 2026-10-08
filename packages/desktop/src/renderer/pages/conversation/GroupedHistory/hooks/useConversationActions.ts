@@ -12,7 +12,7 @@ import { isLegacyReadOnlyConversationType } from '@/renderer/pages/conversation/
 import { emitter } from '@/renderer/utils/emitter';
 import { blockMobileInputFocus, blurActiveElement } from '@/renderer/utils/ui/focus';
 import { Message, Modal } from '@arco-design/web-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -31,6 +31,7 @@ type UseConversationActionsParams = {
   markManualUnread: (conversation_id: string) => void;
   clearManualUnread: (conversation_id: string) => void;
   isManualUnread: (conversation_id: string) => boolean;
+  visibleConversationOrderKey: string;
 };
 
 export const useConversationActions = ({
@@ -44,6 +45,7 @@ export const useConversationActions = ({
   markManualUnread,
   clearManualUnread,
   isManualUnread,
+  visibleConversationOrderKey,
 }: UseConversationActionsParams) => {
   const [renameModalVisible, setRenameModalVisible] = useState(false);
   const [renameModalName, setRenameModalName] = useState<string>('');
@@ -53,6 +55,16 @@ export const useConversationActions = ({
   const { id } = useParams();
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const previousVisibleConversationOrderKeyRef = useRef(visibleConversationOrderKey);
+
+  useLayoutEffect(() => {
+    const orderChanged = previousVisibleConversationOrderKeyRef.current !== visibleConversationOrderKey;
+    previousVisibleConversationOrderKeyRef.current = visibleConversationOrderKey;
+
+    if (orderChanged) {
+      setDropdownVisibleId(null);
+    }
+  }, [visibleConversationOrderKey]);
 
   // Close dropdown when entering batch mode
   useEffect(() => {
@@ -210,7 +222,12 @@ export const useConversationActions = ({
   );
 
   const handleMenuVisibleChange = useCallback((conversation_id: string, visible: boolean) => {
-    setDropdownVisibleId(visible ? conversation_id : null);
+    setDropdownVisibleId((currentConversationId) => {
+      if (visible) {
+        return conversation_id;
+      }
+      return currentConversationId === conversation_id ? null : currentConversationId;
+    });
   }, []);
 
   const handleToggleManualUnread = useCallback(
