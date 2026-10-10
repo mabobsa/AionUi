@@ -8,7 +8,46 @@ import {
   normalizeRunnerOperation,
   startCompletionRelay,
   type RunnerOperation,
+  type RunnerResult,
 } from '@/process/resources/mindnprogressRunner/runtime';
+
+function operation(operationId = 'operation_123456', pathname = '/api/internal/external-conversation-dispatches') {
+  return {
+    operationId,
+    resultToken: `mnop_${'a'.repeat(43)}`,
+    request: { pathname, method: 'POST', timeoutMs: 1_000 },
+  };
+}
+
+async function runClaimedOperations(
+  operations: unknown[],
+  overrides: Partial<Parameters<typeof createRunnerLoop>[0]> = {}
+) {
+  const callAionUi = vi.fn(async () => ({ ok: true, data: { done: true } }));
+  const reportResult = vi.fn(async (_id: string, _result: RunnerResult, _token: string) => undefined);
+  const onClaimError = vi.fn();
+  let claimed = false;
+  let loop: ReturnType<typeof createRunnerLoop>;
+  loop = createRunnerLoop({
+    claimOperations: async () => {
+      if (!claimed) {
+        claimed = true;
+        return operations;
+      }
+      loop.stop();
+      return [];
+    },
+    callAionUi,
+    reportResult,
+    onClaimError,
+    concurrency: 2,
+    retryDelayMs: 1,
+    sleep: async () => undefined,
+    ...overrides,
+  });
+  await loop.start();
+  return { callAionUi, reportResult, onClaimError };
+}
 
 describe('MindNProgress Runner runtime', () => {
   it('normalizes bounded configuration without exposing the token in derived URLs', () => {
@@ -38,7 +77,7 @@ describe('MindNProgress Runner runtime', () => {
   });
 
   it('finishes claimed work before a graceful stop completes', async () => {
-    const operation: RunnerOperation = {
+    const acceptedOperation: RunnerOperation = {
       operationId: 'operation_123456',
       resultToken: `mnop_${'a'.repeat(43)}`,
       request: {
@@ -53,7 +92,7 @@ describe('MindNProgress Runner runtime', () => {
     loop = createRunnerLoop({
       claimOperations: async () => {
         claims += 1;
-        if (claims === 1) return [operation];
+        if (claims === 1) return [acceptedOperation];
         loop.stop();
         return [];
       },
@@ -103,7 +142,134 @@ describe('MindNProgress Runner runtime', () => {
     );
 
     expect(fetchImpl).not.toHaveBeenCalled();
-    expect(result).toMatchObject({ ok: false, code: 'RUNNER_LOCAL_CALL_FAILED' });
+    expect(result).toMatchObject({ ok: false, code: 'RUNNER_OPERATION_REJECTED' });
+  });
+
+  it('accepts the history-only completion report without changing its payload', () => {
+    const claimed = operation('operation_123456', '/api/conversations/conversation_1/external-reports');
+    const request = { ...claimed.request, body: { operationId: 'mnp-report-123456', content: 'Completed audit' } };
+
+    expect(normalizeRunnerOperation({ ...claimed, request }).request).toEqual(request);
+  });
+
+  it('forwards the history-only report and returns its receipt without requesting AI execution', async () => {
+    const body = { operationId: 'mnp-report-123456', content: 'Completed audit' };
+    const receipt = { operationId: body.operationId, conversationId: 'conversation_1', executionRequested: false };
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(JSON.stringify({ success: true, data: receipt }), { status: 200 }));
+
+    const result = await callLocalAionUi(
+      'http://127.0.0.1:4312',
+      { ...operation().request, pathname: '/api/conversations/conversation_1/external-reports', body },
+      fetchImpl
+    );
+
+    expect(result).toEqual({ ok: true, data: receipt });
+    expect(fetchImpl).toHaveBeenCalledExactlyOnceWith(
+      'http://127.0.0.1:4312/api/conversations/conversation_1/external-reports',
+      expect.objectContaining({ method: 'POST', body: JSON.stringify(body) })
+    );
+  });
+
+  it.each([
+    ['GET', '/api/conversations/conversation_1/external-reports'],
+    ['DELETE', '/api/conversations/conversation_1/external-reports'],
+    ['POST', '/api/conversations/conversation_1/external-reports?extra=1'],
+    ['POST', '/api/conversations/conversation_1/external-reports/extra'],
+    ['POST', '//untrusted.example/api/conversations/conversation_1/external-reports'],
+  ])('still rejects unrelated report requests: %s %s', (method, pathname) => {
+    expect(() => normalizeRunnerOperation({ ...operation(), request: { method, pathname } })).toThrow(
+      RunnerConfigError
+    );
+  });
+
+  it('reports a rejected request immediately without dropping the valid request in the same claim', async () => {
+    const rejected = operation('operation_rejected', '/api/config');
+    const accepted = operation('operation_accepted');
+    const { callAionUi, reportResult, onClaimError } = await runClaimedOperations([rejected, accepted]);
+
+    expect(callAionUi).toHaveBeenCalledExactlyOnceWith(accepted.request);
+    expect(reportResult).toHaveBeenCalledWith(
+      rejected.operationId,
+      { ok: false, status: null, code: 'RUNNER_OPERATION_REJECTED', message: 'Runner operation is not allowed.' },
+      rejected.resultToken
+    );
+    expect(onClaimError).not.toHaveBeenCalled();
+  });
+
+  it.each([null, { ...operation(), operationId: '../invalid' }, { ...operation(), resultToken: 'invalid' }])(
+    'does not call or report using malformed credentials, while valid siblings still complete',
+    async (invalid) => {
+      const accepted = operation('operation_accepted');
+      const { callAionUi, reportResult, onClaimError } = await runClaimedOperations([invalid, accepted]);
+
+      expect(callAionUi).toHaveBeenCalledExactlyOnceWith(accepted.request);
+      expect(reportResult).toHaveBeenCalledExactlyOnceWith(
+        accepted.operationId,
+        { ok: true, data: { done: true } },
+        accepted.resultToken
+      );
+      expect(onClaimError).toHaveBeenCalledOnce();
+    }
+  );
+
+  it('retries only the rejection result when the first result response is lost', async () => {
+    const rejected = operation('operation_rejected', '/api/config');
+    const reportResult = vi
+      .fn()
+      .mockRejectedValueOnce(new RunnerRequestError('Result response lost.', null))
+      .mockResolvedValue(undefined);
+    const { callAionUi } = await runClaimedOperations([rejected], { reportResult });
+
+    expect(callAionUi).not.toHaveBeenCalled();
+    expect(reportResult).toHaveBeenCalledTimes(2);
+    expect(reportResult.mock.calls[0]).toEqual(reportResult.mock.calls[1]);
+  });
+
+  it('returns a local call exception as a failure result rather than abandoning the claimed request', async () => {
+    const accepted = operation();
+    const { reportResult, onClaimError } = await runClaimedOperations([accepted], {
+      callAionUi: async () => {
+        throw new Error('Local connection refused.');
+      },
+    });
+
+    expect(reportResult).toHaveBeenCalledWith(
+      accepted.operationId,
+      { ok: false, status: null, code: 'RUNNER_LOCAL_CALL_FAILED', message: 'Local connection refused.' },
+      accepted.resultToken
+    );
+    expect(onClaimError).not.toHaveBeenCalled();
+  });
+
+  it.each(['Report API is unavailable.', { code: 'REPORT_DISABLED', message: 'Report API is unavailable.' }])(
+    'preserves the AionCore failure message together with its status',
+    async (error) => {
+      const fetchImpl = vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(new Response(JSON.stringify({ success: false, error }), { status: 503 }));
+      const result = await callLocalAionUi('http://127.0.0.1:4312', operation().request, fetchImpl);
+
+      expect(result).toMatchObject({ ok: false, status: 503, message: 'Report API is unavailable.' });
+    }
+  );
+
+  it('reports a history-only completion receipt through the claim loop', async () => {
+    const accepted = operation('operation_reported', '/api/conversations/conversation_1/external-reports');
+    const receipt = { executionRequested: false, operationId: 'mnp-report-123456' };
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(JSON.stringify({ success: true, data: receipt }), { status: 200 }));
+    const { reportResult } = await runClaimedOperations([accepted], {
+      callAionUi: (request) => callLocalAionUi('http://127.0.0.1:4312', request, fetchImpl),
+    });
+
+    expect(reportResult).toHaveBeenCalledExactlyOnceWith(
+      accepted.operationId,
+      { ok: true, data: receipt },
+      accepted.resultToken
+    );
   });
 
   it('relays a tokenized loopback external-launch completion callback to MindNProgress', async () => {

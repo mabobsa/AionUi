@@ -28,9 +28,14 @@ To restore the Runner automatically after a reboot, enable **Settings → System
 - Credentials are encrypted with Electron `safeStorage`. Pairing is unavailable when the operating-system credential store is not secure.
 - The token is not placed in renderer state, application routes, logs, or process arguments.
 - The sidecar independently allows only the AionCore API routes and methods required by MindNProgress.
+- History-only completion reports allow only `POST /api/conversations/{id}/external-reports` without query parameters. Forwarding this endpoint does not itself request AI execution.
+- Each claimed operation is validated independently. A disallowed request with valid operation credentials returns `RUNNER_OPERATION_REJECTED` immediately, without calling AionCore or abandoning valid operations in the same batch. Malformed credentials are never used to address a result endpoint.
+- Local call exceptions and AionCore failure messages are returned as failure results. If a result response is lost, only that same result is retried; the local request is not executed again.
 - For sub-machine WebUI launches, the sidecar opens an ephemeral `127.0.0.1`-only callback relay. It accepts only the tokenized AionUi conversation-completion route and forwards it through the authenticated outbound MindNProgress connection; no LAN listener or firewall rule is added.
 - Unexpected non-authentication exits restart automatically. Authentication rejection remains visible as an error instead of causing a restart loop.
 - During AionUi shutdown, the sidecar stops claiming work and gets a short window to finish reporting claimed results before AionCore stops.
 - An unconfigured AionUi does not launch the Runner process. Browser-only WebUI sessions do not expose the Runner settings page.
 
 **Disconnect** removes the credential from this AionUi and stops its sidecar. To invalidate the server-side Runner permission as well, use **Revoke server permission** in MindNProgress Distributed Work settings. Pairing again also rotates the server token.
+
+Runner-only fixes require the updated AionUi sidecar to be loaded on each affected machine, but do not require an AionCore rebuild. Existing completion reports can be retried with their original operation IDs without rerunning the child AI work.

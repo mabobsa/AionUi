@@ -9,7 +9,6 @@ import {
   RunnerRequestError,
   callLocalAionUi,
   createRunnerLoop,
-  normalizeRunnerOperation,
   normalizeRunnerEnvironment,
   requestJson,
   runnerUrl,
@@ -104,7 +103,8 @@ async function run(): Promise<void> {
         {},
         claimController.signal
       );
-      return Array.isArray(body.operations) ? body.operations.map(normalizeRunnerOperation) : [];
+      // Validate each claimed request in the loop so a rejection still gets a failure receipt.
+      return Array.isArray(body.operations) ? body.operations : [];
     },
     callAionUi: (request) => callLocalAionUi(config.aionUiBaseUrl, request),
     reportResult: (operationId: string, result: RunnerResult, resultToken: string) =>

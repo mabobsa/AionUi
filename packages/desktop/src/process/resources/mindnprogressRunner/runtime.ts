@@ -237,6 +237,7 @@ function isAllowedLocalRequest(method: string, url: URL): boolean {
       !hasQuery &&
       (pathname === '/api/internal/external-conversation-dispatches' ||
         pathname === '/api/internal/external-conversation-launches' ||
+        new RegExp(`^/api/conversations/${AIONUI_ENTITY_ID_PATTERN}/external-reports$`).test(pathname) ||
         new RegExp(`^/api/internal/external-conversation-dispatches/${AIONUI_ENTITY_ID_PATTERN}/complete$`).test(
           pathname
         ))
@@ -271,18 +272,19 @@ export function normalizeRunnerOperationRequest(value: unknown): RunnerOperation
   };
 }
 
-export function normalizeRunnerOperation(value: unknown): RunnerOperation {
+function normalizeRunnerOperationCredentials(value: unknown): Pick<RunnerOperation, 'operationId' | 'resultToken'> {
   if (!isRecord(value)) throw new RunnerConfigError('Runner operation is invalid.');
   const operationId = text(value.operationId);
   const resultToken = text(value.resultToken);
   if (!RUNNER_OPERATION_ID_PATTERN.test(operationId) || !RUNNER_RESULT_TOKEN_PATTERN.test(resultToken)) {
     throw new RunnerConfigError('Runner operation credentials are invalid.');
   }
-  return {
-    operationId,
-    resultToken,
-    request: normalizeRunnerOperationRequest(value.request),
-  };
+  return { operationId, resultToken };
+}
+
+export function normalizeRunnerOperation(value: unknown): RunnerOperation {
+  const credentials = normalizeRunnerOperationCredentials(value);
+  return { ...credentials, request: normalizeRunnerOperationRequest((value as Record<string, unknown>).request) };
 }
 
 export function normalizeRunnerEnvironment(environment: RunnerEnvironment): RunnerConfig {
@@ -349,14 +351,16 @@ export async function callLocalAionUi(
     const responseBody = (await response.json().catch(() => ({}))) as {
       success?: boolean;
       data?: unknown;
-      error?: { code?: string } | string;
+      error?: { code?: string; message?: string } | string;
       code?: string;
     };
     if (!response.ok || responseBody.success === false) {
+      const message = typeof responseBody.error === 'string' ? responseBody.error : responseBody.error?.message;
       return {
         ok: false,
         status: response.status,
         code: typeof responseBody.error === 'object' ? (responseBody.error?.code ?? null) : (responseBody.code ?? null),
+        ...(typeof message === 'string' ? { message } : {}),
       };
     }
     return { ok: true, data: responseBody.data ?? responseBody };
@@ -364,14 +368,14 @@ export async function callLocalAionUi(
     return {
       ok: false,
       status: null,
-      code: 'RUNNER_LOCAL_CALL_FAILED',
+      code: error instanceof RunnerConfigError ? 'RUNNER_OPERATION_REJECTED' : 'RUNNER_LOCAL_CALL_FAILED',
       message: error instanceof Error ? error.message : String(error),
     };
   }
 }
 
 type RunnerLoopOptions = {
-  claimOperations: () => Promise<RunnerOperation[]>;
+  claimOperations: () => Promise<unknown[]>;
   callAionUi: (request: RunnerOperation['request']) => Promise<RunnerResult>;
   reportResult: (operationId: string, result: RunnerResult, resultToken: string) => Promise<unknown>;
   concurrency: number;
@@ -383,13 +387,33 @@ type RunnerLoopOptions = {
 export function createRunnerLoop(options: RunnerLoopOptions) {
   let stopped = false;
 
-  const settle = async (operation: RunnerOperation): Promise<void> => {
-    const result = await options.callAionUi(operation.request);
+  const settle = async (value: unknown): Promise<void> => {
+    let credentials: Pick<RunnerOperation, 'operationId' | 'resultToken'>;
+    try {
+      credentials = normalizeRunnerOperationCredentials(value);
+    } catch (error) {
+      // Invalid identities cannot safely address a result endpoint; do not drop valid siblings.
+      options.onClaimError(error);
+      return;
+    }
+    let result: RunnerResult;
+    try {
+      const operation = normalizeRunnerOperation(value);
+      result = await options.callAionUi(operation.request);
+    } catch (error) {
+      // Claimed requests are never redelivered. Return rejection as a result, not a claim error.
+      result = {
+        ok: false,
+        status: null,
+        code: error instanceof RunnerConfigError ? 'RUNNER_OPERATION_REJECTED' : 'RUNNER_LOCAL_CALL_FAILED',
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
     let attempt = 0;
     while (!stopped || attempt === 0) {
       attempt += 1;
       try {
-        await options.reportResult(operation.operationId, result, operation.resultToken);
+        await options.reportResult(credentials.operationId, result, credentials.resultToken);
         return;
       } catch (error) {
         const status = error instanceof RunnerRequestError ? error.status : null;
@@ -399,13 +423,13 @@ export function createRunnerLoop(options: RunnerLoopOptions) {
     }
   };
 
-  const settleAll = async (operations: RunnerOperation[]): Promise<void> => {
+  const settleAll = async (operations: unknown[]): Promise<void> => {
     const queue = [...operations];
     await Promise.all(
       Array.from({ length: Math.min(options.concurrency, queue.length) }, async () => {
         while (queue.length > 0) {
           const operation = queue.shift();
-          if (operation) await settle(operation);
+          await settle(operation);
         }
       })
     );
