@@ -7,7 +7,6 @@
 import {
   RunnerConfigError,
   RunnerRequestError,
-  callLocalAionUi,
   createRunnerLoop,
   normalizeRunnerEnvironment,
   requestJson,
@@ -17,6 +16,7 @@ import {
   type RunnerResult,
 } from './runtime';
 import { forwardRunnerMcpRequest, startRunnerMcpRelay, type RunnerMcpRelay } from './mcpRelay';
+import { loadWorkspaceAgent, callWorkspaceAwareRunner } from './workspaceAgentBridge';
 
 type ParentMessage = { type?: unknown };
 type RunnerEvent =
@@ -77,10 +77,11 @@ async function run(): Promise<void> {
   activeMcpRelay = mcpRelay;
 
   let longPollMs = 25_000;
+  const workspaceAgent = await loadWorkspaceAgent(config);
   const heartbeat = async (): Promise<void> => {
     const info = await mnpRequest<{ label?: unknown; longPollMs?: unknown }>(
       runnerUrl(config, 'heartbeat'),
-      { callbackBaseUrl: completionRelay.baseUrl },
+      { callbackBaseUrl: completionRelay.baseUrl, workspacePool: await workspaceAgent?.report() },
       10_000
     );
     if (Number.isInteger(info.longPollMs) && Number(info.longPollMs) > 0) longPollMs = Number(info.longPollMs);
@@ -106,7 +107,7 @@ async function run(): Promise<void> {
       // Validate each claimed request in the loop so a rejection still gets a failure receipt.
       return Array.isArray(body.operations) ? body.operations : [];
     },
-    callAionUi: (request) => callLocalAionUi(config.aionUiBaseUrl, request),
+    callAionUi: (request) => callWorkspaceAwareRunner(config, workspaceAgent, request),
     reportResult: (operationId: string, result: RunnerResult, resultToken: string) =>
       mnpRequest(runnerUrl(config, `operations/${encodeURIComponent(operationId)}/result`), result, 30_000, {
         'X-MnP-Operation-Token': resultToken,
