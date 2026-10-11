@@ -235,7 +235,8 @@ function isAllowedLocalRequest(method: string, url: URL): boolean {
   if (method === 'POST') {
     return (
       !hasQuery &&
-      (pathname === '/api/internal/external-conversation-dispatches' ||
+      (pathname === '/mnp/workspaces' ||
+        pathname === '/api/internal/external-conversation-dispatches' ||
         pathname === '/api/internal/external-conversation-launches' ||
         new RegExp(`^/api/conversations/${AIONUI_ENTITY_ID_PATTERN}/external-reports$`).test(pathname) ||
         new RegExp(`^/api/internal/external-conversation-dispatches/${AIONUI_ENTITY_ID_PATTERN}/complete$`).test(
@@ -339,6 +340,8 @@ export async function callLocalAionUi(
 ): Promise<RunnerResult> {
   try {
     const normalizedRequest = normalizeRunnerOperationRequest(request);
+    if (normalizedRequest.pathname === '/mnp/workspaces')
+      throw new RunnerConfigError('Workspace commands must be handled by the Runner, not forwarded to AionCore.');
     const response = await fetchImpl(`${baseUrl}${normalizedRequest.pathname}`, {
       method: normalizedRequest.method,
       headers: {

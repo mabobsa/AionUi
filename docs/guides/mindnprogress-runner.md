@@ -5,7 +5,7 @@ The personal AionUi fork can run a MindNProgress sub-machine Runner as a desktop
 ## Requirements
 
 - A packaged AionUi desktop build that includes the Runner sidecar
-- An existing AionCore installation supported by that AionUi build; no separate AionCore rebuild is required
+- For ordinary conversation forwarding, an existing AionCore installation supported by that AionUi build; no separate AionCore rebuild is required (managed remote pools have additional requirements below)
 - Network access from the sub-machine to the main MindNProgress public URL
 - A sub-machine registered by the same MindNProgress editor account that will use it
 
@@ -39,3 +39,18 @@ To restore the Runner automatically after a reboot, enable **Settings → System
 **Disconnect** removes the credential from this AionUi and stops its sidecar. To invalidate the server-side Runner permission as well, use **Revoke server permission** in MindNProgress Distributed Work settings. Pairing again also rotates the server token.
 
 Runner-only fixes require the updated AionUi sidecar to be loaded on each affected machine, but do not require an AionCore rebuild. Existing completion reports can be retried with their original operation IDs without rerunning the child AI work.
+
+## Managed remote Unity Fork pools
+
+Ordinary conversation forwarding does not register a managed workspace pool. Remote Fork delegation is opt-in and additionally requires AionCore `workspaceLeaseVersion >= 3` with `remoteWorkspaceOwnership=true`, an updated MnP server/local pool owner, and explicit pool approval in MnP.
+
+Start AionUi with both absolute environment paths:
+
+- `MNP_RUNNER_WORKSPACE_REGISTRY`: the verified sub-machine registry, with the main server's `coordinatorId`, `poolId`, `sharedRoot`, matching `originUrl`, and enabled worker Git roots.
+- `MNP_RUNNER_WORKSPACE_AGENT_MODULE`: the installed MnP `runner/lib/workspaceAgent.mjs`. This shared engine and its relative MnP modules must be installed together, not copied as a single file.
+
+The sidecar loads this engine only when explicitly configured. `/mnp/workspaces` is handled inside the Runner, never forwarded to the local unauthenticated AionCore API. Remote-owned dispatches require a matching durable local reservation before AionCore receives them. Other conversations keep their existing behavior.
+
+The Runner reports actual Git/runtime state in its authenticated heartbeat. Main-side approval is separate from reporting. Transfers use chunked, hash-verified Git bundles; integration occurs in main-side staging and completion waits for the Runner's release acknowledgement. Disconnects, interrupted receipts, ownership mismatches, and integration conflicts preserve the lease instead of freeing it. Stale locks require operator inspection, not timeout-based deletion. Do not register the same physical Fork in active local and remote pools.
+
+See the MnP repository's `docs/remote-fork-workspaces.md` for the protocol, limits, activation checks, and explicit recovery APIs. This capability is not automatically enabled by pairing or by setting `workspacePoolIds`.
