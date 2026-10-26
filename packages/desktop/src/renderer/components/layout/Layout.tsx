@@ -362,6 +362,8 @@ const Layout: React.FC<{
     collapsedRef.current = collapsed;
   }, [collapsed]);
 
+  // Mobile hides the overlay without changing its layout, preserving the list's scroll position.
+  const siderContentCollapsed = !isMobile && collapsed;
   const siderStyle = isMobile
     ? {
         position: 'fixed' as const,
@@ -370,6 +372,7 @@ const Layout: React.FC<{
         transform: collapsed ? 'translateX(-100%)' : 'translateX(0)',
         transition: 'none',
         pointerEvents: collapsed ? ('none' as const) : ('auto' as const),
+        visibility: collapsed ? ('hidden' as const) : ('visible' as const),
       }
     : {
         position: 'relative' as const,
@@ -390,10 +393,10 @@ const Layout: React.FC<{
           <ArcoLayout className={'size-full layout flex-1 min-h-0'}>
             <ArcoLayout.Sider
               collapsedWidth={isMobile ? 0 : 0}
-              collapsed={collapsed}
+              collapsed={siderContentCollapsed}
               width={siderWidth}
               className={classNames('!bg-2 layout-sider', {
-                collapsed: collapsed,
+                collapsed: siderContentCollapsed,
               })}
               style={siderStyle}
             >
@@ -402,19 +405,19 @@ const Layout: React.FC<{
                   'flex items-center justify-start pt-8px pb-8px ps-18px pe-16px gap-12px layout-sider-header',
                   isMobile && 'layout-sider-header--mobile',
                   {
-                    'cursor-pointer group ': collapsed,
+                    'cursor-pointer group ': siderContentCollapsed,
                   }
                 )}
               >
                 <div
                   className={classNames('bg-black shrink-0 size-32px relative rd-0.5rem', {
-                    '!size-24px': collapsed,
+                    '!size-24px': siderContentCollapsed,
                   })}
                   onClick={onClick}
                 >
                   <svg
                     className={classNames('w-5.5 h-5.5 absolute inset-0 m-auto', {
-                      'scale-140': !collapsed,
+                      'scale-140': !siderContentCollapsed,
                     })}
                     viewBox='0 0 80 80'
                     fill='none'
@@ -456,7 +459,7 @@ const Layout: React.FC<{
                 ) : (
                   <div className='text-16px text-t-primary collapsed-hidden font-semibold'>AionUi</div>
                 )}
-                {isMobile && !collapsed && (
+                {isMobile && (
                   <button
                     type='button'
                     className='app-titlebar__button app-titlebar__button--mobile'
@@ -476,7 +479,7 @@ const Layout: React.FC<{
                         cleanupSiderTooltips();
                         if (isMobile) setCollapsed(true);
                       },
-                      collapsed,
+                      collapsed: siderContentCollapsed,
                     } as any)
                   : sider}
               </ArcoLayout.Content>
