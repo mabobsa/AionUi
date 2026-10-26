@@ -5,11 +5,14 @@
  */
 
 import React from 'react';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ClaudeUsageSnapshot } from '@/common/types/platform/claudeUsage';
 import type { CodexUsageSnapshot } from '@/common/types/platform/codexUsage';
-import type { SubscriptionUsageSnapshot } from '@/common/types/platform/subscriptionUsage';
+import type {
+  ClaudeAccountSubscriptionUsage,
+  SubscriptionUsageSnapshot,
+} from '@/common/types/platform/subscriptionUsage';
 import styles from '@/renderer/components/layout/Titlebar/SubscriptionUsageIndicator.module.css';
 
 const fixtures = vi.hoisted(() => ({
@@ -92,6 +95,40 @@ vi.mock('@icon-park/react', () => ({
 }));
 
 import ConversationUsageIndicator from '@/renderer/components/layout/Titlebar/ConversationUsageIndicator';
+
+const webAccount = (
+  id: string,
+  number: number,
+  label: string,
+  session: number,
+  weekly: number
+): ClaudeAccountSubscriptionUsage => ({
+  id,
+  number,
+  label,
+  state: 'ready',
+  updatedAt: new Date().toISOString(),
+  session: { usedPercent: session, resetsAt: null },
+  weekly: { usedPercent: weekly, resetsAt: null },
+});
+
+const webSnapshot = (accounts: ClaudeAccountSubscriptionUsage[]): SubscriptionUsageSnapshot => ({
+  schemaVersion: 1,
+  state: 'partial',
+  generatedAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  retryAfterMs: null,
+  claude: accounts.find((account) => account.id === 'default') ?? {
+    state: 'unavailable',
+    updatedAt: null,
+    session: null,
+    weekly: null,
+  },
+  codex: { state: 'unavailable', updatedAt: null, weekly: null, limitReached: false },
+  claudeAccounts: accounts,
+});
+
+const mobileDetails = () => within(screen.getByRole('button', { name: 'Claude Usage / Codex Usage' }).parentElement!);
 
 describe('ConversationUsageIndicator', () => {
   beforeEach(() => {
@@ -247,5 +284,105 @@ describe('ConversationUsageIndicator', () => {
 
     expect(screen.queryByLabelText('Claude Usage')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Codex Usage')).not.toBeInTheDocument();
+  });
+
+  it('lists every registered Claude account in shared order in the mobile detail popover', async () => {
+    fixtures.electronDesktop = false;
+    fixtures.webUsageInvoke.mockResolvedValue(
+      webSnapshot([webAccount('max', 1, 'Personal Max', 12, 87), webAccount('default', 2, 'Company Team', 31, 24)])
+    );
+
+    render(<ConversationUsageIndicator />);
+    await screen.findByRole('button', { name: 'Claude Usage / Codex Usage' });
+
+    const details = mobileDetails();
+    expect(details.getAllByTestId('claude-account-tag').map((tag) => tag.textContent)).toEqual([
+      '1Personal Max',
+      '2Company Team',
+    ]);
+    expect(details.getAllByRole('progressbar').map((bar) => bar.getAttribute('aria-valuenow'))).toEqual([
+      '12',
+      '87',
+      '31',
+      '24',
+    ]);
+    expect(screen.getByRole('button', { name: 'Claude Usage / Codex Usage' }).parentElement).toHaveAttribute(
+      'data-popover-trigger',
+      'click'
+    );
+  });
+
+  it('uses the highest account usage and its account mark in the web pill and mobile summary', async () => {
+    fixtures.electronDesktop = false;
+    fixtures.webUsageInvoke.mockResolvedValue(
+      webSnapshot([webAccount('default', 1, 'Team', 31, 24), webAccount('max', 2, 'Max', 12, 87)])
+    );
+
+    render(<ConversationUsageIndicator />);
+    const pill = await screen.findByLabelText('Claude Usage');
+
+    expect(pill).toHaveTextContent('12% · 87%');
+    expect(within(pill).getByTestId('claude-account-mark')).toHaveTextContent('2');
+    const summary = screen.getByRole('button', { name: 'Claude Usage / Codex Usage' });
+    expect(summary).toHaveTextContent('87%');
+    expect(summary).toHaveClass(styles.warning);
+  });
+
+  it('shows another account when the default account has no usage data', async () => {
+    fixtures.electronDesktop = false;
+    const unavailable: ClaudeAccountSubscriptionUsage = {
+      ...webAccount('default', 1, 'Team', 0, 0),
+      state: 'unavailable',
+      updatedAt: null,
+      session: null,
+      weekly: null,
+    };
+    fixtures.webUsageInvoke.mockResolvedValue(webSnapshot([unavailable, webAccount('max', 2, 'Max', 8, 23)]));
+
+    render(<ConversationUsageIndicator />);
+
+    expect(await screen.findByLabelText('Claude Usage')).toHaveTextContent('8% · 23%');
+    expect(mobileDetails().getAllByTestId('claude-account-tag')).toHaveLength(2);
+    expect(mobileDetails().getByText('common.claudeUsage.noData')).toBeInTheDocument();
+  });
+
+  it('excludes stale account usage from the summary while keeping the account in the details', async () => {
+    fixtures.electronDesktop = false;
+    const stale = { ...webAccount('max', 2, 'Max', 99, 100), updatedAt: new Date(Date.now() - 300_000).toISOString() };
+    fixtures.webUsageInvoke.mockResolvedValue(webSnapshot([webAccount('default', 1, 'Team', 4, 18), stale]));
+
+    render(<ConversationUsageIndicator />);
+
+    expect(await screen.findByLabelText('Claude Usage')).toHaveTextContent('4% · 18%');
+    expect(mobileDetails().getByText('common.claudeUsage.noData')).toBeInTheDocument();
+    expect(
+      mobileDetails()
+        .getAllByRole('progressbar')
+        .map((bar) => bar.getAttribute('aria-valuenow'))
+    ).toEqual(['4', '18']);
+  });
+
+  it('returns to a single-account display when the next snapshot removes extra accounts', async () => {
+    fixtures.electronDesktop = false;
+    vi.useFakeTimers();
+    try {
+      const account = webAccount('default', 1, 'Team', 4, 18);
+      fixtures.webUsageInvoke
+        .mockResolvedValueOnce(webSnapshot([account, webAccount('max', 2, 'Max', 9, 87)]))
+        .mockResolvedValue({ ...webSnapshot([account]), claudeAccounts: undefined });
+      render(<ConversationUsageIndicator />);
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(mobileDetails().getAllByTestId('claude-account-tag')).toHaveLength(2);
+
+      await act(async () => vi.advanceTimersByTimeAsync(10_000));
+
+      expect(screen.queryByTestId('claude-account-mark')).not.toBeInTheDocument();
+      expect(mobileDetails().queryByTestId('claude-account-tag')).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Claude Usage')).toHaveTextContent('4% · 18%');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -41,6 +41,8 @@
 .mobileDetails {
   display: flex;
   flex-direction: column;
+  max-height: calc(100dvh - 80px);
+  overflow-y: auto;
 }
 
 @media (max-width: 720px) {

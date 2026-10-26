@@ -9,14 +9,20 @@ import { Dashboard } from '@icon-park/react';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { httpGet } from '@/common/adapter/httpBridge';
-import type { SubscriptionUsageSnapshot, SubscriptionUsageWindow } from '@/common/types/platform/subscriptionUsage';
+import type {
+  ClaudeAccountSubscriptionUsage,
+  ClaudeSubscriptionUsage,
+  SubscriptionUsageSnapshot,
+  SubscriptionUsageWindow,
+} from '@/common/types/platform/subscriptionUsage';
+import { ClaudeAccountBadge } from '@/renderer/pages/conversation/platforms/acp/claudeAccounts';
 import { isElectronDesktop } from '@/renderer/utils/platform';
 import ClaudeUsagePill from './ClaudeUsagePill';
 import CodexUsageIndicator from './CodexUsageIndicator';
 import styles from './SubscriptionUsageIndicator.module.css';
 import {
   getSubscriptionUsageTone,
-  SUBSCRIPTION_USAGE_STALE_AFTER_MS,
+  isSubscriptionUsageFresh,
   type SubscriptionUsageTone,
 } from './subscriptionUsageTone';
 
@@ -31,9 +37,16 @@ const toneClasses: Record<SubscriptionUsageTone, { text: string; bg: string }> =
 
 const isFresh = (updatedAt: string | null): boolean => {
   if (!updatedAt) return false;
-  const timestamp = Date.parse(updatedAt);
-  return Number.isFinite(timestamp) && Date.now() - timestamp <= SUBSCRIPTION_USAGE_STALE_AFTER_MS;
+  return isSubscriptionUsageFresh(Date.parse(updatedAt));
 };
+
+const hasFreshClaudeUsage = (usage: ClaudeSubscriptionUsage | undefined): boolean =>
+  Boolean(usage?.state === 'ready' && isFresh(usage.updatedAt) && (usage.session || usage.weekly));
+
+const getClaudePercentages = (usage: ClaudeSubscriptionUsage | undefined): number[] =>
+  [usage?.session?.usedPercent, usage?.weekly?.usedPercent].filter(
+    (percent): percent is number => typeof percent === 'number' && Number.isFinite(percent)
+  );
 
 const formatReset = (resetsAt: string | null, includeDate: boolean): string | undefined => {
   if (!resetsAt) return undefined;
@@ -116,11 +129,23 @@ const WebConversationUsageIndicator: React.FC = () => {
     };
   }, []);
 
-  const claudeVisible = Boolean(
-    usage?.claude.state === 'ready' && isFresh(usage.claude.updatedAt) && (usage.claude.session || usage.claude.weekly)
-  );
-  const codexVisible = Boolean(usage?.codex.state === 'ready' && isFresh(usage.codex.updatedAt) && usage.codex.weekly);
-  if (!usage || (!claudeVisible && !codexVisible)) return null;
+  if (!usage) return null;
+
+  // Fork: match the desktop's highest-usage account, preserving shared order on ties.
+  const claudeAccounts = usage.claudeAccounts && usage.claudeAccounts.length >= 2 ? usage.claudeAccounts : undefined;
+  const claudeAccount = claudeAccounts
+    ?.filter(hasFreshClaudeUsage)
+    .reduce<ClaudeAccountSubscriptionUsage | undefined>(
+      (picked, candidate) =>
+        !picked || Math.max(...getClaudePercentages(candidate)) > Math.max(...getClaudePercentages(picked))
+          ? candidate
+          : picked,
+      undefined
+    );
+  const claudeUsage = claudeAccounts ? claudeAccount : usage.claude;
+  const claudeVisible = hasFreshClaudeUsage(claudeUsage);
+  const codexVisible = Boolean(usage.codex.state === 'ready' && isFresh(usage.codex.updatedAt) && usage.codex.weekly);
+  if (!claudeVisible && !codexVisible) return null;
 
   const claudeTitle = t('common.claudeUsage.title', { defaultValue: 'Claude Usage' });
   const codexTitle = t('common.claudeUsage.codexTitle', { defaultValue: 'Codex Usage' });
@@ -128,9 +153,7 @@ const WebConversationUsageIndicator: React.FC = () => {
   const weeklyLabel = t('common.claudeUsage.weekly', { defaultValue: 'Weekly (all models)' });
   const resetLabel = (time: string): string =>
     t('common.claudeUsage.resets', { time, defaultValue: 'Resets {{time}}' });
-  const claudePercentages = [usage.claude.session?.usedPercent, usage.claude.weekly?.usedPercent].filter(
-    (percent): percent is number => typeof percent === 'number'
-  );
+  const claudePercentages = getClaudePercentages(claudeUsage);
   const codexPercent = usage.codex.weekly?.usedPercent;
   const claudeTone = getSubscriptionUsageTone(...claudePercentages);
   const codexTone = getSubscriptionUsageTone(codexPercent, usage.codex.limitReached ? 100 : undefined);
@@ -141,29 +164,49 @@ const WebConversationUsageIndicator: React.FC = () => {
   );
   const summaryTone = getSubscriptionUsageTone(highestPercent);
 
-  const claudeDetails = claudeVisible ? (
-    <div className='flex w-200px flex-col gap-12px p-4px'>
-      <span className='text-12px font-600 text-t-primary'>{claudeTitle}</span>
-      {usage.claude.session ? (
+  const renderClaudeWindows = (accountUsage: ClaudeSubscriptionUsage) => (
+    <>
+      {accountUsage.session ? (
         <UsageWindow
           label={sessionLabel}
-          usage={usage.claude.session}
+          usage={accountUsage.session}
           includeDate={false}
-          tone={getSubscriptionUsageTone(usage.claude.session.usedPercent)}
+          tone={getSubscriptionUsageTone(accountUsage.session.usedPercent)}
           resetLabel={resetLabel}
         />
       ) : null}
-      {usage.claude.weekly ? (
+      {accountUsage.weekly ? (
         <UsageWindow
           label={weeklyLabel}
-          usage={usage.claude.weekly}
+          usage={accountUsage.weekly}
           includeDate
-          tone={getSubscriptionUsageTone(usage.claude.weekly.usedPercent)}
+          tone={getSubscriptionUsageTone(accountUsage.weekly.usedPercent)}
           resetLabel={resetLabel}
         />
       ) : null}
-    </div>
-  ) : null;
+    </>
+  );
+
+  const claudeDetails =
+    claudeVisible && claudeUsage ? (
+      <div className='flex w-200px flex-col gap-12px p-4px'>
+        <span className='text-12px font-600 text-t-primary'>{claudeTitle}</span>
+        {claudeAccounts
+          ? claudeAccounts.map((account) => (
+              <div key={account.id} className='flex flex-col gap-8px'>
+                <div className='flex'>
+                  <ClaudeAccountBadge account={account} variant='tag' />
+                </div>
+                {hasFreshClaudeUsage(account) ? (
+                  renderClaudeWindows(account)
+                ) : (
+                  <span className='text-11px text-t-tertiary'>{t('common.claudeUsage.noData')}</span>
+                )}
+              </div>
+            ))
+          : renderClaudeWindows(claudeUsage)}
+      </div>
+    ) : null;
 
   const codexDetails =
     codexVisible && usage.codex.weekly ? (
@@ -190,6 +233,7 @@ const WebConversationUsageIndicator: React.FC = () => {
               aria-label={claudeTitle}
             >
               <Dashboard theme='outline' size={14} fill='currentColor' />
+              {claudeAccount ? <ClaudeAccountBadge account={claudeAccount} variant='mark' /> : null}
               <span className='text-12px font-600 leading-none'>
                 {claudePercentages.map((percent) => `${Math.round(percent)}%`).join(' · ')}
               </span>
