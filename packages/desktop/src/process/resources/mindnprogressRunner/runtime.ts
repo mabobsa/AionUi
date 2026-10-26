@@ -214,6 +214,8 @@ function isAllowedLocalRequest(method: string, url: URL): boolean {
       return true;
     }
     if (!hasQuery && new RegExp(`^/api/conversations/${AIONUI_ENTITY_ID_PATTERN}$`).test(pathname)) return true;
+    if (!hasQuery && new RegExp(`^/api/sidebar/conversation/${AIONUI_ENTITY_ID_PATTERN}/archive-state$`).test(pathname))
+      return true;
     if (
       !hasQuery &&
       new RegExp(`^/api/internal/external-conversation-dispatches/${AIONUI_ENTITY_ID_PATTERN}$`).test(pathname)
@@ -236,6 +238,7 @@ function isAllowedLocalRequest(method: string, url: URL): boolean {
     return (
       !hasQuery &&
       (pathname === '/api/internal/external-conversation-dispatches' ||
+        new RegExp(`^/api/sidebar/conversation/${AIONUI_ENTITY_ID_PATTERN}/archive$`).test(pathname) ||
         pathname === '/api/internal/external-conversation-launches' ||
         new RegExp(`^/api/conversations/${AIONUI_ENTITY_ID_PATTERN}/external-reports$`).test(pathname) ||
         new RegExp(`^/api/internal/external-conversation-dispatches/${AIONUI_ENTITY_ID_PATTERN}/complete$`).test(

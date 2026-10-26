@@ -6,6 +6,7 @@ import {
   createRunnerLoop,
   normalizeRunnerEnvironment,
   normalizeRunnerOperation,
+  normalizeRunnerOperationRequest,
   startCompletionRelay,
   type RunnerOperation,
   type RunnerResult,
@@ -50,6 +51,25 @@ async function runClaimedOperations(
 }
 
 describe('MindNProgress Runner runtime', () => {
+  it.each([
+    ['GET', '/api/sidebar/conversation/conversation-1/archive-state'],
+    ['POST', '/api/sidebar/conversation/conversation-1/archive'],
+  ])('allows verified conversation archiving: %s %s', (method, pathname) => {
+    expect(normalizeRunnerOperationRequest({ method, pathname })).toMatchObject({ method, pathname });
+  });
+
+  it.each([
+    ['DELETE', '/api/sidebar/archived/conversation/conversation-1'],
+    ['DELETE', '/api/sidebar/conversation/conversation-1/archive'],
+    ['POST', '/api/sidebar/conversation/conversation-1/unarchive'],
+    ['POST', '/api/sidebar/project/project-1/archive'],
+    ['GET', '/api/sidebar/conversation/conversation-1/archive-state?all=1'],
+    ['POST', '/api/sidebar/conversation/conversation-1/archive?force=true'],
+    ['POST', '/api/sidebar/conversation/conversation-1/archive-state'],
+  ])('rejects unrelated archive access: %s %s', (method, pathname) => {
+    expect(() => normalizeRunnerOperationRequest({ method, pathname })).toThrow('Runner operation is not allowed.');
+  });
+
   it('normalizes bounded configuration without exposing the token in derived URLs', () => {
     const config = normalizeRunnerEnvironment({
       MNP_RUNNER_API_URL: 'https://mnp.example.test/path?q=1',

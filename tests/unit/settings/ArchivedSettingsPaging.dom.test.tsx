@@ -8,6 +8,7 @@ import React from 'react';
 import { SWRConfig } from 'swr';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { Message } from '@arco-design/web-react';
 
 const { getMock, itemsMock } = vi.hoisted(() => ({
   getMock: vi.fn(),
@@ -98,6 +99,7 @@ describe('ArchivedSettings paging', () => {
 
   afterEach(() => {
     cleanup();
+    vi.restoreAllMocks();
   });
 
   it('keeps the batch deletion settings available when the archive is empty', async () => {
@@ -186,6 +188,53 @@ describe('ArchivedSettings paging', () => {
 
     await screen.findByText('Chat One');
     expect(screen.getByText('settings.archived.loadMore')).toBeTruthy();
+  });
+
+  it.each([0, 1, 2])(
+    'preserves recent-archive group order when ordinary chats are at position %s',
+    async (position) => {
+      const groups: Array<
+        | ReturnType<typeof projectGroup>
+        | {
+            scope: { type: 'chats' };
+            items: ReturnType<typeof conv>[];
+            has_more: boolean;
+          }
+      > = [
+        projectGroup('P2', 'Zulu', [conv('c2', 'Project Two')], false),
+        projectGroup('P1', 'Alpha', [conv('c1', 'Project One')], false),
+      ];
+      groups.splice(position, 0, { scope: { type: 'chats' }, items: [conv('c3', 'Ordinary Chat')], has_more: false });
+      getMock.mockResolvedValue({ groups, has_more_groups: false });
+      renderPage();
+      const expected = ['Zulu', 'Alpha'];
+      expected.splice(position, 0, 'settings.archived.noProject');
+      const headings = await screen.findAllByRole('heading', { level: 2 });
+      expect(headings.map((heading) => heading.textContent)).toEqual(expected);
+    }
+  );
+
+  it('keeps recent archive rows in place when loading the next window fails', async () => {
+    // The app bootstraps Arco's imperative toast adapter outside this component.
+    const errorToast = vi.spyOn(Message, 'error').mockReturnValue(vi.fn());
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    getMock.mockResolvedValue({
+      groups: [
+        {
+          scope: { type: 'chats' },
+          items: [conv('c1', 'Recently Archived')],
+          has_more: true,
+          next_cursor: 'archive-cursor',
+        },
+      ],
+      has_more_groups: false,
+    });
+    itemsMock.mockRejectedValue(new Error('unavailable'));
+    renderPage();
+    fireEvent.click(await screen.findByText('settings.archived.loadMore'));
+    await waitFor(() => expect(errorToast).toHaveBeenCalledWith('settings.archived.loadMoreFailed'));
+    expect(screen.getByText('Recently Archived')).toBeTruthy();
+    expect(itemsMock).toHaveBeenCalledWith({ scope: 'chats', cursor: 'archive-cursor', limit: 10, archived: true });
   });
 
   it('pages the group via sidebar.items with the derived scope token, appends the window, and clears the button when drained', async () => {

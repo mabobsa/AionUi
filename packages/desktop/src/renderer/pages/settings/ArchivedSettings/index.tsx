@@ -168,10 +168,6 @@ const ArchivedSettings: React.FC = () => {
     };
 
     const archivedBlocks: ProjectBlock[] = [];
-    const noProjectRows: ArchivedRow[] = [];
-    // Paging metadata for the chats group, carried onto the synthetic no-project
-    // block (chats is the only group folded into it).
-    let chatsPaging: { token: string; hasMore: boolean; cursor?: string } | null = null;
     for (const group of data?.groups ?? []) {
       const token = scopeToToken(group.scope);
       const extra = extraPages[token];
@@ -195,20 +191,16 @@ const ArchivedSettings: React.FC = () => {
         const name = workspace ? getParentAndCurrentDir(workspace) : scope.name;
         archivedBlocks.push({ key, name, rows, projectId, scopeToken: token, hasMore, cursor });
       } else {
-        // Ordinary archived chats are still grouped as a project-like block, named "No project".
-        noProjectRows.push(...rows);
-        chatsPaging = { token, hasMore, cursor };
+        // Keep the server's archive-time group order, including ordinary chats.
+        archivedBlocks.push({
+          key: 'no-project',
+          name: t('settings.archived.noProject'),
+          rows,
+          scopeToken: token,
+          hasMore,
+          cursor,
+        });
       }
-    }
-    if (noProjectRows.length > 0) {
-      archivedBlocks.push({
-        key: 'no-project',
-        name: t('settings.archived.noProject'),
-        rows: noProjectRows,
-        scopeToken: chatsPaging?.token ?? 'chats',
-        hasMore: chatsPaging?.hasMore ?? false,
-        cursor: chatsPaging?.cursor,
-      });
     }
     return { archivedBlocks, total: seen.size };
   }, [data, extraPages, logos, t]);
