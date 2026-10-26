@@ -133,7 +133,10 @@
     "empty": "Eşleşen sohbet veya mesaj bulunamadı",
     "loadingMore": "Daha fazla yükleniyor...",
     "untitled": "Adsız sohbet",
-    "conversationIdMatch": "Sohbet kimliği: {{id}}"
+    "conversationIdMatch": "Sohbet kimliği: {{id}}",
+    "locationProject": "Proje",
+    "locationChats": "Sohbetler",
+    "locationArchived": "Arşiv"
   },
   "agentError": {
     "fallbackTitle": "Ajan yanıt veremedi",

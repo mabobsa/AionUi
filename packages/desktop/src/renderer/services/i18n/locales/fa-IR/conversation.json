@@ -133,7 +133,10 @@
     "empty": "هیچ گفتگو یا پیام مطابقی پیدا نشد",
     "loadingMore": "بارگذاری بیشتر...",
     "untitled": "مکالمه بدون عنوان",
-    "conversationIdMatch": "شناسهٔ گفتگو: {{id}}"
+    "conversationIdMatch": "شناسهٔ گفتگو: {{id}}",
+    "locationProject": "پروژه",
+    "locationChats": "گفتگوها",
+    "locationArchived": "بایگانی"
   },
   "dropdown": {
     "cliAgents": "ایجنت‌های CLI",

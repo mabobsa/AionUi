@@ -118,10 +118,10 @@ describe('conversation list refresh coordination', () => {
     });
     const list = vi.mocked(ipcBridge.database.getUserConversations.invoke);
     list.mockReset().mockResolvedValue(page('latest')).mockReturnValueOnce(pending);
-    const { useConversationListSync: useStore } =
+    const { useConversationListSync: useStore, useConversationListPresence: usePresence } =
       await import('@/renderer/pages/conversation/GroupedHistory/hooks/useConversationListSync');
     const addListener = vi.spyOn(window, 'addEventListener');
-    const view = renderHook(() => useStore());
+    const view = renderHook(() => ({ ...useStore(), ...usePresence() }));
     const listeners = addListener.mock.calls.filter(([type]) => type === 'focus');
     removeFocusListeners = () => {
       for (const [type, listener, options] of listeners) window.removeEventListener(type, listener, options);
@@ -173,5 +173,60 @@ describe('conversation list refresh coordination', () => {
     });
     expect(list).toHaveBeenCalledTimes(1);
     expect(result.current.conversations.map((item) => item.id)).toEqual(['initial']);
+  });
+
+  it('only allows absence-based archive labels after the complete active list arrives', async () => {
+    const { result, resolve } = await mountPendingList();
+    expect(result.current.hasCompleteConversationList).toBe(false);
+    await act(async () => resolve(page('active')));
+    expect(result.current.hasCompleteConversationList).toBe(true);
+    expect(result.current.activeConversationIds.has('active')).toBe(true);
+  });
+
+  it.each([
+    { has_more: true, total: 2 },
+    { has_more: false, total: 2 },
+  ])('does not treat absent IDs as archived for an incomplete feed: %j', async (metadata) => {
+    const { result, resolve } = await mountPendingList();
+    await act(async () => resolve({ ...page('active'), ...metadata }));
+    expect(result.current.activeConversationIds.has('active')).toBe(true);
+    expect(result.current.hasCompleteConversationList).toBe(false);
+  });
+
+  it('keeps an active team member in the presence snapshot even when it is hidden in the flat sidebar', async () => {
+    const { result, resolve } = await mountPendingList();
+    await act(async () =>
+      resolve({
+        ...page('member'),
+        items: [{ ...page('member').items[0], extra: { team_id: 'team-1' } }],
+      })
+    );
+    expect(result.current.conversations).toHaveLength(0);
+    expect(result.current.activeConversationIds.has('member')).toBe(true);
+    expect(result.current.hasCompleteConversationList).toBe(true);
+  });
+
+  it('does not turn failed active-list reads into archive membership', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { result, reject } = await mountPendingList();
+    await act(async () => reject(new Error('active list unavailable')));
+    expect(result.current.hasCompleteConversationList).toBe(false);
+    expect(result.current.activeConversationIds.size).toBe(0);
+  });
+
+  it('waits for the refreshed feed before inferring that a newly found conversation is archived', async () => {
+    const { result, list, resolve } = await mountPendingList();
+    await act(async () => resolve(page('older')));
+    let resolveRefresh!: (value: ReturnType<typeof page>) => void;
+    list.mockReturnValueOnce(
+      new Promise((complete) => {
+        resolveRefresh = complete;
+      })
+    );
+    act(() => result.current.refreshConversationListPresence());
+    expect(result.current.hasCompleteConversationList).toBe(false);
+    await act(async () => resolveRefresh(page('newer')));
+    expect(result.current.hasCompleteConversationList).toBe(true);
+    expect(result.current.activeConversationIds.has('newer')).toBe(true);
   });
 });

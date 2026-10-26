@@ -234,6 +234,8 @@ export const shouldReconcileMarkWaiting = (pendingConfirmations: number): boolea
 
 type ConversationListSyncSnapshot = {
   conversations: TChatConversation[];
+  activeConversationIds: ReadonlySet<string>;
+  hasCompleteConversationList: boolean;
   generatingConversationIds: Set<string>;
   waitingConfirmationConversationIds: Set<string>;
   completionUnreadConversationIds: Set<string>;
@@ -284,6 +286,7 @@ let completionUnreadConversationIdsState = new Set<string>();
 let manualUnreadConversationIdsState = readStoredManualUnread();
 let completedConversationIdsState = new Set<string>();
 let conversation_idsState = new Set<string>();
+let hasCompleteConversationListState = false;
 // Full id → owning project_id map over ALL loaded conversations (incl. the team
 // member rows filtered out of `conversationsState`). Every row from
 // GET /api/conversations carries project_id, so this lets the route publish the
@@ -295,6 +298,8 @@ let projectIdByIdState = new Map<string, string | null>();
 let activeConversationIdState: string | null = null;
 let snapshotState: ConversationListSyncSnapshot = {
   conversations: conversationsState,
+  activeConversationIds: conversation_idsState,
+  hasCompleteConversationList: hasCompleteConversationListState,
   generatingConversationIds: generatingConversationIdsState,
   waitingConfirmationConversationIds: waitingConfirmationConversationIdsState,
   completionUnreadConversationIds: completionUnreadConversationIdsState,
@@ -305,6 +310,8 @@ let snapshotState: ConversationListSyncSnapshot = {
 const emitStoreChange = () => {
   snapshotState = {
     conversations: conversationsState,
+    activeConversationIds: conversation_idsState,
+    hasCompleteConversationList: hasCompleteConversationListState,
     generatingConversationIds: generatingConversationIdsState,
     waitingConfirmationConversationIds: waitingConfirmationConversationIdsState,
     completionUnreadConversationIds: completionUnreadConversationIdsState,
@@ -372,6 +379,10 @@ const refreshConversations = () => {
     return;
   }
   conversationRefreshInFlight = true;
+  if (hasCompleteConversationListState) {
+    hasCompleteConversationListState = false;
+    emitStoreChange();
+  }
   void ipcBridge.database.getUserConversations
     .invoke({ limit: 10000 })
     .then((result) => {
@@ -390,6 +401,9 @@ const refreshConversations = () => {
         // responseStream listener recognises them as known and doesn't
         // trigger an infinite refreshConversations loop.
         conversation_idsState = new Set(items.map((conversation) => conversation.id));
+        // Absence only identifies an archived search hit after a complete read.
+        // Pagination and unreadable rows must not turn active hits into archive labels.
+        hasCompleteConversationListState = result.has_more === false && result.total === items.length;
         // Map ALL rows (unfiltered) so a team member conversation's project_id is
         // resolvable too — the team route looks up its leader conversation here.
         projectIdByIdState = new Map(items.map((conversation) => [conversation.id, conversation.project_id ?? null]));
@@ -399,6 +413,7 @@ const refreshConversations = () => {
 
       conversationsState = [];
       conversation_idsState = new Set();
+      hasCompleteConversationListState = false;
       projectIdByIdState = new Map();
       emitStoreChange();
     })
@@ -406,6 +421,7 @@ const refreshConversations = () => {
       console.error('[WorkspaceGroupedHistory] Failed to load conversations:', error);
       conversationsState = [];
       conversation_idsState = new Set();
+      hasCompleteConversationListState = false;
       projectIdByIdState = new Map();
       emitStoreChange();
     })
@@ -856,6 +872,19 @@ export const useConversationListSync = () => {
 };
 
 const getUnreadFailureSnapshot = () => failureTracker.getSnapshot();
+
+/** Reuse the complete active feed, including team rows hidden from the sidebar. */
+export const useConversationListPresence = () => {
+  useEffect(() => {
+    initializeConversationListSyncStore();
+  }, []);
+  const { activeConversationIds, hasCompleteConversationList } = useSyncExternalStore(
+    subscribeConversationListSync,
+    getConversationListSyncSnapshot,
+    getConversationListSyncSnapshot
+  );
+  return { activeConversationIds, hasCompleteConversationList, refreshConversationListPresence: refreshConversations };
+};
 
 /** Reuse sidebar read receipts without a second event listener or notification store. */
 export const useUnreadConversationFailures = () => {

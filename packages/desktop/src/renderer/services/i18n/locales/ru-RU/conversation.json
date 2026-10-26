@@ -137,7 +137,10 @@
     "empty": "Совпадающих бесед или сообщений не найдено",
     "loadingMore": "Загрузка...",
     "untitled": "Безымянный диалог",
-    "conversationIdMatch": "ID беседы: {{id}}"
+    "conversationIdMatch": "ID беседы: {{id}}",
+    "locationProject": "Проект",
+    "locationChats": "Диалоги",
+    "locationArchived": "Архив"
   },
   "dropdown": {
     "cliAgents": "CLI-агенты",

@@ -133,7 +133,10 @@
     "empty": "未找到匹配的会话或消息",
     "loadingMore": "正在加载更多...",
     "untitled": "未命名会话",
-    "conversationIdMatch": "会话 ID：{{id}}"
+    "conversationIdMatch": "会话 ID：{{id}}",
+    "locationProject": "项目",
+    "locationChats": "对话列表",
+    "locationArchived": "已归档"
   },
   "dropdown": {
     "cliAgents": "CLI Agents",

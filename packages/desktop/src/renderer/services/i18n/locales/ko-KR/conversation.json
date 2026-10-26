@@ -133,7 +133,10 @@
     "empty": "일치하는 대화나 메시지가 없습니다",
     "loadingMore": "더 불러오는 중...",
     "untitled": "제목 없는 대화",
-    "conversationIdMatch": "대화 ID: {{id}}"
+    "conversationIdMatch": "대화 ID: {{id}}",
+    "locationProject": "프로젝트",
+    "locationChats": "대화 목록",
+    "locationArchived": "보관함"
   },
   "dropdown": {
     "cliAgents": "CLI Agents",

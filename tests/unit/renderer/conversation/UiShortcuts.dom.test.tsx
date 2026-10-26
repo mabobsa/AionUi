@@ -12,6 +12,16 @@ const testState = vi.hoisted(() => ({
   mac: true,
 }));
 
+const conversationPresence = vi.hoisted(() => ({
+  activeConversationIds: new Set<string>(),
+  hasCompleteConversationList: true,
+  refreshConversationListPresence: vi.fn(),
+}));
+
+vi.mock('@/renderer/pages/conversation/GroupedHistory/hooks/useConversationListSync', () => ({
+  useConversationListPresence: () => conversationPresence,
+}));
+
 const serviceMocks = vi.hoisted(() => ({
   loadMessages: vi.fn(() => new Promise<never>(() => {})),
   searchMessages: vi.fn().mockResolvedValue({ items: [], has_more: false }),
@@ -114,6 +124,9 @@ const searchMessage = (id = 'message-1', name = 'Target conversation'): IMessage
 describe('global conversation ID search', () => {
   beforeEach(() => {
     localStorage.clear();
+    conversationPresence.activeConversationIds = new Set([idConversation.id]);
+    conversationPresence.hasCompleteConversationList = true;
+    conversationPresence.refreshConversationListPresence.mockClear();
     serviceMocks.getConversation.mockReset().mockResolvedValue(null);
     serviceMocks.searchMessages.mockReset().mockResolvedValue({ items: [], has_more: false });
     serviceMocks.navigate.mockClear();
@@ -125,10 +138,80 @@ describe('global conversation ID search', () => {
   });
 
   const openSearch = (keyword: string, onConversationSelect = vi.fn(), onSessionClick = vi.fn()) => {
-    render(<ConversationSearchPopover onConversationSelect={onConversationSelect} onSessionClick={onSessionClick} />);
+    const view = render(
+      <ConversationSearchPopover onConversationSelect={onConversationSelect} onSessionClick={onSessionClick} />
+    );
     fireEvent.click(screen.getByRole('button', { name: 'conversation.historySearch.tooltip' }));
     fireEvent.change(screen.getByRole('textbox'), { target: { value: keyword } });
+    return view;
   };
+
+  it('shows the same parent/folder project label as the sidebar for an active ID result', async () => {
+    serviceMocks.getConversation.mockResolvedValue({
+      ...idConversation,
+      project_id: 'project-1',
+      extra: { backend: 'codex', workspace: 'C:\\Git\\ProjectAlpha\\client', custom_workspace: true },
+    });
+    openSearch(idConversation.id);
+    expect(await screen.findByText('conversation.historySearch.locationProject')).toBeInTheDocument();
+    expect(screen.getByTitle('C:\\Git\\ProjectAlpha\\client')).toHaveTextContent('ProjectAlpha/client');
+    expect(screen.getByTitle('C:\\Git\\ProjectAlpha\\client')).not.toHaveTextContent('C:\\Git');
+  });
+
+  it('refreshes the shared active feed once on open, without fetching again for each search', async () => {
+    serviceMocks.getConversation.mockResolvedValue(idConversation);
+    openSearch(idConversation.id);
+    await screen.findByRole('button', { name: /Target conversation/ });
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Matched' } });
+    await waitFor(() =>
+      expect(serviceMocks.searchMessages).toHaveBeenLastCalledWith({ keyword: 'Matched', page: 1, page_size: 20 })
+    );
+    expect(conversationPresence.refreshConversationListPresence).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows archived for an ID absent from the complete active list even when its old project is retained', async () => {
+    conversationPresence.activeConversationIds = new Set();
+    serviceMocks.getConversation.mockResolvedValue({ ...idConversation, project_id: 'project-1' });
+    openSearch(idConversation.id);
+    expect(await screen.findByText('conversation.historySearch.locationArchived')).toBeInTheDocument();
+    expect(screen.queryByText('conversation.historySearch.locationProject')).not.toBeInTheDocument();
+  });
+
+  it('shows the ordinary chat location for message search results', async () => {
+    serviceMocks.searchMessages.mockResolvedValue({ items: [searchMessage()], has_more: false });
+    openSearch('Matched');
+    expect(await screen.findByText('conversation.historySearch.locationChats')).toBeInTheDocument();
+  });
+
+  it('keeps temporary conversations out of the project location even when a project ID exists', async () => {
+    serviceMocks.getConversation.mockResolvedValue({
+      ...idConversation,
+      project_id: 'temporary-project',
+      extra: { backend: 'codex', workspace: 'C:\\Sessions\\temporary', is_temporary_workspace: true },
+    });
+    openSearch(idConversation.id);
+    expect(await screen.findByText('conversation.historySearch.locationChats')).toBeInTheDocument();
+    expect(screen.queryByText('conversation.historySearch.locationProject')).not.toBeInTheDocument();
+  });
+
+  it('keeps location unknown when the active list is loading, partial or unavailable', async () => {
+    conversationPresence.activeConversationIds = new Set();
+    conversationPresence.hasCompleteConversationList = false;
+    serviceMocks.getConversation.mockResolvedValue(idConversation);
+    openSearch(idConversation.id);
+    await screen.findByRole('button', { name: /Target conversation/ });
+    expect(screen.queryByText('conversation.historySearch.locationArchived')).not.toBeInTheDocument();
+    expect(screen.queryByText('conversation.historySearch.locationChats')).not.toBeInTheDocument();
+  });
+
+  it('updates the location when a conversation moves from the active list to the archive', async () => {
+    serviceMocks.getConversation.mockResolvedValue(idConversation);
+    const view = openSearch(idConversation.id);
+    await screen.findByText('conversation.historySearch.locationChats');
+    conversationPresence.activeConversationIds = new Set();
+    view.rerender(<ConversationSearchPopover />);
+    expect(screen.getByText('conversation.historySearch.locationArchived')).toBeInTheDocument();
+  });
 
   it('finds a conversation with no messages by its ID and navigates without a message anchor', async () => {
     serviceMocks.getConversation.mockResolvedValue(idConversation);

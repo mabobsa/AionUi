@@ -137,7 +137,10 @@
     "empty": "Відповідних розмов чи повідомлень не знайдено",
     "loadingMore": "Завантаження...",
     "untitled": "Діалог без назви",
-    "conversationIdMatch": "ID розмови: {{id}}"
+    "conversationIdMatch": "ID розмови: {{id}}",
+    "locationProject": "Проєкт",
+    "locationChats": "Розмови",
+    "locationArchived": "Архів"
   },
   "dropdown": {
     "cliAgents": "CLI Агенти",

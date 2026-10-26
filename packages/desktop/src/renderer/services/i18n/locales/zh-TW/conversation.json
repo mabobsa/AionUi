@@ -133,7 +133,10 @@
     "empty": "找不到相符的對話或訊息",
     "loadingMore": "載入更多...",
     "untitled": "未命名對話",
-    "conversationIdMatch": "對話 ID：{{id}}"
+    "conversationIdMatch": "對話 ID：{{id}}",
+    "locationProject": "專案",
+    "locationChats": "對話清單",
+    "locationArchived": "封存"
   },
   "dropdown": {
     "cliAgents": "CLI Agents",

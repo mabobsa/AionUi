@@ -18,6 +18,7 @@ import { getConversationOrNull } from '@/renderer/pages/conversation/utils/conve
 import { ConversationClaudeAccountBadge } from '@/renderer/pages/conversation/platforms/acp/claudeAccounts';
 import { blockMobileInputFocus, blurActiveElement } from '@/renderer/utils/ui/focus';
 import { isPrimaryApplicationShortcut } from '@/renderer/utils/ui/keyboardShortcuts';
+import { getParentAndCurrentDir } from '@/renderer/utils/workspace/projectPathLabel';
 import { Button, Empty, Spin, Typography } from '@arco-design/web-react';
 import { Close, MessageOne, Robot, Search } from '@icon-park/react';
 import classNames from 'classnames';
@@ -26,6 +27,7 @@ import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import MindNProgressTitle from './components/MindNProgressTitle';
+import { useConversationListPresence } from './hooks/useConversationListSync';
 import './ConversationSearchPopover.css';
 
 const PAGE_SIZE = 20;
@@ -147,6 +149,8 @@ const ConversationSearchPopover: React.FC<ConversationSearchPopoverProps> = ({
 }) => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const { activeConversationIds, hasCompleteConversationList, refreshConversationListPresence } =
+    useConversationListPresence();
   const [visible, setVisible] = useState(false);
   const [keyword, setKeyword] = useState('');
   const [debouncedKeyword, setDebouncedKeyword] = useState('');
@@ -347,9 +351,10 @@ const ConversationSearchPopover: React.FC<ConversationSearchPopoverProps> = ({
 
   const handleOpen = useCallback(() => {
     if (!disabled) {
+      refreshConversationListPresence();
       setVisible(true);
     }
-  }, [disabled]);
+  }, [disabled, refreshConversationListPresence]);
 
   useEffect(() => {
     const handleGlobalSearchShortcut = (event: KeyboardEvent) => {
@@ -446,6 +451,20 @@ const ConversationSearchPopover: React.FC<ConversationSearchPopoverProps> = ({
         <div className='conversation-search-modal__results flex flex-col'>
           {results.map((item) => {
             const snippet = buildSnippet(item.preview_text, debouncedKeyword);
+            const active = activeConversationIds.has(item.conversation.id);
+            const extra = item.conversation.extra;
+            const workspace = extra?.workspace;
+            const isTemporary = extra && 'is_temporary_workspace' in extra && extra.is_temporary_workspace === true;
+            const hasProject =
+              !isTemporary && Boolean(item.conversation.project_id || (extra?.custom_workspace && workspace));
+            const locationLabel = active
+              ? hasProject
+                ? t('conversation.historySearch.locationProject')
+                : t('conversation.historySearch.locationChats')
+              : hasCompleteConversationList
+                ? t('conversation.historySearch.locationArchived')
+                : undefined;
+            const projectPath = active && hasProject && workspace ? getParentAndCurrentDir(workspace) : undefined;
             return (
               <Button
                 key={item.message_id ? `message:${item.message_id}` : `conversation:${item.conversation.id}`}
@@ -476,6 +495,16 @@ const ConversationSearchPopover: React.FC<ConversationSearchPopoverProps> = ({
                     {formatTime(item.message_created_at, i18n.language)}
                   </span>
                 </div>
+                {locationLabel ? (
+                  <div className='mb-4px flex items-start gap-4px text-11px text-t-secondary'>
+                    <span className='shrink-0'>{locationLabel}</span>
+                    {projectPath ? (
+                      <span className='min-w-0 break-all' title={workspace}>
+                        · {projectPath}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
                 <div className='conversation-search-modal__snippet text-13px leading-22px text-t-primary/92 break-words'>
                   {renderHighlightedText(snippet, debouncedKeyword)}
                 </div>
@@ -497,6 +526,8 @@ const ConversationSearchPopover: React.FC<ConversationSearchPopoverProps> = ({
     handleLoadMore,
     handleResultClick,
     results,
+    activeConversationIds,
+    hasCompleteConversationList,
     loading,
     idLoading,
     loadingMore,

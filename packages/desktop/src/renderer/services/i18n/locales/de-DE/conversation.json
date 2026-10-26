@@ -133,7 +133,10 @@
     "empty": "Keine passenden Unterhaltungen oder Nachrichten gefunden",
     "loadingMore": "Weitere werden geladen...",
     "untitled": "Unbenanntes Gespräch",
-    "conversationIdMatch": "Unterhaltungs-ID: {{id}}"
+    "conversationIdMatch": "Unterhaltungs-ID: {{id}}",
+    "locationProject": "Projekt",
+    "locationChats": "Unterhaltungen",
+    "locationArchived": "Archiv"
   },
   "dropdown": {
     "cliAgents": "CLI-Agenten",

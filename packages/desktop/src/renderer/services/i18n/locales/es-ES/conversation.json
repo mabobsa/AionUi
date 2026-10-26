@@ -133,7 +133,10 @@
     "empty": "No se encontraron conversaciones ni mensajes coincidentes",
     "loadingMore": "Cargando más...",
     "untitled": "Conversación sin título",
-    "conversationIdMatch": "ID de conversación: {{id}}"
+    "conversationIdMatch": "ID de conversación: {{id}}",
+    "locationProject": "Proyecto",
+    "locationChats": "Conversaciones",
+    "locationArchived": "Archivado"
   },
   "dropdown": {
     "cliAgents": "Agentes CLI",

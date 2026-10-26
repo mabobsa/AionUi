@@ -133,7 +133,10 @@
     "empty": "一致する会話やメッセージが見つかりません",
     "loadingMore": "さらに読み込み中...",
     "untitled": "無題の会話",
-    "conversationIdMatch": "会話 ID: {{id}}"
+    "conversationIdMatch": "会話 ID: {{id}}",
+    "locationProject": "プロジェクト",
+    "locationChats": "会話一覧",
+    "locationArchived": "アーカイブ"
   },
   "dropdown": {
     "cliAgents": "CLI Agents",
