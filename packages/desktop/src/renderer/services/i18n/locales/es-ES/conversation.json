@@ -95,6 +95,7 @@
     "bookmarksEmpty": "No hay conversaciones en marcadores",
     "deleteSuccess": "Eliminado correctamente",
     "deleteFailed": "Error al eliminar",
+    "deleteTimedOut": "No se pudo confirmar la eliminación a tiempo. Revisa la lista de conversaciones antes de volver a intentarlo.",
     "today": "Hoy",
     "yesterday": "Ayer",
     "recent7Days": "Últimos 7 días",

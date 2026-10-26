@@ -333,7 +333,10 @@ export const conversation = {
     httpGet<TChatConversation[], { cron_job_id: string }>((p) => `/api/cron/jobs/${p.cron_job_id}/conversations`),
     (list) => list.map(fromApiConversation)
   ),
-  remove: httpDelete<boolean, { id: string }>((p) => `/api/conversations/${p.id}`),
+  remove: httpDelete<boolean, { id: string }>((p) => `/api/conversations/${p.id}`, {
+    timeoutMs: 190_000,
+    missingResourceResult: true,
+  }),
   // `name_source` qualifies a `name` change: 'user' = explicit rename (backend
   // locks the name against agent-generated titles; also the default when absent),
   // 'auto' = frontend-derived default title (stays agent-overwritable).

@@ -5,6 +5,7 @@
  */
 
 import type { TChatConversation } from '@/common/config/storage';
+import { BackendHttpError, HttpRequestTimeoutError } from '@/common/adapter/httpBridge';
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -303,5 +304,19 @@ describe('permanent conversation deletion', () => {
     expect(messageErrorMock).toHaveBeenCalledWith('conversation.history.deleteFailed');
     expect(navigateMock).not.toHaveBeenCalled();
     expect(emitterEmitMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    new HttpRequestTimeoutError(),
+    new BackendHttpError({ method: 'DELETE', path: '/c', status: 408, body: { code: 'TIMEOUT' } }),
+  ])('settles the dialog and refreshes the list after a timeout (%s)', async (error) => {
+    removeConversationMock.mockRejectedValueOnce(error);
+    const { result } = renderActions();
+    act(() => result.current.handlePermanentDelete(makeConversation('current-conversation', 'acp')));
+    const { onOk } = modalConfirmMock.mock.calls[0][0] as { onOk: () => Promise<void> };
+    await act(onOk);
+    expect(messageErrorMock).toHaveBeenCalledWith('conversation.history.deleteTimedOut');
+    expect(navigateMock).not.toHaveBeenCalled();
+    expect(emitterEmitMock).toHaveBeenCalledWith('chat.history.refresh');
   });
 });

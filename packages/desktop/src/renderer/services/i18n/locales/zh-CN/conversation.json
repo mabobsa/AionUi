@@ -95,6 +95,7 @@
     "bookmarksEmpty": "暂无已添加书签的对话",
     "deleteSuccess": "删除成功",
     "deleteFailed": "删除失败",
+    "deleteTimedOut": "未能在限定时间内确认删除完成。请检查对话列表后重试。",
     "today": "今天",
     "yesterday": "昨天",
     "recent7Days": "最近7天",

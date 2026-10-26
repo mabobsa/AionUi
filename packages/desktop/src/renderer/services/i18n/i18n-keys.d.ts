@@ -733,6 +733,7 @@ export type I18nKey =
   | 'conversation.history.deleteConfirm'
   | 'conversation.history.deleteFailed'
   | 'conversation.history.deleteSuccess'
+  | 'conversation.history.deleteTimedOut'
   | 'conversation.history.deleteTitle'
   | 'conversation.history.deleting'
   | 'conversation.history.earlier'

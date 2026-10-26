@@ -99,6 +99,7 @@
     "bookmarksEmpty": "Yer imlerine eklenmiş konuşma yok",
     "deleteSuccess": "Başarıyla silindi",
     "deleteFailed": "Silme başarısız oldu",
+    "deleteTimedOut": "Silme işlemi zamanında doğrulanamadı. Yeniden denemeden önce konuşma listesini kontrol edin.",
     "projectsSection": "Projeler",
     "conversationsSection": "Konuşmalar",
     "newConversationInProject": "Bu projede yeni konuşma",

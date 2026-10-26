@@ -99,6 +99,7 @@
     "bookmarksEmpty": "沒有已加入書籤的對話",
     "deleteSuccess": "刪除成功",
     "deleteFailed": "刪除失敗",
+    "deleteTimedOut": "未能在限定時間內確認刪除完成。請檢查對話清單後重試。",
     "projectsSection": "專案",
     "conversationsSection": "對話",
     "newConversationInProject": "在此專案中新建對話",

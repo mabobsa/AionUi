@@ -5,6 +5,7 @@
  */
 
 import type { TChatConversation } from '@/common/config/storage';
+import { HttpRequestTimeoutError, isBackendHttpError } from '@/common/adapter/httpBridge';
 import { emitter } from '@/renderer/utils/emitter';
 import { Message, Modal } from '@arco-design/web-react';
 import { useCallback } from 'react';
@@ -36,7 +37,10 @@ export const useConversationPermanentDelete = (removeConversation: RemoveConvers
             Message.success(t('conversation.history.deleteSuccess'));
           } catch (error) {
             console.error('Failed to permanently delete conversation:', error);
-            Message.error(t('conversation.history.deleteFailed'));
+            emitter.emit('chat.history.refresh');
+            const timedOut =
+              error instanceof HttpRequestTimeoutError || (isBackendHttpError(error) && error.code === 'TIMEOUT');
+            Message.error(t(timedOut ? 'conversation.history.deleteTimedOut' : 'conversation.history.deleteFailed'));
           }
         },
         style: { borderRadius: '12px' },

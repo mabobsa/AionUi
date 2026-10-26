@@ -95,6 +95,7 @@
     "bookmarksEmpty": "Keine Unterhaltungen als Lesezeichen gespeichert",
     "deleteSuccess": "Erfolgreich gelöscht",
     "deleteFailed": "Löschen fehlgeschlagen",
+    "deleteTimedOut": "Die Löschung konnte nicht rechtzeitig bestätigt werden. Prüfen Sie die Gesprächsliste, bevor Sie es erneut versuchen.",
     "today": "Heute",
     "yesterday": "Gestern",
     "recent7Days": "Letzte 7 Tage",

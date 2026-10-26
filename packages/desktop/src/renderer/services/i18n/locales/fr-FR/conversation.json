@@ -95,6 +95,7 @@
     "bookmarksEmpty": "Aucune conversation dans les favoris",
     "deleteSuccess": "Supprimé avec succès",
     "deleteFailed": "Échec de la suppression",
+    "deleteTimedOut": "La suppression n’a pas pu être confirmée à temps. Vérifiez la liste des conversations avant de réessayer.",
     "today": "Aujourd'hui",
     "yesterday": "Hier",
     "recent7Days": "7 derniers jours",

@@ -95,6 +95,7 @@
     "bookmarksEmpty": "No bookmarked conversations",
     "deleteSuccess": "Deleted successfully",
     "deleteFailed": "Delete failed",
+    "deleteTimedOut": "Deletion could not be confirmed in time. Check the conversation list before trying again.",
     "today": "Today",
     "yesterday": "Yesterday",
     "recent7Days": "Last 7 Days",

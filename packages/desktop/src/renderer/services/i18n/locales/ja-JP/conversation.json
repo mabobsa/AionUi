@@ -99,6 +99,7 @@
     "bookmarksEmpty": "ブックマークした会話はありません",
     "deleteSuccess": "削除しました",
     "deleteFailed": "削除に失敗しました",
+    "deleteTimedOut": "制限時間内に削除の完了を確認できませんでした。会話一覧を確認してから再試行してください。",
     "projectsSection": "プロジェクト",
     "conversationsSection": "会話",
     "newConversationInProject": "このプロジェクト内で新しい会話",

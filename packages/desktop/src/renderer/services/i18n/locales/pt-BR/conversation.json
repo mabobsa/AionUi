@@ -95,6 +95,7 @@
     "bookmarksEmpty": "Nenhuma conversa nos favoritos",
     "deleteSuccess": "Excluído com sucesso",
     "deleteFailed": "Falha ao excluir",
+    "deleteTimedOut": "Não foi possível confirmar a exclusão a tempo. Verifique a lista de conversas antes de tentar novamente.",
     "today": "Hoje",
     "yesterday": "Ontem",
     "recent7Days": "Últimos 7 Dias",
