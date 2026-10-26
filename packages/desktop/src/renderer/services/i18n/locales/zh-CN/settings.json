@@ -1386,6 +1386,7 @@
     "clearFailed": "清空浏览数据失败"
   },
   "archived": {
+    "archivedAt": "归档时间：{{date}}",
     "retention": {
       "title": "批量删除",
       "enabled": "自动永久删除",

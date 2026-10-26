@@ -1616,6 +1616,7 @@ export type I18nKey =
   | 'settings.apiKeyPlaceholder'
   | 'settings.appDescription'
   | 'settings.appearancePanel'
+  | 'settings.archived.archivedAt'
   | 'settings.archived.cancelSelect'
   | 'settings.archived.chatCount'
   | 'settings.archived.clearAll'

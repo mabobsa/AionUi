@@ -1387,6 +1387,7 @@
     "clearFailed": "인터넷 사용 정보 삭제에 실패했습니다"
   },
   "archived": {
+    "archivedAt": "보관: {{date}}",
     "retention": {
       "title": "Batch Delete",
       "enabled": "자동 완전 삭제",

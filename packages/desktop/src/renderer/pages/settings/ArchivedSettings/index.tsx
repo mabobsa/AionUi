@@ -47,7 +47,7 @@ type ArchivedRow = {
   item_id: string;
   name: string;
   icon: React.ReactElement;
-  updatedAt?: number;
+  archivedAt?: number | null;
 };
 
 /** One archived project bucket. Ordinary chats are grouped into the synthetic no-project bucket. */
@@ -151,7 +151,7 @@ const ArchivedSettings: React.FC = () => {
           item_id: item.conversation.id,
           name: item.conversation.name || t('conversation.welcome.newConversation'),
           icon: renderConversationIcon(item),
-          updatedAt: item.conversation.created_at,
+          archivedAt: item.archived_at,
         };
       }
       const key = `team:${item.team_id}`;
@@ -163,7 +163,7 @@ const ArchivedSettings: React.FC = () => {
         item_id: item.team_id,
         name: item.name,
         icon: <Peoples theme='outline' size='16' className='block leading-none text-t-secondary' />,
-        updatedAt: item.updated_at,
+        archivedAt: item.archived_at,
       };
     };
 
@@ -389,68 +389,73 @@ const ArchivedSettings: React.FC = () => {
   }, [refresh, archivedBlocks, selectedKeys, selectedRows, t]);
 
   const formatArchivedTime = React.useCallback(
-    (timestamp?: number) => {
-      if (!timestamp) return '';
+    (timestamp?: number | null) => {
+      if (timestamp == null) return '';
+      const date = new Date(timestamp);
+      if (!Number.isFinite(date.getTime())) return '';
       return new Intl.DateTimeFormat(i18n.language || 'zh-CN', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-      }).format(new Date(timestamp));
+      }).format(date);
     },
     [i18n.language]
   );
 
-  const renderRow = (row: ArchivedRow, isLast: boolean) => (
-    <div
-      key={row.key}
-      className={`group box-border flex h-56px items-center gap-10px px-14px py-6px transition-colors hover:bg-fill-2 ${
-        selectionMode ? 'cursor-pointer' : ''
-      } ${!isLast ? 'border-0 border-b border-solid border-[var(--color-border-2)]' : ''}`}
-      onClick={() => {
-        if (selectionMode) toggleRowSelected(row);
-      }}
-    >
-      {selectionMode ? (
-        <Checkbox
-          checked={selectedKeys.has(row.key)}
-          onClick={(event) => event.stopPropagation()}
-          onChange={(checked) => setRowSelected(row, checked)}
-        />
-      ) : null}
-      <span className='size-20px flex items-center justify-center shrink-0 line-height-0'>{row.icon}</span>
-      <div className='min-w-0 flex-1'>
-        <div className='overflow-hidden text-ellipsis whitespace-nowrap text-14px font-[600] text-t-primary'>
-          {row.name}
+  const renderRow = (row: ArchivedRow, isLast: boolean) => {
+    const archivedTime = formatArchivedTime(row.archivedAt);
+    return (
+      <div
+        key={row.key}
+        className={`group box-border flex h-56px items-center gap-10px px-14px py-6px transition-colors hover:bg-fill-2 ${
+          selectionMode ? 'cursor-pointer' : ''
+        } ${!isLast ? 'border-0 border-b border-solid border-[var(--color-border-2)]' : ''}`}
+        onClick={() => {
+          if (selectionMode) toggleRowSelected(row);
+        }}
+      >
+        {selectionMode ? (
+          <Checkbox
+            checked={selectedKeys.has(row.key)}
+            onClick={(event) => event.stopPropagation()}
+            onChange={(checked) => setRowSelected(row, checked)}
+          />
+        ) : null}
+        <span className='size-20px flex items-center justify-center shrink-0 line-height-0'>{row.icon}</span>
+        <div className='min-w-0 flex-1'>
+          <div className='overflow-hidden text-ellipsis whitespace-nowrap text-14px font-[600] text-t-primary'>
+            {row.name}
+          </div>
+          {archivedTime ? (
+            <div className='mt-2px overflow-hidden text-ellipsis whitespace-nowrap text-12px text-t-secondary'>
+              {t('settings.archived.archivedAt', { date: archivedTime })}
+            </div>
+          ) : null}
         </div>
-        {row.updatedAt ? (
-          <div className='mt-2px overflow-hidden text-ellipsis whitespace-nowrap text-12px text-t-secondary'>
-            {formatArchivedTime(row.updatedAt)}
+        {!selectionMode ? (
+          <div className='shrink-0 flex items-center gap-6px'>
+            <Button
+              type='text'
+              size='small'
+              status='danger'
+              icon={<DeleteOne theme='outline' size='14' />}
+              onClick={() => handleDelete(row)}
+            />
+            <Button
+              type='secondary'
+              size='mini'
+              className='!h-28px !rounded-8px !px-10px'
+              onClick={() => void handleRestore(row)}
+            >
+              {t('settings.archived.restore')}
+            </Button>
           </div>
         ) : null}
       </div>
-      {!selectionMode ? (
-        <div className='shrink-0 flex items-center gap-6px'>
-          <Button
-            type='text'
-            size='small'
-            status='danger'
-            icon={<DeleteOne theme='outline' size='14' />}
-            onClick={() => handleDelete(row)}
-          />
-          <Button
-            type='secondary'
-            size='mini'
-            className='!h-28px !rounded-8px !px-10px'
-            onClick={() => void handleRestore(row)}
-          >
-            {t('settings.archived.restore')}
-          </Button>
-        </div>
-      ) : null}
-    </div>
-  );
+    );
+  };
 
   return (
     <SettingsPageWrapper>

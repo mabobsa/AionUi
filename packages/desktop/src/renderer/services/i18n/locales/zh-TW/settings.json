@@ -1387,6 +1387,7 @@
     "clearFailed": "清空瀏覽資料失敗"
   },
   "archived": {
+    "archivedAt": "封存時間：{{date}}",
     "retention": {
       "title": "批次刪除",
       "enabled": "自動永久刪除",

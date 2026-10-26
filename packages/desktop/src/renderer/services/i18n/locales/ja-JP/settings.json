@@ -1387,6 +1387,7 @@
     "clearFailed": "閲覧データの消去に失敗しました"
   },
   "archived": {
+    "archivedAt": "保管日時: {{date}}",
     "retention": {
       "title": "一括削除",
       "enabled": "自動で完全に削除",

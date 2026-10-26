@@ -9,6 +9,9 @@ import { SWRConfig } from 'swr';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { Message } from '@arco-design/web-react';
+import { fromApiSidebar, fromApiSidebarItems } from '@/common/adapter/sidebarMapper';
+import type { SidebarItem } from '@/common/types/sidebar';
+import koSettings from '@/renderer/services/i18n/locales/ko-KR/settings.json';
 
 const { getMock, itemsMock } = vi.hoisted(() => ({
   getMock: vi.fn(),
@@ -33,9 +36,13 @@ vi.mock('@/common', () => ({
 // the paging assertions verify. Only i18n / logos / passthrough shells are mocked.
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, opts?: Record<string, unknown>) =>
-      opts && 'count' in opts ? `${key}:${String(opts.count)}` : key,
-    i18n: { language: 'en-US' },
+    t: (key: string, opts?: Record<string, unknown>) => {
+      if (key === 'settings.archived.archivedAt') {
+        return koSettings.archived.archivedAt.replace('{{date}}', String(opts?.date));
+      }
+      return opts && 'count' in opts ? `${key}:${String(opts.count)}` : key;
+    },
+    i18n: { language: 'ko-KR' },
   }),
 }));
 
@@ -62,11 +69,16 @@ vi.mock('@/renderer/pages/settings/components/SettingsPageHeader', () => ({
 
 import ArchivedSettings from '@/renderer/pages/settings/ArchivedSettings';
 
-type Conv = { id: string; name: string; created_at: number };
-
-const conv = (id: string, name: string): { type: 'conversation'; conversation: Conv } => ({
+const conv = (id: string, name: string): Extract<SidebarItem, { type: 'conversation' }> => ({
   type: 'conversation',
-  conversation: { id, name, created_at: 1_700_000_000_000 },
+  conversation: {
+    id,
+    name,
+    type: 'acp',
+    extra: { backend: 'codex' },
+    created_at: 1_700_000_000_000,
+    modified_at: 1_700_100_000_000,
+  },
 });
 
 /** A project group with the given items / paging signals. */
@@ -123,6 +135,78 @@ describe('ArchivedSettings paging', () => {
     await screen.findByText('Chat One');
     expect(screen.queryByText('settings.archived.loadMore')).toBeNull();
   });
+
+  it.each([false, true])(
+    'shows the actual archive dates through the response mapper (next page: %s)',
+    async (nextPage) => {
+      const conversationAt = Date.parse('2026-10-26T09:10:00Z');
+      const teamAt = Date.parse('2026-10-25T03:20:00Z');
+      const archivedItems: SidebarItem[] = [
+        { ...conv('dated-chat', 'Archived Chat'), archived_at: conversationAt },
+        {
+          type: 'team',
+          team_id: 'dated-team',
+          name: 'Archived Team',
+          updated_at: 1_700_200_000_000,
+          archived_at: teamAt,
+          pinned: false,
+          member_conversation_ids: [],
+        },
+      ];
+      getMock.mockResolvedValue(
+        fromApiSidebar({
+          groups: [
+            {
+              scope: { type: 'chats' },
+              items: nextPage ? [conv('earlier-page', 'Earlier Page')] : archivedItems,
+              has_more: nextPage,
+              next_cursor: nextPage ? 'archive-cursor' : undefined,
+            },
+          ],
+          has_more_groups: false,
+        })
+      );
+      itemsMock.mockResolvedValue(fromApiSidebarItems({ items: archivedItems, has_more: false }));
+      renderPage();
+      if (nextPage) fireEvent.click(await screen.findByText('settings.archived.loadMore'));
+      const formatter = new Intl.DateTimeFormat('ko-KR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      await screen.findByText('Archived Team');
+      for (const [name, timestamp] of [
+        ['Archived Chat', conversationAt],
+        ['Archived Team', teamAt],
+      ] as const) {
+        expect(screen.getByText(name).parentElement?.textContent).toBe(`${name}보관: ${formatter.format(timestamp)}`);
+      }
+      expect(getMock).toHaveBeenCalledTimes(1);
+      expect(itemsMock).toHaveBeenCalledTimes(nextPage ? 1 : 0);
+    }
+  );
+
+  it.each([undefined, null, Number.NaN])(
+    'does not substitute a creation date for a missing or invalid archive date (%s)',
+    async (archivedAt) => {
+      getMock.mockResolvedValue(
+        fromApiSidebar({
+          groups: [
+            {
+              scope: { type: 'chats' },
+              items: [{ ...conv('legacy', 'Legacy Chat'), archived_at: archivedAt }],
+              has_more: false,
+            },
+          ],
+          has_more_groups: false,
+        })
+      );
+      renderPage();
+      expect((await screen.findByText('Legacy Chat')).parentElement?.textContent).toBe('Legacy Chat');
+    }
+  );
 
   it('distinguishes projects with the same name using their parent folders', async () => {
     getMock.mockResolvedValue({

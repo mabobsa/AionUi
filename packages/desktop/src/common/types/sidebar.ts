@@ -43,6 +43,8 @@ export type SidebarTeamItem = {
   name: string;
   /** `MAX(updated_at)` across active member conversations. */
   updated_at: number;
+  /** Latest archive event in Unix milliseconds; absent for active rows. */
+  archived_at?: number | null;
   /** Derived from a `user_order` scene=`pinned` row existing for this team. */
   pinned: boolean;
   /** Active member conversation ids, `created_at` ascending. */
@@ -61,7 +63,7 @@ export type SidebarTeamItem = {
  * conversation variant stays nested because its inner DTO is mapped separately.
  */
 export type SidebarItem =
-  | { type: 'conversation'; conversation: TChatConversation }
+  | { type: 'conversation'; conversation: TChatConversation; archived_at?: number | null }
   | ({ type: 'team' } & SidebarTeamItem);
 
 /** One group (a section's window) in the sidebar. */

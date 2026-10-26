@@ -1388,6 +1388,7 @@
     "clearFailed": "Falha ao limpar dados de navegação"
   },
   "archived": {
+    "archivedAt": "Arquivado em: {{date}}",
     "retention": {
       "title": "Exclusão em lote",
       "enabled": "Excluir permanentemente de forma automática",
