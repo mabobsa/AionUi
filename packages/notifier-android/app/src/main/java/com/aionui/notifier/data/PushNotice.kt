@@ -17,16 +17,24 @@ data class PushNotice(
     val revision: Long = 0,
     val updatedAt: Long = createdAt,
     val silent: Boolean = false,
+    val origin: String = "aionui",
+    val kind: String = "choice",
+    val mapId: String = "",
+    val cardId: String = "",
 ) {
     val key: String
-        get() = "$sourceId:$noticeId"
+        get() = if (origin == "mnp") "mnp:$sourceId:$noticeId" else "$sourceId:$noticeId"
 
     companion object {
         fun fromData(
             data: Map<String, String>,
             now: Long = System.currentTimeMillis(),
         ): PushNotice? {
-            if (data["v"] != "1" || data["type"] != "user_choice") return null
+            val legacy = data["v"] == "1" && data["type"] == "user_choice"
+            val mnp = data["v"] == "2" && data["type"] == "notice" && data["origin"] == "mnp"
+            if (!legacy && !mnp) return null
+            val kind = if (mnp) data["kind"] else "choice"
+            if (kind !in setOf("choice", "failure", "info")) return null
             val sourceId = data["sourceId"]?.takeIf { it.length in 1..160 } ?: return null
             if (!Regex("[A-Za-z0-9_-]+").matches(sourceId)) return null
             val noticeId = data["noticeId"]?.takeIf { it.length in 1..512 } ?: return null
@@ -51,6 +59,10 @@ data class PushNotice(
                 revision = revision,
                 updatedAt = data["updatedAt"]?.toLongOrNull() ?: timestamp,
                 silent = data["silent"] == "true",
+                origin = if (mnp) "mnp" else "aionui",
+                kind = kind!!,
+                mapId = data["mapId"].orEmpty().take(160),
+                cardId = data["cardId"].orEmpty().take(160),
             )
         }
 

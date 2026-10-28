@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">Aion 알리미</string>
-    <string name="subtitle">대화의 확인 요청을 휴대폰으로</string>
+    <string name="subtitle">AionUi와 MnP의 알림을 휴대폰으로</string>
     <string name="choice_title">사용자 확인이 필요합니다</string>
     <string name="choice_body">AionUi에서 요청 내용을 확인해 주세요.</string>
     <string name="intro">Windows AionUi가 실행 중일 때 확인이 필요한 요청을 받아보세요.</string>
@@ -36,4 +36,15 @@
     <string name="back">뒤로</string>
     <string name="open_conversation">대화 열기</string>
     <string name="web_unavailable">대화를 열 수 있는 브라우저가 없습니다.</string>
+    <string name="mnp_title">업무 알림</string>
+    <string name="mnp_title_format">[MnP] %1$s</string>
+    <string name="mnp_body">MnP에서 알림 내용을 확인해 주세요.</string>
+    <string name="mnp_channel_name">MnP 업무 알림</string>
+    <string name="mnp_channel_description">MindNProgress에서 보낸 업무 알림</string>
+    <string name="mnp_dismiss_help">휴대폰에서 읽거나 알림을 없애도 MnP 업무가 승인되거나 완료되지는 않습니다.</string>
+    <string name="open_mnp">MnP 원문 열기</string>
+    <string name="mnp_kind_choice">확인 요청</string>
+    <string name="mnp_kind_failure">오류</string>
+    <string name="mnp_kind_info">업무 안내</string>
+    <string name="mnp_badge_format">MnP · %1$s</string>
 </resources>

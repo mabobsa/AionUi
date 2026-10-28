@@ -57,6 +57,19 @@ async function flush() {
   await manager.flush();
 }
 
+const mnpInput = (revision = 1) => ({
+  originId: 'mnp-user-1',
+  eventId: 'event-1',
+  kind: 'choice',
+  title: '카드 검토 요청',
+  body: '질문과 선택지 전체입니다.\n- 진행\n- 보류',
+  createdAt: now,
+  revision,
+  mapId: 'map-1',
+  cardId: 'card-1',
+  webUrl: 'https://mnp.example/?map=map-1',
+});
+
 beforeEach(() => {
   now = 100_000;
   root = mkdtempSync(path.join(os.tmpdir(), 'aion-mobile-push-'));
@@ -110,6 +123,89 @@ describe('desktop push opt-in and secret storage', () => {
   it('rejects malformed settings without enabling delivery', async () => {
     await expect(manager.options('owner', { enabled: 'yes' } as never)).rejects.toMatchObject({ code: 'invalidInput' });
     expect(manager.status('owner').enabled).toBe(false);
+  });
+});
+
+describe('MnP pushes share devices but require their own opt-in', () => {
+  it('refuses sending until the active user opts in separately', async () => {
+    await enable();
+    await expect(manager.enqueueMnp('owner', mnpInput())).rejects.toMatchObject({ code: 'disabled' });
+    await manager.options('owner', { mnpEnabled: true });
+    await expect(manager.enqueueMnp('other', mnpInput())).rejects.toMatchObject({ code: 'disabled' });
+    expect(api.send).not.toHaveBeenCalled();
+  });
+  it('sends a generic source-specific notice when preview is disabled', async () => {
+    await enable();
+    await manager.options('owner', { mnpEnabled: true });
+    await manager.enqueueMnp('owner', mnpInput());
+    await flush();
+    expect(api.send.mock.calls[0][1]).toMatchObject({ v: '2', type: 'notice', origin: 'mnp', title: '', body: '' });
+    expect(JSON.stringify(api.send.mock.calls)).not.toContain('카드 검토 요청');
+    expect(api.send.mock.calls[0][1].webUrl).toBeUndefined();
+  });
+  it('keeps the full preview and pending MnP work when AionUi syncs its own empty list', async () => {
+    await enable();
+    await manager.options('owner', { mnpEnabled: true, includePreview: true });
+    await manager.enqueueMnp('owner', mnpInput());
+    manager.sync('owner', [], text);
+    await flush();
+    expect(api.send).toHaveBeenCalledTimes(1);
+    expect(api.send.mock.calls[0][1]).toMatchObject({ body: mnpInput().body, mapId: 'map-1', cardId: 'card-1' });
+    expect(owns).not.toHaveBeenCalled();
+  });
+  it('suppresses repeats and older revisions, and updates a later revision silently', async () => {
+    await enable();
+    await manager.options('owner', { mnpEnabled: true, includePreview: true });
+    for (const revision of [1, 1, 2, 1]) {
+      await manager.enqueueMnp('owner', { ...mnpInput(revision), body: `개정 ${revision}` });
+      await flush();
+    }
+    expect(api.send).toHaveBeenCalledTimes(2);
+    expect(api.send.mock.calls[1][1]).toMatchObject({ revision: '2', silent: 'true', body: '개정 2' });
+  });
+  it('does not merge different producers or different events', async () => {
+    await enable();
+    await manager.options('owner', { mnpEnabled: true });
+    await manager.enqueueMnp('owner', mnpInput());
+    await manager.enqueueMnp('owner', { ...mnpInput(), eventId: 'event-2' });
+    await manager.enqueueMnp('owner', { ...mnpInput(), originId: 'mnp-user-2' });
+    await flush();
+    expect(new Set(api.send.mock.calls.map((call) => call[1].noticeId)).size).toBe(3);
+  });
+  it('cancels pending MnP delivery when disabled while leaving AionUi delivery enabled', async () => {
+    await enable();
+    await manager.options('owner', { mnpEnabled: true });
+    await manager.enqueueMnp('owner', mnpInput());
+    await manager.options('owner', { mnpEnabled: false });
+    manager.sync('owner', [notice()], text);
+    await flush();
+    expect(api.send).toHaveBeenCalledTimes(1);
+    expect(api.send.mock.calls[0][1].type).toBe('user_choice');
+  });
+  it('rejects a request when no opted-in phone is linked', async () => {
+    await enable();
+    await manager.options('owner', { mnpEnabled: true });
+    api.devices.mockResolvedValue([]);
+    await expect(manager.enqueueMnp('owner', mnpInput())).rejects.toMatchObject({ code: 'device' });
+  });
+  it('keeps a newer revision that arrives while the previous delivery is in flight', async () => {
+    await enable();
+    await manager.options('owner', { mnpEnabled: true, includePreview: true });
+    let release!: () => void;
+    api.send.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        })
+    );
+    await manager.enqueueMnp('owner', mnpInput());
+    const delivering = flush();
+    await vi.waitFor(() => expect(api.send).toHaveBeenCalledTimes(1));
+    await manager.enqueueMnp('owner', { ...mnpInput(2), body: '새 개정' });
+    release();
+    await delivering;
+    await flush();
+    expect(api.send.mock.calls[1][1]).toMatchObject({ revision: '2', body: '새 개정' });
   });
 });
 

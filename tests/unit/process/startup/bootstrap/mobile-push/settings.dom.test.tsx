@@ -71,6 +71,14 @@ afterEach(() => {
 });
 
 describe('desktop mobile push settings', () => {
+  it('keeps MnP reception separate from the master opt-in', async () => {
+    current = { ...current, configured: true, enabled: true };
+    render(<MobilePushSection />);
+    const toggle = await screen.findByRole('switch', { name: key('mnpEnabled') });
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    fireEvent.click(toggle);
+    await waitFor(() => expect(state.options).toHaveBeenCalledWith({ mnpEnabled: true }));
+  });
   it('stays off until credentials are imported and the user explicitly enables it', async () => {
     render(<MobilePushSection />);
     const toggle = screen.getByRole('switch', { name: key('enabled') });

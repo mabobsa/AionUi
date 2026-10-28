@@ -2459,6 +2459,7 @@ export type I18nKey =
   | 'settings.mobilePush.includePreview'
   | 'settings.mobilePush.lastSent'
   | 'settings.mobilePush.loadCredentials'
+  | 'settings.mobilePush.mnpEnabled'
   | 'settings.mobilePush.noDevices'
   | 'settings.mobilePush.pairHelp'
   | 'settings.mobilePush.previewHint'

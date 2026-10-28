@@ -1562,7 +1562,8 @@
       "device": "Bağlı telefonları yenileyip tekrar deneyin.",
       "invalidInput": "Girdiğiniz ayarları kontrol edin.",
       "firebase": "Firebase ve AionUi bağlantılarını kontrol edip tekrar deneyin."
-    }
+    },
+    "mnpEnabled": "MnP bildirimlerini al"
   },
   "claudeAccounts": {
     "title": "Claude hesapları",

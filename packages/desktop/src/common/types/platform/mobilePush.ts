@@ -21,6 +21,7 @@ export type MobilePushStatus = {
   supported: boolean;
   secureStorageAvailable: boolean;
   enabled: boolean;
+  mnpEnabled?: boolean;
   includePreview: boolean;
   configured: boolean;
   credentialPath: string;
@@ -49,7 +50,27 @@ export type MobilePushLabels = {
 };
 
 export type MobilePushPairing = { code: string; expiresAt: number };
-export type MobilePushOptions = { enabled?: boolean; includePreview?: boolean; sourceName?: string };
+export type MobilePushOptions = {
+  enabled?: boolean;
+  mnpEnabled?: boolean;
+  includePreview?: boolean;
+  sourceName?: string;
+};
+
+export type MnpPushNotice = {
+  origin: 'mnp';
+  key: string;
+  eventId: string;
+  originId: string;
+  kind: 'choice' | 'failure' | 'info';
+  title: string;
+  body: string;
+  createdAt: number;
+  revision: number;
+  mapId?: string;
+  cardId?: string;
+  webUrl?: string;
+};
 
 export const MOBILE_PUSH_CHANNEL = 'aionui:mobile-push';
 export const MOBILE_PUSH_CHANGED = 'aionui:mobile-push-changed';

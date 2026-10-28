@@ -1564,7 +1564,8 @@
       "device": "請重新整理已連線的手機後再試。",
       "invalidInput": "請檢查輸入的設定。",
       "firebase": "請檢查 Firebase 和 AionUi 連線後再試。"
-    }
+    },
+    "mnpEnabled": "接收 MnP 通知"
   },
   "claudeAccounts": {
     "title": "Claude 帳號",

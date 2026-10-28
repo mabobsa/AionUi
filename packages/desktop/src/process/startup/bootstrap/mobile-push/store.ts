@@ -8,6 +8,8 @@ export type PushProfile = {
   sourceId: string;
   sourceName: string;
   enabled: boolean;
+  mnpEnabled: boolean;
+  mnpEnabledAt: number;
   includePreview: boolean;
   enabledAt: number;
   credentialPath: string;
@@ -47,6 +49,8 @@ export class MobilePushStore {
           sourceId: item.sourceId,
           sourceName: typeof item.sourceName === 'string' ? item.sourceName.slice(0, 120) : defaultName,
           enabled: item.enabled === true,
+          mnpEnabled: item.mnpEnabled === true,
+          mnpEnabledAt: typeof item.mnpEnabledAt === 'number' ? item.mnpEnabledAt : 0,
           includePreview: item.includePreview === true,
           enabledAt: typeof item.enabledAt === 'number' ? item.enabledAt : 0,
           credentialPath: typeof item.credentialPath === 'string' ? item.credentialPath : defaultCredentialPath,
@@ -84,6 +88,8 @@ export class MobilePushStore {
       sourceId: randomUUID(),
       sourceName: this.defaultName,
       enabled: false,
+      mnpEnabled: false,
+      mnpEnabledAt: 0,
       includePreview: false,
       enabledAt: 0,
       credentialPath: this.defaultCredentialPath,

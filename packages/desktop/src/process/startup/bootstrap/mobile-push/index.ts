@@ -14,11 +14,42 @@ import { MobilePushManager } from './manager';
 import { MobilePushStore } from './store';
 import { MobilePushFault, record } from './protocol';
 import { resolveNoticeContent } from './contentResolver';
+import { startPushRelay } from './relay';
 
 let window: BrowserWindow | undefined;
 let manager: MobilePushManager | undefined;
 let installed = false;
 const startedAt = Date.now();
+let relay: Awaited<ReturnType<typeof startPushRelay>> | undefined;
+let startingRelay: Promise<void> | undefined;
+
+async function closePushRelay(): Promise<void> {
+  await startingRelay?.catch(() => {});
+  const previous = relay;
+  relay = undefined;
+  await previous?.close();
+}
+
+async function updatePushRelay(native: MobilePushManager, userId: string): Promise<void> {
+  const status = native.status(userId);
+  if (!status.enabled || !status.mnpEnabled) {
+    await closePushRelay();
+    return;
+  }
+  if (relay) return;
+  startingRelay ??= startPushRelay(async (body) => {
+    if (!window || window.isDestroyed()) throw new MobilePushFault('unsupported');
+    const current = await ipcBridge.auth.currentUser.invoke();
+    return native.enqueueMnp(current.id, body);
+  })
+    .then((value) => {
+      relay = value;
+    })
+    .finally(() => {
+      startingRelay = undefined;
+    });
+  await startingRelay;
+}
 
 /** Only the application renderer may import keys, pair phones, or enqueue pushes. */
 export function setMobilePushWindow(value: BrowserWindow): void {
@@ -27,6 +58,7 @@ export function setMobilePushWindow(value: BrowserWindow): void {
     if (window === value) {
       window = undefined;
       manager?.stop();
+      void closePushRelay();
     }
   });
 }
@@ -140,10 +172,14 @@ export function initMobilePushProviders(): void {
         default:
           throw new MobilePushFault('invalidInput');
       }
+      await updatePushRelay(native, userId);
       return { ok: true, value };
     } catch (error) {
       return { ok: false, error: error instanceof MobilePushFault ? error.code : 'firebase' };
     }
   });
-  app?.once('before-quit', () => manager?.stop());
+  app?.once('before-quit', () => {
+    manager?.stop();
+    void closePushRelay();
+  });
 }

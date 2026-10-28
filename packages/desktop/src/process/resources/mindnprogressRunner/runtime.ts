@@ -5,6 +5,8 @@
  */
 
 import { createServer } from 'node:http';
+import { MNP_PUSH_PATH } from '../../startup/bootstrap/mobile-push/mnpPush';
+import { callPushRelay } from '../../startup/bootstrap/mobile-push/relay';
 
 export type RunnerEnvironment = {
   MNP_RUNNER_API_URL?: string;
@@ -237,7 +239,8 @@ function isAllowedLocalRequest(method: string, url: URL): boolean {
   if (method === 'POST') {
     return (
       !hasQuery &&
-      (pathname === '/api/internal/external-conversation-dispatches' ||
+      (pathname === MNP_PUSH_PATH ||
+        pathname === '/api/internal/external-conversation-dispatches' ||
         new RegExp(`^/api/sidebar/conversation/${AIONUI_ENTITY_ID_PATTERN}/archive$`).test(pathname) ||
         pathname === '/api/internal/external-conversation-launches' ||
         new RegExp(`^/api/conversations/${AIONUI_ENTITY_ID_PATTERN}/external-reports$`).test(pathname) ||
@@ -342,6 +345,7 @@ export async function callLocalAionUi(
 ): Promise<RunnerResult> {
   try {
     const normalizedRequest = normalizeRunnerOperationRequest(request);
+    if (normalizedRequest.pathname === MNP_PUSH_PATH) return callPushRelay(normalizedRequest.body);
     const response = await fetchImpl(`${baseUrl}${normalizedRequest.pathname}`, {
       method: normalizedRequest.method,
       headers: {

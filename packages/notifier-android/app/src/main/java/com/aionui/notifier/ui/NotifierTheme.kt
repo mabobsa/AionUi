@@ -18,6 +18,8 @@ fun NotifierTheme(content: @Composable () -> Unit) {
                 surface = Color(0xFF181C29),
                 secondaryContainer = Color(0xFF2A3551),
                 tertiary = Color(0xFFFFC27A),
+                tertiaryContainer = Color(0xFF133C36),
+                onTertiaryContainer = Color(0xFF9AE6D9),
             )
         else
             lightColorScheme(
@@ -26,6 +28,8 @@ fun NotifierTheme(content: @Composable () -> Unit) {
                 surface = Color(0xFFFFFFFF),
                 secondaryContainer = Color(0xFFE6ECFF),
                 tertiary = Color(0xFF8A5100),
+                tertiaryContainer = Color(0xFFE0F3EE),
+                onTertiaryContainer = Color(0xFF005449),
             )
     MaterialTheme(colorScheme = palette, content = content)
 }

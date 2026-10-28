@@ -1562,7 +1562,8 @@
       "device": "Actualiza los móviles conectados y vuelve a intentarlo.",
       "invalidInput": "Comprueba los ajustes introducidos.",
       "firebase": "Comprueba las conexiones de Firebase y AionUi y vuelve a intentarlo."
-    }
+    },
+    "mnpEnabled": "Recibir notificaciones de MnP"
   },
   "claudeAccounts": {
     "title": "Cuentas de Claude",

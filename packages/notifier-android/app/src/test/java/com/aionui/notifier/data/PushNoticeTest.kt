@@ -30,6 +30,15 @@ class PushNoticeTest {
     }
 
     @Test
+    fun acceptsMnpV2WithoutMergingLegacyIdentity() {
+        val notice = PushNotice.fromData(payload() + mapOf("v" to "2", "type" to "notice", "origin" to "mnp", "kind" to "info", "cardId" to "card-1"), now)!!
+        assertEquals("mnp:pc-1:notice-1", notice.key)
+        assertEquals("card-1", notice.cardId)
+        assertEquals("mnp", notice.origin)
+        assertNull(PushNotice.fromData(payload() + mapOf("v" to "2", "type" to "notice", "origin" to "other", "kind" to "info"), now))
+    }
+
+    @Test
     fun preservesLongBodiesAndUpdateMetadata() {
         val body = "완성된 질문과 선택지입니다. ".repeat(100)
         val notice =

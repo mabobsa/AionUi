@@ -35,7 +35,7 @@ class NotifierStore(context: Context) {
             if (notice.revision <= previous.revision) return false
             val updated = notice.copy(opened = previous.opened, createdAt = previous.createdAt)
             save(mutableNotices.value.map { if (it.key == notice.key) updated else it })
-            return previous.title != updated.title || previous.body != updated.body
+            return previous.copy(revision = updated.revision, updatedAt = updated.updatedAt, silent = updated.silent) != updated
         }
         save((listOf(notice) + mutableNotices.value).take(100))
         return true
@@ -66,6 +66,10 @@ class NotifierStore(context: Context) {
                     put("revision", notice.revision)
                     put("updatedAt", notice.updatedAt)
                     put("silent", notice.silent)
+                    put("origin", notice.origin)
+                    put("kind", notice.kind)
+                    put("mapId", notice.mapId)
+                    put("cardId", notice.cardId)
                 }
             )
         }
@@ -92,6 +96,10 @@ class NotifierStore(context: Context) {
                         item.optLong("revision", 0),
                         item.optLong("updatedAt", item.getLong("createdAt")),
                         item.optBoolean("silent", false),
+                        item.optString("origin", "aionui"),
+                        item.optString("kind", "choice"),
+                        item.optString("mapId"),
+                        item.optString("cardId"),
                     )
                 }
             }

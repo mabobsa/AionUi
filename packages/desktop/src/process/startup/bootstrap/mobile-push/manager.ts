@@ -6,15 +6,17 @@ import type {
   MobilePushOptions,
   MobilePushPairing,
   MobilePushStatus,
+  MnpPushNotice,
 } from '@/common/types/platform/mobilePush';
 import { FirebasePushClient } from './firebaseClient';
 import { labels, MAX_AGE_MS, MobilePushFault, payload, validNotice, type LinkedDevice } from './protocol';
 import type { MobilePushStore } from './store';
 import type { NoticeContent } from '@/common/platform/mobilePush/noticeContent';
 import { contentFingerprint } from './protocol';
+import { mnpNotice, mnpPayload } from './mnpPush';
 
 type PushClient = Pick<FirebasePushClient, 'devices' | 'pair' | 'unlink' | 'send'>;
-type Job = { notice: MobilePushNotice; attempts: number; due: number; version: number };
+type Job = { notice: MobilePushNotice | MnpPushNotice; attempts: number; due: number; version: number };
 type ManagerDependencies = {
   now?: () => number;
   startedAt?: number;
@@ -33,6 +35,7 @@ export class MobilePushManager {
   private devices: LinkedDevice[] = [];
   private devicesAt = 0;
   private controller = new AbortController();
+  private mnpController = new AbortController();
   private client?: PushClient;
   private timer?: ReturnType<typeof setTimeout>;
   private timerAt = 0;
@@ -82,6 +85,7 @@ export class MobilePushManager {
       secureStorageAvailable: this.store.protection.available(),
       configured: Boolean(profile.ciphertext),
       enabled: profile.enabled,
+      mnpEnabled: profile.mnpEnabled,
       includePreview: profile.includePreview,
       credentialPath: profile.credentialPath,
       sourceName: profile.sourceName,
@@ -107,6 +111,7 @@ export class MobilePushManager {
     if (
       !input ||
       (input.enabled !== undefined && typeof input.enabled !== 'boolean') ||
+      (input.mnpEnabled !== undefined && typeof input.mnpEnabled !== 'boolean') ||
       (input.includePreview !== undefined && typeof input.includePreview !== 'boolean') ||
       (input.sourceName !== undefined &&
         (typeof input.sourceName !== 'string' || !input.sourceName.trim() || input.sourceName.length > 120))
@@ -119,6 +124,15 @@ export class MobilePushManager {
     }
     if (input.enabled !== undefined) profile.enabled = input.enabled;
     if (input.enabled === false) this.stop();
+    if (input.mnpEnabled !== undefined) {
+      if (input.mnpEnabled && !profile.mnpEnabled) profile.mnpEnabledAt = this.now();
+      profile.mnpEnabled = input.mnpEnabled;
+      if (!input.mnpEnabled) {
+        this.mnpController.abort();
+        this.mnpController = new AbortController();
+        for (const [key, job] of this.jobs) if ('origin' in job.notice) this.jobs.delete(key);
+      }
+    }
     if (input.includePreview !== undefined) profile.includePreview = input.includePreview;
     if (input.sourceName !== undefined) profile.sourceName = input.sourceName.trim();
     try {
@@ -191,20 +205,51 @@ export class MobilePushManager {
     if (!Array.isArray(notices) || notices.length > 500) throw new MobilePushFault('invalidInput');
     const usable = notices.filter(validNotice);
     this.text = labels(value);
-    const current = new Map(usable.map((notice) => [notice.key, notice]));
-    for (const key of this.jobs.keys()) if (!current.has(key)) this.jobs.delete(key);
+    const current = new Map(usable.map((notice) => [`aionui:${notice.key}`, notice]));
+    for (const [key, job] of this.jobs) if (!('origin' in job.notice) && !current.has(key)) this.jobs.delete(key);
     const profile = this.store.profile(userId);
     if (!profile.enabled) return;
     const cutoff = Math.max(this.activeAt, profile.enabledAt, this.now() - MAX_AGE_MS);
     for (const notice of usable) {
-      if (notice.createdAt < cutoff || notice.createdAt > this.now() + 300_000 || this.failed.has(notice.key)) continue;
-      const existing = this.jobs.get(notice.key);
+      if (
+        notice.createdAt < cutoff ||
+        notice.createdAt > this.now() + 300_000 ||
+        this.failed.has(`aionui:${notice.key}`)
+      )
+        continue;
+      const key = `aionui:${notice.key}`;
+      const existing = this.jobs.get(key);
       if (existing) {
-        if (existing.notice.preview !== notice.preview) existing.version++;
+        if (!('origin' in existing.notice) && existing.notice.preview !== notice.preview) existing.version++;
         existing.notice = notice;
-      } else this.jobs.set(notice.key, { notice, attempts: 0, due: this.now() + 500, version: 0 });
+      } else this.jobs.set(key, { notice, attempts: 0, due: this.now() + 500, version: 0 });
     }
     this.schedule();
+  }
+
+  /** Accept a producer revision only for the active, explicitly opted-in desktop user. */
+  async enqueueMnp(userId: string, input: unknown): Promise<{ state: 'queued'; eventId: string }> {
+    this.activate(userId);
+    const notice = mnpNotice(input, this.now());
+    const profile = this.store.profile(userId);
+    if (!profile.enabled || !profile.mnpEnabled) throw new MobilePushFault('disabled');
+    if (notice.createdAt < Math.max(this.activeAt, profile.enabledAt, profile.mnpEnabledAt))
+      throw new MobilePushFault('invalidInput');
+    if (this.jobs.size >= 500 && !this.jobs.has(notice.key)) throw new MobilePushFault('invalidInput');
+    const signal = AbortSignal.any([this.controller.signal, this.mnpController.signal]);
+    if (!this.devicesAt || this.now() - this.devicesAt > 10_000) await this.refresh(userId);
+    if (signal.aborted || !profile.enabled || !profile.mnpEnabled) throw new MobilePushFault('disabled');
+    if (!this.devices.some((device) => device.enabled)) throw new MobilePushFault('device');
+    const current = this.jobs.get(notice.key);
+    if (!current) this.jobs.set(notice.key, { notice, attempts: 0, due: this.now(), version: 0 });
+    else if ('origin' in current.notice && current.notice.revision < notice.revision) {
+      current.notice = notice;
+      current.version++;
+      current.attempts = 0;
+      current.due = this.now();
+    }
+    this.schedule();
+    return { state: 'queued', eventId: notice.eventId };
   }
 
   private schedule(): void {
@@ -235,11 +280,18 @@ export class MobilePushManager {
   }
 
   private async drain(): Promise<void> {
-    const userId = this.userId,
-      signal = this.controller.signal;
+    const userId = this.userId;
+    const baseSignal = this.controller.signal;
     const profile = this.store.profile(userId);
     for (const [key, job] of this.jobs) {
-      if (signal.aborted || !profile.enabled || !this.text) return;
+      const external = 'origin' in job.notice;
+      const signal = external ? AbortSignal.any([baseSignal, this.mnpController.signal]) : baseSignal;
+      if (baseSignal.aborted || !profile.enabled) return;
+      if (external && !profile.mnpEnabled) {
+        this.jobs.delete(key);
+        continue;
+      }
+      if (!external && !this.text) continue;
       if (job.due > this.now()) continue;
       const version = job.version;
       if (job.notice.createdAt < this.now() - MAX_AGE_MS) {
@@ -247,12 +299,15 @@ export class MobilePushManager {
         continue;
       }
       try {
-        if (!(await this.dependencies.ownsConversation(job.notice.conversationId))) {
+        const original = job.notice;
+        if (!('origin' in original) && !(await this.dependencies.ownsConversation(original.conversationId))) {
           this.jobs.delete(key);
           continue;
         }
         if (signal.aborted || !profile.enabled || !this.jobs.has(key)) continue;
-        const content = (await this.dependencies.resolveNotice?.(job.notice)) ?? { state: 'ready' as const };
+        const content = !('origin' in original)
+          ? ((await this.dependencies.resolveNotice?.(original)) ?? { state: 'ready' as const })
+          : { state: 'ready' as const };
         if (signal.aborted || !profile.enabled || !this.jobs.has(key)) continue;
         if (content.state === 'ignored') {
           this.jobs.delete(key);
@@ -262,7 +317,6 @@ export class MobilePushManager {
           job.due = this.now() + 1000;
           continue;
         }
-        const notice = { ...job.notice, detail: content.detail, conversationName: content.conversationName };
         if (!this.devicesAt || this.now() - this.devicesAt > 10_000) {
           const refreshed = await this.api(userId).devices(profile.sourceId, signal);
           if (signal.aborted || this.userId !== userId) return;
@@ -276,20 +330,42 @@ export class MobilePushManager {
         }
         for (const device of devices) {
           const deliveryKey = createHash('sha256')
-            .update(JSON.stringify([key, device.id]))
+            .update(
+              JSON.stringify(
+                'origin' in original
+                  ? ['mnp', original.originId, original.eventId, device.id]
+                  : [original.key, device.id]
+              )
+            )
             .digest('hex');
           const receipt = profile.receipts[deliveryKey];
-          const data = payload(
-            profile.sourceId,
-            notice,
-            this.text,
-            profile.includePreview,
-            this.now(),
-            (receipt?.revision ?? 0) + 1,
-            Boolean(receipt)
-          );
+          if ('origin' in original && receipt && receipt.revision >= original.revision) continue;
+          const data =
+            'origin' in original
+              ? mnpPayload(
+                  profile.sourceId,
+                  original,
+                  profile.includePreview,
+                  this.now(),
+                  createHash('sha256').update(original.key).digest('hex')
+                )
+              : payload(
+                  profile.sourceId,
+                  { ...original, detail: content.detail, conversationName: content.conversationName },
+                  this.text!,
+                  profile.includePreview,
+                  this.now(),
+                  (receipt?.revision ?? 0) + 1,
+                  Boolean(receipt)
+                );
           const fingerprint = contentFingerprint(data);
-          if (receipt?.fingerprint === fingerprint || (!receipt && profile.sent[deliveryKey])) continue;
+          if (receipt?.fingerprint === fingerprint || (!receipt && profile.sent[deliveryKey])) {
+            if ('origin' in original && receipt && original.revision > receipt.revision) {
+              receipt.revision = original.revision;
+              await this.store.save();
+            }
+            continue;
+          }
           if (signal.aborted || !profile.enabled || !this.jobs.has(key)) break;
           try {
             await this.api(userId).send(device, data, signal);
@@ -338,6 +414,8 @@ export class MobilePushManager {
     this.timer = undefined;
     this.controller.abort();
     this.controller = new AbortController();
+    this.mnpController.abort();
+    this.mnpController = new AbortController();
     this.client = undefined;
     this.jobs.clear();
   }

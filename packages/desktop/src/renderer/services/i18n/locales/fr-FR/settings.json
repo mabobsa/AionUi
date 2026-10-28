@@ -1562,7 +1562,8 @@
       "device": "Actualisez les téléphones connectés et réessayez.",
       "invalidInput": "Vérifiez les paramètres saisis.",
       "firebase": "Vérifiez les connexions Firebase et AionUi, puis réessayez."
-    }
+    },
+    "mnpEnabled": "Recevoir les notifications MnP"
   },
   "claudeAccounts": {
     "title": "Comptes Claude",

@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -21,6 +22,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.aionui.notifier.R
 import com.aionui.notifier.data.NotifierStore
 import com.aionui.notifier.data.PushNotice
+import com.aionui.notifier.notifications.displayTitle
+import com.aionui.notifier.notifications.displayBody
+import com.aionui.notifier.notifications.sourceBadge
 import java.text.DateFormat
 import java.util.Date
 
@@ -213,19 +217,31 @@ fun NotifierScreen(
                     OutlinedCard(
                         Modifier.fillMaxWidth()
                             .clickable { onSelect(notice.key) }
-                            .testTag("notice-row")
+                            .testTag("notice-row"),
+                        colors =
+                            CardDefaults.outlinedCardColors(
+                                containerColor =
+                                    if (notice.origin == "mnp") MaterialTheme.colorScheme.tertiaryContainer
+                                    else MaterialTheme.colorScheme.surface
+                            ),
                     ) {
                         Column(
                             Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
+                            if (notice.origin == "mnp")
+                                Text(
+                                    notice.sourceBadge(LocalContext.current),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                )
                             Text(
-                                notice.title.ifBlank { stringResource(R.string.choice_title) },
+                                notice.displayTitle(LocalContext.current),
                                 fontWeight =
                                     if (notice.opened) FontWeight.Normal else FontWeight.Bold,
                             )
                             Text(
-                                notice.body.ifBlank { stringResource(R.string.choice_body) },
+                                notice.displayBody(LocalContext.current),
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                             )
@@ -284,22 +300,37 @@ fun NotifierScreen(
 
 @Composable
 private fun Detail(notice: PushNotice, onOpenWeb: (String) -> Unit) {
-    ElevatedCard(Modifier.fillMaxWidth().testTag("notice-detail")) {
+    val mnp = notice.origin == "mnp"
+    ElevatedCard(
+        Modifier.fillMaxWidth().testTag("notice-detail"),
+        colors =
+            CardDefaults.elevatedCardColors(
+                containerColor =
+                    if (mnp) MaterialTheme.colorScheme.tertiaryContainer
+                    else MaterialTheme.colorScheme.surface
+            ),
+    ) {
         Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            if (mnp)
+                Text(
+                    notice.sourceBadge(LocalContext.current),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                )
             Text(
-                notice.title.ifBlank { stringResource(R.string.choice_title) },
+                notice.displayTitle(LocalContext.current),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
             )
-            Text(notice.body.ifBlank { stringResource(R.string.choice_body) })
+            Text(notice.displayBody(LocalContext.current))
             Text(
-                stringResource(R.string.dismiss_help),
+                stringResource(if (mnp) R.string.mnp_dismiss_help else R.string.dismiss_help),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             notice.webUrl?.let { url ->
                 Button(onClick = { onOpenWeb(url) }) {
-                    Text(stringResource(R.string.open_conversation))
+                    Text(stringResource(if (mnp) R.string.open_mnp else R.string.open_conversation))
                 }
             }
         }

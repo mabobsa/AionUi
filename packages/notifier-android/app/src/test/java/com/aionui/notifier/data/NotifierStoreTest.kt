@@ -32,6 +32,20 @@ class NotifierStoreTest {
     }
 
     @Test
+    fun keepsMnpSourceAndMetadataAcrossRestartAndSeparatesTheSameLegacyId() {
+        val store = NotifierStore(context).apply { setEnabled(true) }
+        store.accept(notice())
+        val mnp = notice().copy(origin = "mnp", kind = "info", mapId = "map-1", cardId = "card-1", revision = 1)
+        store.accept(mnp)
+        store.open(mnp.key)
+        store.accept(mnp.copy(body = "갱신 내용", revision = 2, silent = true))
+        val saved = NotifierStore(context).notices.value
+        assertEquals(2, saved.size)
+        assertEquals("map-1", saved.first { it.origin == "mnp" }.mapId)
+        assertTrue(saved.first { it.origin == "mnp" }.opened)
+    }
+
+    @Test
     fun suppressesDuplicatesAcrossProcessRestarts() {
         NotifierStore(context).apply {
             setEnabled(true)

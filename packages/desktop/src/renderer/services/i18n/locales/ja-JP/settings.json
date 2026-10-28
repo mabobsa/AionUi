@@ -1564,7 +1564,8 @@
       "device": "接続済みのスマートフォンを更新して再試行してください。",
       "invalidInput": "入力した設定を確認してください。",
       "firebase": "Firebase と AionUi の接続を確認して再試行してください。"
-    }
+    },
+    "mnpEnabled": "MnP の通知を受け取る"
   },
   "claudeAccounts": {
     "title": "Claude アカウント",

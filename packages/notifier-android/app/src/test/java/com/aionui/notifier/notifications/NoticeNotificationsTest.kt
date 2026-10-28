@@ -4,6 +4,7 @@ import android.app.Application
 import android.app.NotificationManager
 import android.content.Context
 import com.aionui.notifier.data.PushNotice
+import com.aionui.notifier.R
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -33,6 +34,31 @@ class NoticeNotificationsTest {
                 }
                 .toSet()
         assertEquals(setOf("pc-one:first", "pc-two:second"), keys)
+    }
+
+    @Test
+    fun mnpUsesItsOwnChannelIconAndExactTapIdentity() {
+        val notifications = NoticeNotifications(context)
+        notifications.createChannel()
+        notifications.show(PushNotice("pc", "same", "검토 요청", "본문", 100))
+        notifications.show(PushNotice("pc", "same", "검토 요청", "본문", 100, origin = "mnp"))
+        val active = context.getSystemService(NotificationManager::class.java).activeNotifications
+        assertEquals(2, active.size)
+        val mnp = active.first { it.tag == "mnp:pc:same" }.notification
+        assertEquals(NoticeNotifications.MNP_CHANNEL_ID, mnp.channelId)
+        assertEquals(R.drawable.ic_mnp, mnp.smallIcon.resId)
+        assertTrue(mnp.extras.getCharSequence(android.app.Notification.EXTRA_TITLE).toString().startsWith("[MnP]"))
+    }
+
+    @Test
+    fun blockedMnpChannelDoesNotBlockTheAionChannel() {
+        val notifications = NoticeNotifications(context)
+        notifications.createChannel()
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager.deleteNotificationChannel(NoticeNotifications.MNP_CHANNEL_ID)
+        manager.createNotificationChannel(android.app.NotificationChannel(NoticeNotifications.MNP_CHANNEL_ID, "MnP", NotificationManager.IMPORTANCE_NONE))
+        assertFalse(notifications.permitted(NoticeNotifications.MNP_CHANNEL_ID))
+        assertTrue(notifications.permitted())
     }
 
     @Test

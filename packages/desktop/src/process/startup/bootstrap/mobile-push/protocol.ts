@@ -49,6 +49,7 @@ export function credential(value: unknown): FirebaseCredential {
 export function validNotice(value: unknown): value is MobilePushNotice {
   const item = record(value);
   return (
+    !('origin' in item) &&
     typeof item.key === 'string' &&
     item.key.length > 0 &&
     item.key.length <= 1500 &&
@@ -113,6 +114,11 @@ export function payload(
       : failure
         ? text.failureBody
         : text.choiceBody;
+  return fitPayloadBody(data, body);
+}
+
+/** Leave room for the FCM envelope and truncate at Unicode character boundaries. */
+export function fitPayloadBody(data: FcmData, body: string): FcmData {
   const characters = Array.from(body.slice(0, 16384));
   let low = 0,
     high = characters.length;
@@ -128,7 +134,7 @@ export function payload(
 
 /** Exclude transport timestamps and revisions when comparing the displayed content. */
 export function contentFingerprint(data: FcmData): string {
-  return createHash('sha256')
-    .update(JSON.stringify([data.title, data.body, data.conversationId, data.messageId, data.markerIndex]))
-    .digest('hex');
+  const content = [data.title, data.body, data.conversationId, data.messageId, data.markerIndex];
+  if (data.origin) content.push(data.origin, data.kind, data.mapId, data.cardId, data.webUrl);
+  return createHash('sha256').update(JSON.stringify(content)).digest('hex');
 }

@@ -115,6 +115,14 @@ export default function MobilePushSection() {
           }}
         />
       </PreferenceRow>
+      <PreferenceRow label={t('settings.mobilePush.mnpEnabled')}>
+        <Switch
+          aria-label={t('settings.mobilePush.mnpEnabled')}
+          checked={status?.mnpEnabled ?? false}
+          disabled={busy || !status?.enabled}
+          onChange={(mnpEnabled) => void act(() => mobilePushBridge.options.invoke({ mnpEnabled }))}
+        />
+      </PreferenceRow>
       <div className='space-y-8px'>
         <label className='text-13px' htmlFor='mobile-push-credential-path'>
           {t('settings.mobilePush.credentialPath')}

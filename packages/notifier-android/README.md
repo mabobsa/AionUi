@@ -170,6 +170,38 @@ bun run start
 
 Windows에서 **연결 해제**를 누르면 기기 등록과 연결 문서를 함께 삭제한다. Android 앱 재설치로 인증 UID가 바뀌면 새 QR로 다시 연결한다. 현재 Android 설치본은 하나의 PC 연결을 보관한다.
 
+## MnP 업무 알림
+
+MnP 발송 API를 지원하는 서버와 이 변경을 포함한 Windows AionUi·Android 앱을 함께 사용한다. 먼저 `firebaseDebug` APK를 업데이트하고 Windows AionUi를 다시 실행한다. 기존 휴대폰 연결과 Firebase 프로젝트를 재사용하므로 새 프로젝트나 서비스 계정은 필요하지 않다. 구형 Android 설치본은 새 MnP 메시지를 표시하지 않는다.
+
+1. Windows **설정 → 시스템 → Android 푸시 알림**에서 **휴대폰 푸시 사용**과 **MnP 알림 받기**를 켠다. MnP 옵션의 기본값은 꺼짐이다.
+2. 업무 제목·본문·원문 링크를 받으려면 **질문 미리보기 포함**도 켠다. 꺼져 있으면 업무 내용과 링크를 보내지 않고 Android가 기본 MnP 안내 문구를 표시한다.
+3. MnP가 실행되는 메인 PC는 로그인된 관리자만 해당 PC로 발송할 수 있다. 서브 PC는 소유자 또는 관리자가 발송하며 AionUi의 MnP Runner 연결을 사용한다. 독립 CLI Runner도 지원한다. 현재 푸시 수신 대상은 Windows AionUi에 연결된 활성 휴대폰들이다.
+4. MnP에서 아래 API를 호출한다. Windows AionUi가 실행 중이어야 한다. 알리미는 `[MnP]` 제목, 업무 아이콘, 청록 강조색과 별도 **MnP 업무 알림** 채널을 사용한다. 앱 목록·상세에도 MnP 배지와 청록 배경을 표시한다.
+
+MnP에 로그인한 브라우저의 개발자 도구에서 실행하는 예제다. `machineId`는 MnP에 등록된 실제 머신 ID로 바꾸며 각 새 요청에는 새로운 `eventId`를 사용한다.
+
+```javascript
+await fetch('/api/integrations/aionui/push-notifications', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    machineId: 'my-windows-pc',
+    eventId: 'review-card-123-request-1',
+    kind: 'choice',
+    title: '작업 결과 검토 요청',
+    body: '검토할 작업 결과와 선택지 전체를 여기에 넣습니다.',
+    revision: 1,
+  }),
+});
+```
+
+`kind`는 `choice`·`failure`·`info`다. 같은 요청을 수정할 때는 `eventId`를 유지하고 `revision`을 증가시킨다. 동일·과거 개정은 재전송하지 않으며 새 개정은 무음으로 갱신한다. 선택 항목인 `mapId`·`cardId`는 관련 업무를 식별하며, `webUrl`은 서버에 설정된 MnP와 같은 출처의 HTTPS 주소만 허용한다. 휴대폰에서 접근 가능한 주소를 사용한다.
+
+성공 응답 `202`와 `delivery: 'queued'`는 AionUi 큐 접수이며 휴대폰 도착 확인이 아니다. `disabled`는 PC의 사용 설정 해제, `device`는 활성 연결 휴대폰 없음, `PUSH_RELAY_UNAVAILABLE`은 로컬 AionUi 중계 없음, `RUNNER_NOT_CONFIGURED`·`RUNNER_OFFLINE`은 서브 PC의 연결 문제다. 네트워크 재시도와 UTF-8 본문 용량 제한은 기존 전송 정책을 사용한다.
+
+메인 PC 중계는 `127.0.0.1`의 임시 포트에서만 열고 실행별 토큰으로 인증한다. 발견 파일은 `%LOCALAPPDATA%/AionUiPush/mobile-push-relay.json`이며 비공개로 취급한다. Firebase 키·FCM 토큰은 MnP로 전달하지 않는다. 특수 환경에서 파일 위치를 바꾸려면 두 프로세스에 같은 `AIONUI_PUSH_RELAY_FILE`을 설정한다. 휴대폰에서 읽거나 알림을 지워도 MnP 업무가 승인·완료되지는 않는다.
+
 ## 문제 해결
 
 | 증상                                                  | 확인·조치                                                                                                                                                                             |

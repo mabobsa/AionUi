@@ -1563,7 +1563,8 @@
       "device": "请刷新已连接的手机后重试。",
       "invalidInput": "请检查输入的设置。",
       "firebase": "请检查 Firebase 和 AionUi 连接后重试。"
-    }
+    },
+    "mnpEnabled": "接收 MnP 通知"
   },
   "claudeAccounts": {
     "title": "Claude 账号",
