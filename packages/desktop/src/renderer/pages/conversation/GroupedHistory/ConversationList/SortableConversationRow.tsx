@@ -10,8 +10,8 @@ import { Drag } from '@icon-park/react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
-import ConversationRow from './ConversationRow';
-import type { ConversationRowProps } from './types';
+import ConversationRow from '../ConversationRow';
+import type { ConversationRowProps } from '../types';
 
 const SortableConversationRow: React.FC<ConversationRowProps> = (props) => {
   const { t } = useTranslation();

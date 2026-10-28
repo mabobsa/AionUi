@@ -5,7 +5,7 @@
  */
 
 import { ipcBridge } from '@/common';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /**
  * Parse the current branch name out of a `.git/HEAD` file's contents.
@@ -33,6 +33,7 @@ const GIT_BRANCH_POLL_MS = 5000;
  */
 export const useProjectGitBranches = (workspaces: string[]): Record<string, string | null> => {
   const [branches, setBranches] = useState<Record<string, string | null>>({});
+  const lastBranches = useRef(branches);
   // Stable dependency so order changes and duplicate workspaces do not restart polling.
   const workspacesKey = JSON.stringify([...new Set(workspaces.filter(Boolean))].toSorted());
 
@@ -41,6 +42,20 @@ export const useProjectGitBranches = (workspaces: string[]): Record<string, stri
     let refreshPromise: Promise<void> | null = null;
     const targetWorkspaces = JSON.parse(workspacesKey) as string[];
     const targetWorkspaceSet = new Set(targetWorkspaces);
+
+    const publish = (next: Record<string, string | null>): void => {
+      if (cancelled) return;
+      const previous = lastBranches.current;
+      const keys = Object.keys(next);
+      if (
+        Object.keys(previous).length === keys.length &&
+        keys.every((workspace) => previous[workspace] === next[workspace])
+      ) {
+        return;
+      }
+      lastBranches.current = next;
+      setBranches(next);
+    };
 
     const refresh = (): Promise<void> => {
       if (refreshPromise) return refreshPromise;
@@ -58,7 +73,7 @@ export const useProjectGitBranches = (workspaces: string[]): Record<string, stri
         } catch {
           // A batch-level failure keeps every requested workspace explicitly unknown.
         }
-        if (!cancelled) setBranches(nextBranches);
+        publish(nextBranches);
       })().finally(() => {
         refreshPromise = null;
       });
@@ -66,7 +81,7 @@ export const useProjectGitBranches = (workspaces: string[]): Record<string, stri
     };
 
     if (targetWorkspaces.length === 0) {
-      setBranches({});
+      publish({});
       return;
     }
 

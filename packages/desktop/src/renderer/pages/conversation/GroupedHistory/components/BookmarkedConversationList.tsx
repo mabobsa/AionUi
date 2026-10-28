@@ -12,11 +12,11 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Empty } from '@arco-design/web-react';
 import { Right } from '@icon-park/react';
 import classNames from 'classnames';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import ConversationRow from '../ConversationRow';
-import SortableConversationRow from '../SortableConversationRow';
+import ConversationList, { SortableConversationRow } from '../ConversationList';
 import { useDragAndDrop } from '../hooks/useDragAndDrop';
 import type { ConversationRowProps } from '../types';
 import { groupBookmarkedConversations } from '../utils/bookmarkHelpers';
@@ -38,6 +38,7 @@ type BookmarkedConversationListProps = {
   hasFailureUnread?: (conversationId: string) => boolean;
   isConversationGenerating: (conversationId: string) => boolean;
   getConversationRowProps: (conversation: TChatConversation) => ConversationRowProps;
+  dropdownVisibleId?: string | null;
 };
 
 const BookmarkedConversationList: React.FC<BookmarkedConversationListProps> = ({
@@ -54,8 +55,10 @@ const BookmarkedConversationList: React.FC<BookmarkedConversationListProps> = ({
   hasFailureUnread,
   isConversationGenerating,
   getConversationRowProps,
+  dropdownVisibleId = null,
 }) => {
   const { t } = useTranslation();
+  const [draggingId, setDraggingId] = useState<string | null>(null);
   const groups = useMemo(
     () => orderProjectGroups(groupBookmarkedConversations(conversations, t), pinnedWorkspaces),
     [conversations, t, pinnedWorkspaces]
@@ -82,19 +85,28 @@ const BookmarkedConversationList: React.FC<BookmarkedConversationListProps> = ({
         sensors={sensors}
         collisionDetection={closestCenter}
         modifiers={[restrictToVerticalAxis]}
-        onDragEnd={handleDragEnd}
+        onDragStart={({ active }) => setDraggingId(String(active.id))}
+        onDragCancel={() => setDraggingId(null)}
+        onDragEnd={(event) => {
+          setDraggingId(null);
+          void handleDragEnd(event);
+        }}
       >
         <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-          <div className='min-w-0'>
-            {group.conversations.map((conversation) => {
+          <ConversationList
+            items={group.conversations}
+            retainedIds={[draggingId, dropdownVisibleId]}
+            rowGap={isDragEnabled ? 0 : 2}
+            scrollMargin={collapsed ? 0 : 36}
+            renderRow={(conversation) => {
               const props = getConversationRowProps(conversation);
               return isDragEnabled ? (
                 <SortableConversationRow key={conversation.id} {...props} dimIcon={Boolean(group.workspace)} />
               ) : (
                 <ConversationRow key={conversation.id} {...props} dimIcon={Boolean(group.workspace)} />
               );
-            })}
-          </div>
+            }}
+          />
         </SortableContext>
       </DndContext>
     );

@@ -10,6 +10,7 @@ import { useParams } from 'react-router-dom';
 import { useConversationHistoryContext } from '@/renderer/hooks/context/ConversationHistoryContext';
 import type { TimelineSection } from '../types';
 import type { ConversationHistoryView } from '../utils/bookmarkHelpers';
+import { scrollConversationIntoView } from '../ConversationList';
 import {
   dispatchWorkspaceExpansionChange,
   readExpandedWorkspaces,
@@ -147,10 +148,7 @@ export const useConversations = () => {
     outerRafId = requestAnimationFrame(() => {
       innerRafId = requestAnimationFrame(() => {
         if (cancelled) return;
-        const element = document.getElementById('c-' + id);
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
+        scrollConversationIntoView(id);
       });
     });
     return () => {

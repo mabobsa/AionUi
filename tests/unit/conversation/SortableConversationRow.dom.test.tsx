@@ -31,7 +31,7 @@ vi.mock('@/renderer/pages/conversation/utils/conversationAssistantIdentity', () 
   resolveConversationLeadingMark: () => ({ kind: 'default' }),
 }));
 
-import SortableConversationRow from '@/renderer/pages/conversation/GroupedHistory/SortableConversationRow';
+import { SortableConversationRow } from '@/renderer/pages/conversation/GroupedHistory/ConversationList';
 import type { ConversationRowProps } from '@/renderer/pages/conversation/GroupedHistory/types';
 
 const pinnedConversation = {

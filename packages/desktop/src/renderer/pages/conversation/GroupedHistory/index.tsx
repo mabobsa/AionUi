@@ -19,6 +19,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import WorkspaceCollapse from '../components/WorkspaceCollapse';
 import ConversationRow from './ConversationRow';
+import ConversationList from './ConversationList';
 import BookmarkedConversationList from './components/BookmarkedConversationList';
 import ConversationActivityFilter from './components/ConversationActivityFilter';
 import HistoryViewTabs from './components/HistoryViewTabs';
@@ -476,6 +477,7 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
             isConversationGenerating={isConversationGenerating}
             hasFailureUnread={hasFailureUnread}
             getConversationRowProps={getConversationRowProps}
+            dropdownVisibleId={dropdownVisibleId}
           />
         )}
 
@@ -601,7 +603,12 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
                       }
                     >
                       <div className={classNames('flex flex-col min-w-0', { 'mt-1px': !collapsed })}>
-                        {group.conversations.map((conversation) => renderConversation(conversation, true))}
+                        <ConversationList
+                          items={group.conversations}
+                          renderRow={(conversation) => renderConversation(conversation, true)}
+                          retainedIds={[dropdownVisibleId]}
+                          scrollMargin={collapsed ? 0 : 64}
+                        />
                       </div>
                     </WorkspaceCollapse>
                   </div>
@@ -630,9 +637,12 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
                       <span className='text-12px text-t-secondary font-[500] leading-none'>{section.timeline}</span>
                     </div>
                   )}
-                  {section.items.map((item) =>
-                    item.type === 'conversation' && item.conversation ? renderConversation(item.conversation) : null
-                  )}
+                  <ConversationList
+                    items={section.items.flatMap((item) => (item.conversation ? [item.conversation] : []))}
+                    renderRow={renderConversation}
+                    retainedIds={[dropdownVisibleId]}
+                    scrollMargin={collapsed ? 0 : 28}
+                  />
                 </div>
               ))}
           </div>
