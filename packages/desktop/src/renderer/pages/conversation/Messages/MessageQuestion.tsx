@@ -107,7 +107,14 @@ const MessageQuestion: React.FC<MessageQuestionProps> = React.memo(({ message })
   if (!questions.length) return null;
 
   return (
-    <Card className={styles.card} bordered={false} data-testid='message-question'>
+    <Card
+      className={styles.card}
+      bordered={false}
+      data-testid='message-question'
+      data-choice-conversation-id={message.conversation_id}
+      data-choice-message-id={message.id}
+      data-choice-stream-message-id={message.msg_id}
+    >
       <div className={styles.panel}>
         {questions.map((q, qi) => {
           const d = content.answers ? answeredDraft(q, content.answers) : (drafts[qi] ?? emptyDraft());

@@ -19,8 +19,12 @@ try {
     ['phone', 390, 'dark'],
     ['trailing-light', 1280, 'light'],
     ['trailing-dark', 1280, 'dark'],
+    ['structured-light', 1280, 'light'],
+    ['structured-dark', 1280, 'dark'],
   ]) {
+    if (process.env.AIONUI_CHOICE_FIXTURE_CASE && process.env.AIONUI_CHOICE_FIXTURE_CASE !== name) continue;
     const trailingMarker = name.startsWith('trailing-');
+    const structuredQuestion = name.startsWith('structured-');
     const context = await browser.newContext({ viewport: { width, height: 800 } });
     const page = await context.newPage();
     const errors = [];
@@ -38,7 +42,7 @@ try {
       route.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, data: [] }) })
     );
     await page.goto(
-      `${host}/choice-notification-fixture.html?theme=${theme}&case=${trailingMarker ? 'trailing' : 'normal'}`
+      `${host}/choice-notification-fixture.html?theme=${theme}&case=${trailingMarker ? 'trailing' : structuredQuestion ? 'structured' : 'normal'}`
     );
     await page.getByRole('button', { name: '확인이 필요한 대화 2개' }).click();
     const question = page.getByRole('button', { name: /사용자 선택 필요.*선택 질문 테스트 1/ });
@@ -66,6 +70,8 @@ try {
         assert.ok((await boxes.first().textContent()).includes('사용자 확인이 필요합니다. 위 내용을 확인해 주세요.'));
         assert.ok(!(await boxes.first().textContent()).includes('직접 처리'));
         assert.ok(!(await page.getByTestId('fixture-message').innerText()).includes('[[AIONUI_USER_CHOICE_REQUIRED]]'));
+      } else if (structuredQuestion) {
+        assert.equal(await boxes.count(), 1);
       } else {
         assert.equal(await boxes.nth(1).getAttribute('data-notification-highlight'), null);
       }
@@ -108,10 +114,19 @@ try {
     );
     assert.equal(await page.getByTestId('fixture-navigation').getAttribute('data-message'), 'message-conversation-a');
     assert.equal(await page.getByTestId('fixture-pending').textContent(), '2');
-    await page.getByRole('button', { name: '확인이 필요한 대화 2개' }).click();
-    await page.getByRole('button', { name: '알림 해제' }).first().click();
+    const questionBox = page.getByTestId('fixture-message').locator('[data-choice-marker-index="0"]');
+    await questionBox.click({ button: 'right' });
+    const dismissMenu = page.getByRole('menuitem', { name: '알림 해제' });
+    await dismissMenu.waitFor();
+    assert.equal(await page.getByTestId('fixture-pending').textContent(), '2');
+    const menuBounds = await dismissMenu.boundingBox();
+    assert.ok(menuBounds && menuBounds.x >= 0 && menuBounds.x + menuBounds.width <= width);
+    await page.screenshot({ path: path.join(output, `${name}-context-menu.png`), animations: 'disabled' });
+    await dismissMenu.click();
     await page.waitForFunction(() => document.querySelector('[data-testid="fixture-pending"]')?.textContent === '1');
     assert.equal(await page.getByTestId('fixture-pending').textContent(), '1');
+    await questionBox.click({ button: 'right' });
+    assert.equal(await dismissMenu.count(), 0);
     await page.reload();
     await page.getByRole('button', { name: '확인이 필요한 대화 1개' }).waitFor();
     assert.equal(await page.getByTestId('fixture-pending').textContent(), '1');
@@ -120,9 +135,7 @@ try {
     await page.getByRole('button', { name: '알림 해제' }).click();
     await page.getByText('확인이 필요한 알림이 없습니다.', { exact: true }).waitFor();
     assert.deepEqual(errors, []);
-    console.log(
-      `${name}: mixed questions/errors, popup/sheet, read synchronization, dismissal, reload and empty text passed`
-    );
+    console.log(`${name}: mixed questions/errors, popup/sheet, context-menu dismissal, reload and empty text passed`);
     await context.close();
   }
   console.log(`Screenshots: ${output}`);

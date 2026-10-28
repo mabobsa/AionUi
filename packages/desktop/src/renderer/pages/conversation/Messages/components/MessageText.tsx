@@ -417,6 +417,12 @@ const MessageText: React.FC<{
         <div
           role={userQuestion ? 'group' : undefined}
           aria-label={userQuestionLabel}
+          data-choice-conversation-id={
+            message.position === 'left' && !isTeammateMessage && !message.hidden ? message.conversation_id : undefined
+          }
+          data-choice-message-id={message.id}
+          data-choice-stream-message-id={message.msg_id}
+          data-choice-marker-index={userQuestion ? 0 : undefined}
           data-notification-highlight={(Boolean(userQuestion) && highlightedQuestionIndex === 0) || undefined}
           className={classNames('min-w-0 [&>p:first-child]:mt-0px [&>p:last-child]:mb-0px', {
             'p-6px md:p-8px': isUserMessage || cronMeta,

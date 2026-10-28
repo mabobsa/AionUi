@@ -17,7 +17,6 @@ import {
   UserChoiceNotificationsProvider,
   UserChoiceNotificationButton,
   useUserChoiceNotifications,
-  useMessageNotificationHighlight,
 } from '@/renderer/hooks/context/UserChoiceNotifications';
 import { createChoiceNoticeStore, type ChoiceNotice } from '@/renderer/hooks/context/UserChoiceNotifications/store';
 import { USER_CHOICE_MARKER } from '@/renderer/hooks/context/UserChoiceNotifications/protocol';
@@ -27,9 +26,11 @@ import { useUnreadConversationFailures } from '@/renderer/pages/conversation/Gro
 import ProjectGroupHeader from '@/renderer/pages/conversation/GroupedHistory/components/ProjectGroupHeader';
 import { applyTheme } from '@/renderer/utils/theme/applyTheme';
 import { BUILTIN_THEMES } from '@/renderer/theme/builtinThemes';
-import MarkdownView from '@/renderer/components/Markdown';
+import MessageText from '@/renderer/pages/conversation/Messages/components/MessageText';
+import { PreviewProvider } from '@/renderer/pages/conversation/Preview/context/PreviewContext';
 
 const trailingMarker = new URLSearchParams(window.location.search).get('case') === 'trailing';
+const structuredQuestion = new URLSearchParams(window.location.search).get('case') === 'structured';
 const trailingText = `어떻게 진행할까요?\n\n- 직접 처리\n- 자동 처리\n\n${USER_CHOICE_MARKER}`;
 
 await i18next.use(initReactI18next).init({
@@ -81,6 +82,7 @@ for (const conversation of conversations) {
   if (trailingMarker) store.consume({ type: 'finish', conversation_id: conversation.id, data: {} });
 }
 const storageKey = 'isolated-choice-notification-fixture';
+const dismissedKeys = new Set<string>(JSON.parse(localStorage.getItem(`${storageKey}-dismissed`) ?? '[]'));
 const saved = localStorage.getItem(storageKey);
 if (saved) store.replaceAll(JSON.parse(saved) as ChoiceNotice[]);
 let remoteNotices = store.getSnapshot();
@@ -92,10 +94,13 @@ persistNotices();
 ipcBridge.conversation.choiceNoticesChanged.on = () => () => {};
 ipcBridge.conversation.listChoiceNotices.invoke = async () => remoteNotices;
 ipcBridge.conversation.registerChoiceNotice.invoke = async (notice) => {
+  if (dismissedKeys.has(notice.key)) return remoteNotices;
   remoteNotices = [...remoteNotices.filter((item) => item.key !== notice.key), notice];
   return persistNotices();
 };
 ipcBridge.conversation.dismissChoiceNotice.invoke = async (notice) => {
+  dismissedKeys.add(notice.key);
+  localStorage.setItem(`${storageKey}-dismissed`, JSON.stringify([...dismissedKeys]));
   remoteNotices = remoteNotices.filter((item) => item.key !== notice.key);
   return persistNotices();
 };
@@ -128,7 +133,6 @@ function Fixture() {
   const location = useLocation();
   const { notices } = useUserChoiceNotifications();
   const { failures } = useUnreadConversationFailures();
-  const highlightedQuestionIndex = useMessageNotificationHighlight('conversation-a', 'message-conversation-a');
   const state = location.state as { targetMessageId?: string } | null;
   return (
     <div className='bg-1 text-t-primary min-h-screen p-16px'>
@@ -137,11 +141,25 @@ function Fixture() {
         <UserChoiceNotificationButton />
       </div>
       <div className='mt-24px max-w-650px' data-testid='fixture-message'>
-        <MarkdownView highlightUserQuestions highlightedQuestionIndex={highlightedQuestionIndex}>
-          {trailingMarker
-            ? trailingText
-            : `${USER_CHOICE_MARKER}\n검증이 끝나면 재시작해도 될까요?\n\n${USER_CHOICE_MARKER}\n별도 질문입니다.`}
-        </MarkdownView>
+        <MessageText
+          message={{
+            id: 'persisted-message-a',
+            msg_id: 'message-conversation-a',
+            conversation_id: 'conversation-a',
+            type: 'text',
+            position: 'left',
+            content: {
+              content: trailingMarker
+                ? trailingText
+                : structuredQuestion
+                  ? '검증이 끝나면 재시작해도 될까요?'
+                  : `${USER_CHOICE_MARKER}\n검증이 끝나면 재시작해도 될까요?\n\n${USER_CHOICE_MARKER}\n별도 질문입니다.`,
+              ...(structuredQuestion && { user_choice: { title: '검증 후 재시작', options: [] } }),
+            },
+          }}
+          showCopyRow={false}
+          isStreaming={!trailingMarker}
+        />
       </div>
       <div className='w-260px flex flex-col gap-8px mt-16px'>
         {conversations.map((conversation) => (
@@ -172,11 +190,13 @@ createRoot(document.getElementById('root')!).render(
       value={{ isMobile: window.innerWidth <= 1024, siderCollapsed: false, setSiderCollapsed: noop }}
     >
       <MemoryRouter initialEntries={['/guid']}>
-        <UserChoiceNotificationsProvider store={store}>
-          <Routes>
-            <Route path='*' element={<Fixture />} />
-          </Routes>
-        </UserChoiceNotificationsProvider>
+        <PreviewProvider>
+          <UserChoiceNotificationsProvider store={store}>
+            <Routes>
+              <Route path='*' element={<Fixture />} />
+            </Routes>
+          </UserChoiceNotificationsProvider>
+        </PreviewProvider>
       </MemoryRouter>
     </LayoutContext.Provider>
   </I18nextProvider>

@@ -5,6 +5,7 @@ import { createChoiceNoticeStore, type ChoiceNotice, type ChoiceNoticeStore } fr
 import { NotificationHighlightProvider } from './NotificationHighlight';
 import type { IMessageText } from '@/common/chat/chatLib';
 import MobilePushSync from './MobilePushSync';
+import QuestionContextMenu from './components/QuestionContextMenu';
 
 const emptyStore = createChoiceNoticeStore();
 const ChoiceContext = createContext<ChoiceNoticeStore>(emptyStore);
@@ -104,6 +105,7 @@ export function UserChoiceNotificationsProvider({
       <ChoiceContext.Provider value={store}>
         {children}
         <MobilePushSync />
+        <QuestionContextMenu store={store} />
       </ChoiceContext.Provider>
     </NotificationHighlightProvider>
   );

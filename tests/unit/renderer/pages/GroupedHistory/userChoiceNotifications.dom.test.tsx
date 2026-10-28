@@ -176,6 +176,30 @@ describe('native question notifications', () => {
     expect(screen.getByTestId('message-question-decline')).toBeEnabled();
   });
 
+  it('dismisses only the right-clicked native question through the caption-bar dismissal channel', async () => {
+    const store = nativeSetup();
+    state.dismissChoiceNotice.mockImplementation(async () => store.getSnapshot());
+    fireEvent.contextMenu(within(screen.getByTestId('message-question-item-1')).getByText('대상 기능'));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'conversation.userChoiceNotifications.dismiss' }));
+
+    await waitFor(() =>
+      expect(state.dismissChoiceNotice).toHaveBeenCalledWith(
+        expect.objectContaining({ conversationId: 'conversation-a', messageId: 'ask-native', markerIndex: 1 })
+      )
+    );
+    expect(store.getSnapshot().map((notice) => notice.markerIndex)).toEqual([0]);
+    expect(state.answerAsk).not.toHaveBeenCalled();
+  });
+
+  it('does not offer dismissal for a native question whose notification is already removed', () => {
+    const store = nativeSetup();
+    act(() => store.replaceAll(store.getSnapshot().filter((notice) => notice.markerIndex === 0)));
+
+    expect(fireEvent.contextMenu(screen.getByTestId('message-question-item-1'))).toBe(true);
+    expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
+    expect(store.getSnapshot()).toHaveLength(1);
+  });
+
   it('answers every question through the dedicated channel and preserves manual notices', async () => {
     const store = nativeSetup();
     fireEvent.click(screen.getByRole('radio', { name: '검증 환경' }));
@@ -309,6 +333,165 @@ describe('prose question boxes', () => {
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
+});
+
+describe('question box context menu', () => {
+  const ShadowQuestion = () => (
+    <div
+      data-testid='shadow-question'
+      ref={(node) => {
+        if (node && !node.shadowRoot) {
+          node.attachShadow({ mode: 'open' }).innerHTML =
+            '<section data-choice-marker-index="1"><span>그림자 DOM 질문</span></section>';
+        }
+      }}
+    />
+  );
+  const contextSetup = ({
+    conversationId = 'conversation-a',
+    messageId = 'stored-row',
+    streamMessageId = 'message-a',
+    withNotice = true,
+    shadow = false,
+  } = {}) => {
+    const text = `일반 설명\n\n${USER_CHOICE_MARKER}\n첫 질문?\n\n${USER_CHOICE_MARKER}\n둘째 질문?\n`;
+    const store = createChoiceNoticeStore();
+    if (withNotice) store.consume({ ...frame(), data: text });
+    state.dismissChoiceNotice.mockImplementation(async () => store.getSnapshot());
+    render(
+      <UserChoiceNotificationsProvider store={store}>
+        <UserChoiceNotificationButton />
+        <div
+          data-choice-conversation-id={conversationId}
+          data-choice-message-id={messageId}
+          data-choice-stream-message-id={streamMessageId}
+        >
+          {shadow && <ShadowQuestion />}
+          <ReactMarkdown
+            remarkPlugins={[[remarkChoiceQuestions, { label: '답변 요청', fallback: '질문 수신 중', complete: true }]]}
+          >
+            {text}
+          </ReactMarkdown>
+        </div>
+      </UserChoiceNotificationsProvider>
+    );
+    return store;
+  };
+  const menuItem = () => screen.findByRole('menuitem', { name: 'conversation.userChoiceNotifications.dismiss' });
+
+  it('finds the question inside a Markdown shadow root and its message identity outside it', async () => {
+    const store = contextSetup({ shadow: true });
+    const text = screen.getByTestId('shadow-question').shadowRoot!.querySelector('span')!;
+    fireEvent.contextMenu(text, { composed: true });
+    fireEvent.click(await menuItem());
+
+    expect(store.getSnapshot().map((notice) => notice.markerIndex)).toEqual([0]);
+    await waitFor(() =>
+      expect(state.dismissChoiceNotice).toHaveBeenCalledWith(expect.objectContaining({ markerIndex: 1 }))
+    );
+  });
+
+  it.each([
+    { messageId: 'stored-row', streamMessageId: 'message-a' },
+    { messageId: 'message-a', streamMessageId: 'another-stream' },
+  ])('matches persisted or streaming message identities and dismisses only that marker: %j', async (identity) => {
+    const store = contextSetup(identity);
+    act(() => store.consume(frame('conversation-b', 'message-a', '다른 대화의 질문?')));
+    fireEvent.contextMenu(screen.getByText('둘째 질문?'), { clientX: 200, clientY: 120 });
+    fireEvent.click(await menuItem());
+
+    await waitFor(() => expect(state.dismissChoiceNotice).toHaveBeenCalledTimes(1));
+    expect(store.getSnapshot().map(({ conversationId, markerIndex }) => [conversationId, markerIndex])).toEqual([
+      ['conversation-a', 0],
+      ['conversation-b', 0],
+    ]);
+    expect(state.navigate).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { withNotice: false },
+    { conversationId: 'conversation-b' },
+    { messageId: 'different-row', streamMessageId: 'different-stream' },
+  ])('preserves the normal context menu when this box has no matching notification: %j', (identity) => {
+    contextSetup(identity);
+    expect(fireEvent.contextMenu(screen.getByText('첫 질문?'))).toBe(true);
+    expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
+    expect(state.dismissChoiceNotice).not.toHaveBeenCalled();
+  });
+
+  it('does not offer dismissal outside question boxes even when the message has pending notices', () => {
+    contextSetup();
+    expect(fireEvent.contextMenu(screen.getByText('일반 설명'))).toBe(true);
+    expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
+  });
+
+  it('updates the caption count after both boxes are dismissed and does not reopen a dismissed box menu', async () => {
+    contextSetup();
+    fireEvent.contextMenu(screen.getByText('둘째 질문?'));
+    fireEvent.click(await menuItem());
+    fireEvent.contextMenu(screen.getByText('첫 질문?'));
+    fireEvent.click(await menuItem());
+
+    expect(screen.getByRole('button', { name: 'conversation.userChoiceNotifications.label:0' })).toBeInTheDocument();
+    expect(fireEvent.contextMenu(screen.getByText('첫 질문?'))).toBe(true);
+    expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
+  });
+
+  it('closes an open menu when the notification is dismissed on another device', async () => {
+    const store = contextSetup();
+    fireEvent.contextMenu(screen.getByText('첫 질문?'));
+    await menuItem();
+    act(() => store.replaceAll([]));
+
+    expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
+    expect(state.dismissChoiceNotice).not.toHaveBeenCalled();
+  });
+
+  it.each(['escape', 'outside', 'scroll'] as const)(
+    'closes on %s without dismissing the notification',
+    async (action) => {
+      const store = contextSetup();
+      fireEvent.contextMenu(screen.getByText('첫 질문?'));
+      await menuItem();
+      if (action === 'escape') fireEvent.keyDown(document, { key: 'Escape' });
+      else if (action === 'outside') fireEvent.mouseDown(document.body);
+      else {
+        const box = screen.getByText('첫 질문?').closest('section')!;
+        vi.spyOn(box, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 20, 300, 100));
+        fireEvent.scroll(document);
+      }
+
+      await waitFor(() => expect(screen.queryByRole('menuitem')).not.toBeInTheDocument());
+      expect(store.getSnapshot()).toHaveLength(2);
+      expect(state.dismissChoiceNotice).not.toHaveBeenCalled();
+    }
+  );
+
+  it('keeps the menu usable when a delayed scroll event does not move the question', async () => {
+    contextSetup();
+    fireEvent.contextMenu(screen.getByText('첫 질문?'));
+    const item = await menuItem();
+    fireEvent.scroll(document);
+
+    expect(item).toBeInTheDocument();
+    fireEvent.click(item);
+    await waitFor(() => expect(state.dismissChoiceNotice).toHaveBeenCalledTimes(1));
+  });
+
+  it('restores the notice when dismissal synchronization fails instead of losing it locally', async () => {
+    const store = contextSetup();
+    state.dismissChoiceNotice.mockRejectedValue(new Error('Offline'));
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    fireEvent.contextMenu(screen.getByText('첫 질문?'));
+    const item = await menuItem();
+    vi.useFakeTimers();
+    fireEvent.click(item);
+    await act(async () => vi.advanceTimersByTimeAsync(7000));
+
+    expect(state.dismissChoiceNotice).toHaveBeenCalledTimes(3);
+    expect(store.getSnapshot()).toHaveLength(2);
+    expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
+  });
 });
 
 describe('in-app attention notification UI', () => {
