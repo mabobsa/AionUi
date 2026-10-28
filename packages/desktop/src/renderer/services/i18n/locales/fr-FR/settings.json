@@ -355,7 +355,11 @@
     "bodyTurnCompletedNamed": "« {{name}} » a fini de répondre",
     "bodyTurnFailed": "La réponse a été interrompue : {{reason}}",
     "bodyTurnFailedNamed": "La réponse dans « {{name}} » a été interrompue : {{reason}}",
-    "failureReasonUnavailable": "Consultez la conversation pour les détails de l’erreur"
+    "failureReasonUnavailable": "Consultez la conversation pour les détails de l’erreur",
+    "connectedOnly": "Les notifications web affichent les événements reçus tant que la page est connectée en HTTPS. Après sa fermeture, utilisez l’application Android.",
+    "test": "Tester la notification web",
+    "testBody": "Les notifications web sont prêtes.",
+    "testFailed": "Impossible d’afficher la notification web. Vérifiez HTTPS et les autorisations de notification du navigateur."
   },
   "notification": "Notifications",
   "cronNotificationEnabled": "Fin de tâche planifiée",
@@ -1561,9 +1565,11 @@
       "disabled": "Activez d’abord les push sur le téléphone.",
       "device": "Actualisez les téléphones connectés et réessayez.",
       "invalidInput": "Vérifiez les paramètres saisis.",
-      "firebase": "Vérifiez les connexions Firebase et AionUi, puis réessayez."
+      "firebase": "Vérifiez les connexions Firebase et AionUi, puis réessayez.",
+      "rateLimited": "Trop de requêtes. Veuillez réessayer dans un instant."
     },
-    "mnpEnabled": "Recevoir les notifications MnP"
+    "mnpEnabled": "Recevoir les notifications MnP",
+    "webHelp": "Gardez Windows AionUi ouvert et connectez-vous au même compte. Importez les identifiants Firebase sur le PC ; gérez ici la réception, l’association du téléphone et les tests."
   },
   "claudeAccounts": {
     "title": "Comptes Claude",

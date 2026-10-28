@@ -6,6 +6,7 @@ import { Message } from '@arco-design/web-react';
 
 const state = vi.hoisted(() => ({
   desktop: true,
+  windows: true,
   changed: undefined as (() => void) | undefined,
   status: vi.fn(),
   configure: vi.fn(),
@@ -17,7 +18,10 @@ const state = vi.hoisted(() => ({
   t: (key: string) => key,
 }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: state.t }) }));
-vi.mock('@/renderer/utils/platform', () => ({ isElectronDesktop: () => state.desktop, isWindows: () => true }));
+vi.mock('@/renderer/utils/platform', () => ({
+  isElectronDesktop: () => state.desktop,
+  isWindows: () => state.windows,
+}));
 vi.mock('@/common/platform/mobilePush', () => ({
   mobilePushBridge: {
     available: () => true,
@@ -45,6 +49,7 @@ const key = (name: string) => `settings.mobilePush.${name}`;
 beforeEach(() => {
   vi.clearAllMocks();
   state.desktop = true;
+  state.windows = true;
   vi.spyOn(Message, 'success').mockImplementation(() => ({ close: () => {} }));
   current = {
     supported: true,
@@ -91,11 +96,15 @@ describe('desktop mobile push settings', () => {
     await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'true'));
     expect(state.options).toHaveBeenCalledWith({ enabled: true });
   });
-  it('does not expose key settings through the web interface', () => {
+  it('shows Android settings on mobile web while keeping file imports on the PC', async () => {
     state.desktop = false;
+    state.windows = false;
+    current = { ...current, configured: true, enabled: true };
     render(<MobilePushSection />);
-    expect(screen.queryByTestId('mobile-push-settings')).not.toBeInTheDocument();
-    expect(state.status).not.toHaveBeenCalled();
+    expect(screen.getByTestId('mobile-push-settings')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('switch', { name: key('enabled') })).toBeEnabled());
+    expect(screen.queryByLabelText(key('credentialPath'))).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: key('connectPhone') })).toBeEnabled();
   });
   it('shows a safe error when credential import is rejected', async () => {
     state.configure.mockResolvedValue({ ok: false, error: 'credentials' });

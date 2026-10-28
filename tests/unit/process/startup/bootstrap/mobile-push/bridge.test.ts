@@ -56,6 +56,30 @@ afterEach(() => {
 });
 
 describe('private desktop push endpoint', () => {
+  it('rejects a web result when the desktop account changes while the request is running', async () => {
+    mocks.currentUser.mockResolvedValueOnce({ id: 'native-user' }).mockResolvedValueOnce({ id: 'other' });
+    const { invokeMobilePushForWeb } = await import('@/process/startup/bootstrap/mobile-push');
+    expect(await invokeMobilePushForWeb('native-user', { operation: 'status' })).toEqual({
+      ok: false,
+      error: 'identity',
+    });
+  });
+  it('does not activate another desktop user through the web endpoint', async () => {
+    const { invokeMobilePushForWeb } = await import('@/process/startup/bootstrap/mobile-push');
+    expect(await invokeMobilePushForWeb('another', { operation: 'status' })).toMatchObject({ error: 'identity' });
+    expect(mocks.status).not.toHaveBeenCalled();
+  });
+  it('redacts the credential path in web status and refuses web file imports', async () => {
+    mocks.status.mockReturnValue({ enabled: false, credentialPath: 'C:/private/key.json' });
+    const { invokeMobilePushForWeb } = await import('@/process/startup/bootstrap/mobile-push');
+    expect(await invokeMobilePushForWeb('native-user', { operation: 'status' })).toMatchObject({
+      value: { credentialPath: '' },
+    });
+    expect(await invokeMobilePushForWeb('native-user', { operation: 'configure' })).toMatchObject({
+      error: 'unsupported',
+    });
+    expect(mocks.configure).not.toHaveBeenCalled();
+  });
   it('uses the native authenticated user instead of an asserted renderer user', async () => {
     await invoke(event(), { operation: 'status', data: { userId: 'someone-else' } });
     expect(mocks.status).toHaveBeenCalledWith('native-user');

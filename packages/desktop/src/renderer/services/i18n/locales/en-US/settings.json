@@ -355,7 +355,11 @@
     "bodyTurnCompletedNamed": "\"{{name}}\" has finished responding",
     "bodyTurnFailed": "The response was interrupted: {{reason}}",
     "bodyTurnFailedNamed": "\"{{name}}\" was interrupted: {{reason}}",
-    "failureReasonUnavailable": "See the conversation for error details"
+    "failureReasonUnavailable": "See the conversation for error details",
+    "connectedOnly": "Web notifications display events received while this page is connected over HTTPS. Use the Android notifier after closing the page.",
+    "test": "Test web notification",
+    "testBody": "Web notifications are ready.",
+    "testFailed": "Unable to display a web notification. Check HTTPS and browser notification permissions."
   },
   "notification": "Notifications",
   "cronNotificationEnabled": "Scheduled Task Completion",
@@ -1561,9 +1565,11 @@
       "disabled": "Enable phone push first.",
       "device": "Refresh connected phones and try again.",
       "invalidInput": "Check the settings you entered.",
-      "firebase": "Check your Firebase and AionUi connections, then try again."
+      "firebase": "Check your Firebase and AionUi connections, then try again.",
+      "rateLimited": "Too many requests. Please try again shortly."
     },
-    "mnpEnabled": "Receive MnP notifications"
+    "mnpEnabled": "Receive MnP notifications",
+    "webHelp": "Keep Windows AionUi running and sign in with the same account. Import Firebase credentials on the PC; manage reception, phone pairing and tests here."
   },
   "claudeAccounts": {
     "title": "Claude accounts",

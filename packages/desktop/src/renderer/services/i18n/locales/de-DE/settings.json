@@ -1342,7 +1342,11 @@
     "bodyTurnCompletedNamed": "\"{{name}}\" has finished responding",
     "bodyTurnFailed": "Die Antwort wurde unterbrochen: {{reason}}",
     "bodyTurnFailedNamed": "Die Antwort in „{{name}}“ wurde unterbrochen: {{reason}}",
-    "failureReasonUnavailable": "Fehlerdetails finden Sie im Gespräch"
+    "failureReasonUnavailable": "Fehlerdetails finden Sie im Gespräch",
+    "connectedOnly": "Web-Benachrichtigungen zeigen Ereignisse, die bei verbundener HTTPS-Seite eintreffen. Verwenden Sie nach dem Schließen die Android-App.",
+    "test": "Web-Benachrichtigung testen",
+    "testBody": "Web-Benachrichtigungen sind bereit.",
+    "testFailed": "Web-Benachrichtigung konnte nicht angezeigt werden. Prüfen Sie HTTPS und die Benachrichtigungsberechtigung des Browsers."
   },
   "repair": {
     "pathLabel": "Launch Path",
@@ -1561,9 +1565,11 @@
       "disabled": "Aktivieren Sie zuerst Push auf dem Telefon.",
       "device": "Aktualisieren Sie die verbundenen Telefone und versuchen Sie es erneut.",
       "invalidInput": "Prüfen Sie die eingegebenen Einstellungen.",
-      "firebase": "Prüfen Sie die Verbindungen zu Firebase und AionUi und versuchen Sie es erneut."
+      "firebase": "Prüfen Sie die Verbindungen zu Firebase und AionUi und versuchen Sie es erneut.",
+      "rateLimited": "Zu viele Anfragen. Bitte versuchen Sie es in Kürze erneut."
     },
-    "mnpEnabled": "MnP-Benachrichtigungen empfangen"
+    "mnpEnabled": "MnP-Benachrichtigungen empfangen",
+    "webHelp": "Windows AionUi muss laufen; melden Sie sich mit demselben Konto an. Importieren Sie Firebase-Zugangsdaten am PC und verwalten Sie hier Empfang, Telefonkopplung und Tests."
   },
   "claudeAccounts": {
     "title": "Claude-Konten",

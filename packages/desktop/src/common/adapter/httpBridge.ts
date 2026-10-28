@@ -166,7 +166,7 @@ export class HttpRequestTimeoutError extends Error {
 }
 
 const SENSITIVE_LOG_KEY_PATTERN =
-  /api[_-]?key|authorization|auth[_-]?token|access[_-]?token|refresh[_-]?token|secret|launch[_-]?id/i;
+  /api[_-]?key|authorization|auth[_-]?token|access[_-]?token|refresh[_-]?token|csrf[_-]?token|secret|launch[_-]?id/i;
 
 function redactForLog(value: unknown, depth = 0): unknown {
   if (depth > 8 || value === null || typeof value !== 'object') {

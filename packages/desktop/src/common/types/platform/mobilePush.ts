@@ -7,6 +7,7 @@ export type MobilePushError =
   | 'disabled'
   | 'device'
   | 'invalidInput'
+  | 'rateLimited'
   | 'firebase';
 
 export type MobilePushResult<T> = { ok: true; value: T } | { ok: false; error: MobilePushError };

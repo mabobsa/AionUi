@@ -15,6 +15,7 @@ import { MobilePushStore } from './store';
 import { MobilePushFault, record } from './protocol';
 import { resolveNoticeContent } from './contentResolver';
 import { startPushRelay } from './relay';
+import { createMobilePushWebHandler } from './web';
 
 let window: BrowserWindow | undefined;
 let manager: MobilePushManager | undefined;
@@ -183,3 +184,46 @@ export function initMobilePushProviders(): void {
     void closePushRelay();
   });
 }
+
+/** WebUI may manage an existing desktop profile, but cannot read files or enqueue notices. */
+export async function invokeMobilePushForWeb(userId: string, request: unknown): Promise<MobilePushResult<unknown>> {
+  try {
+    if (!window || window.isDestroyed()) throw new MobilePushFault('unsupported');
+    if ((await ipcBridge.auth.currentUser.invoke()).id !== userId) throw new MobilePushFault('identity');
+    const input = record(request),
+      data = record(input.data);
+    const native = service();
+    let value: unknown;
+    switch (input.operation) {
+      case 'status':
+        value = native.status(userId);
+        break;
+      case 'options':
+        value = await native.options(userId, data as MobilePushOptions);
+        break;
+      case 'pair':
+        value = await native.pair(userId);
+        break;
+      case 'refresh':
+        value = await native.refresh(userId);
+        break;
+      case 'unlink':
+        value = await native.unlink(userId, data.deviceId as string);
+        break;
+      case 'test':
+        value = await native.test(userId, data.deviceId as string, data.title as string, data.body as string);
+        break;
+      default:
+        throw new MobilePushFault('unsupported');
+    }
+    if ((await ipcBridge.auth.currentUser.invoke()).id !== userId) throw new MobilePushFault('identity');
+    await updatePushRelay(native, userId);
+    if (['status', 'options', 'refresh', 'unlink'].includes(String(input.operation)))
+      value = { ...record(value), credentialPath: '' };
+    return { ok: true, value };
+  } catch (error) {
+    return { ok: false, error: error instanceof MobilePushFault ? error.code : 'identity' };
+  }
+}
+
+export const handleMobilePushWebRequest = createMobilePushWebHandler(invokeMobilePushForWeb);

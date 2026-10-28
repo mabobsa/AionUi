@@ -355,7 +355,11 @@
     "bodyTurnCompletedNamed": "「{{name}}」已完成本轮回复",
     "bodyTurnFailed": "响应已中断：{{reason}}",
     "bodyTurnFailedNamed": "“{{name}}”的响应已中断：{{reason}}",
-    "failureReasonUnavailable": "请在会话中查看错误详情"
+    "failureReasonUnavailable": "请在会话中查看错误详情",
+    "connectedOnly": "网页通知仅显示通过 HTTPS 保持连接时收到的事件。关闭页面后请使用 Android 通知应用。",
+    "test": "测试网页通知",
+    "testBody": "网页通知已就绪。",
+    "testFailed": "无法显示网页通知。请检查 HTTPS 和浏览器通知权限。"
   },
   "notification": "通知",
   "cronNotificationEnabled": "定时任务完成通知",
@@ -1562,9 +1566,11 @@
       "disabled": "请先启用手机推送。",
       "device": "请刷新已连接的手机后重试。",
       "invalidInput": "请检查输入的设置。",
-      "firebase": "请检查 Firebase 和 AionUi 连接后重试。"
+      "firebase": "请检查 Firebase 和 AionUi 连接后重试。",
+      "rateLimited": "请求过多，请稍后重试。"
     },
-    "mnpEnabled": "接收 MnP 通知"
+    "mnpEnabled": "接收 MnP 通知",
+    "webHelp": "请保持 Windows AionUi 运行并使用同一账户登录。在电脑上导入 Firebase 凭据；在此管理接收设置、手机配对和测试。"
   },
   "claudeAccounts": {
     "title": "Claude 账号",

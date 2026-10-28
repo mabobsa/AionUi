@@ -42,6 +42,7 @@ import { onLanguageChanged } from './process/bridge/systemSettingsBridge';
 import { setInitialLanguage } from '@process/services/i18n';
 import { setupApplicationMenu } from './process/utils/appMenu';
 import { startWebHost } from '@aionui/web-host';
+import { handleMobilePushWebRequest } from './process/startup/bootstrap/mobile-push';
 import { initializeZoomFactor, setupZoomForWindow } from './process/utils/zoom';
 import { hydrateWindowsProcessPath } from './process/startup/windowsPath';
 import { registerWindowsAppUserModelId } from './process/startup/windowsAppUserModelId';
@@ -949,6 +950,7 @@ const handleAppReady = async (): Promise<void> => {
       const sysDirWebUI = getSystemDir();
       // M6: Switch to @aionui/web-host
       const handle = await startWebHost({
+        requestHandler: handleMobilePushWebRequest,
         app: {
           version: app.getVersion(),
           isPackaged: app.isPackaged,

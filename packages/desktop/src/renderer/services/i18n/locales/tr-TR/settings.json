@@ -355,7 +355,11 @@
     "bodyTurnCompletedNamed": "\"{{name}}\" yanıtlamayı tamamladı",
     "bodyTurnFailed": "Yanıt kesildi: {{reason}}",
     "bodyTurnFailedNamed": "“{{name}}” yanıtı kesildi: {{reason}}",
-    "failureReasonUnavailable": "Hata ayrıntıları için konuşmaya bakın"
+    "failureReasonUnavailable": "Hata ayrıntıları için konuşmaya bakın",
+    "connectedOnly": "Web bildirimleri yalnızca sayfa HTTPS üzerinden bağlıyken alınan olayları gösterir. Sayfayı kapattıktan sonra Android bildirim uygulamasını kullanın.",
+    "test": "Web bildirimini test et",
+    "testBody": "Web bildirimleri hazır.",
+    "testFailed": "Web bildirimi gösterilemedi. HTTPS bağlantısını ve tarayıcı bildirim izinlerini kontrol edin."
   },
   "notification": "Bildirimler",
   "cronNotificationEnabled": "Zamanlanmış Görev Tamamlanma",
@@ -1561,9 +1565,11 @@
       "disabled": "Önce telefon bildirimlerini etkinleştirin.",
       "device": "Bağlı telefonları yenileyip tekrar deneyin.",
       "invalidInput": "Girdiğiniz ayarları kontrol edin.",
-      "firebase": "Firebase ve AionUi bağlantılarını kontrol edip tekrar deneyin."
+      "firebase": "Firebase ve AionUi bağlantılarını kontrol edip tekrar deneyin.",
+      "rateLimited": "Çok fazla istek gönderildi. Lütfen biraz sonra tekrar deneyin."
     },
-    "mnpEnabled": "MnP bildirimlerini al"
+    "mnpEnabled": "MnP bildirimlerini al",
+    "webHelp": "Windows AionUi açık olmalı ve aynı hesapla oturum açılmalıdır. Firebase kimlik bilgilerini bilgisayarda içe aktarın; alımı, telefon eşleştirmesini ve testleri buradan yönetin."
   },
   "claudeAccounts": {
     "title": "Claude hesapları",

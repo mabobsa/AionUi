@@ -14,6 +14,7 @@ import http, { type IncomingMessage, type Server, type ServerResponse } from 'no
 import { networkInterfaces } from 'node:os';
 import net, { type Socket } from 'node:net';
 import serveHandler from 'serve-handler';
+import type { WebHostRequestHandler } from './types';
 import {
   createProxyHeaders,
   type TcpConnectionObserver,
@@ -21,6 +22,7 @@ import {
 } from './trusted-client-address/trustedClientAddress';
 
 export type StaticServerOptions = {
+  requestHandler?: WebHostRequestHandler;
   staticDir: string;
   frontendUrl?: string;
   backendPort: number;
@@ -261,6 +263,8 @@ export async function startStaticServer(opts: StaticServerOptions): Promise<Stat
         res.end(JSON.stringify({ error: 'NOT_FOUND' }));
         return;
       }
+
+      if (await opts.requestHandler?.(req, res, { backendPort: opts.backendPort, clientAddress })) return;
 
       // /api/* — reverse proxy to backend (includes /api/auth/*).
       // /login and /logout are aionui-auth's top-level auth endpoints: proxy them too

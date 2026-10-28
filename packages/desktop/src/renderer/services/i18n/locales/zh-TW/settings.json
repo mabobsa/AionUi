@@ -355,7 +355,11 @@
     "bodyTurnCompletedNamed": "「{{name}}」已完成本輪回覆",
     "bodyTurnFailed": "回應已中斷：{{reason}}",
     "bodyTurnFailedNamed": "「{{name}}」的回應已中斷：{{reason}}",
-    "failureReasonUnavailable": "請在對話中查看錯誤詳情"
+    "failureReasonUnavailable": "請在對話中查看錯誤詳情",
+    "connectedOnly": "網頁通知僅顯示透過 HTTPS 保持連線時收到的事件。關閉頁面後請使用 Android 通知應用程式。",
+    "test": "測試網頁通知",
+    "testBody": "網頁通知已就緒。",
+    "testFailed": "無法顯示網頁通知。請檢查 HTTPS 與瀏覽器通知權限。"
   },
   "notification": "通知",
   "cronNotificationEnabled": "定時任務完成通知",
@@ -1563,9 +1567,11 @@
       "disabled": "請先啟用手機推播。",
       "device": "請重新整理已連線的手機後再試。",
       "invalidInput": "請檢查輸入的設定。",
-      "firebase": "請檢查 Firebase 和 AionUi 連線後再試。"
+      "firebase": "請檢查 Firebase 和 AionUi 連線後再試。",
+      "rateLimited": "請求過多，請稍後再試。"
     },
-    "mnpEnabled": "接收 MnP 通知"
+    "mnpEnabled": "接收 MnP 通知",
+    "webHelp": "請保持 Windows AionUi 執行並使用同一帳號登入。在電腦匯入 Firebase 憑證；在此管理接收設定、手機配對與測試。"
   },
   "claudeAccounts": {
     "title": "Claude 帳號",

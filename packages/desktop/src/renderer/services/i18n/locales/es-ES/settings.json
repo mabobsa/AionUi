@@ -1318,7 +1318,11 @@
     "bodyTurnCompletedNamed": "\"{{name}}\" has finished responding",
     "bodyTurnFailed": "La respuesta se interrumpió: {{reason}}",
     "bodyTurnFailedNamed": "La respuesta en «{{name}}» se interrumpió: {{reason}}",
-    "failureReasonUnavailable": "Consulta los detalles del error en la conversación"
+    "failureReasonUnavailable": "Consulta los detalles del error en la conversación",
+    "connectedOnly": "Las notificaciones web muestran eventos recibidos mientras la página está conectada mediante HTTPS. Al cerrar la página, utiliza la aplicación Android.",
+    "test": "Probar notificación web",
+    "testBody": "Las notificaciones web están listas.",
+    "testFailed": "No se pudo mostrar la notificación web. Comprueba HTTPS y los permisos de notificación del navegador."
   },
   "repair": {
     "pathLabel": "Launch Path",
@@ -1561,9 +1565,11 @@
       "disabled": "Primero activa push en el móvil.",
       "device": "Actualiza los móviles conectados y vuelve a intentarlo.",
       "invalidInput": "Comprueba los ajustes introducidos.",
-      "firebase": "Comprueba las conexiones de Firebase y AionUi y vuelve a intentarlo."
+      "firebase": "Comprueba las conexiones de Firebase y AionUi y vuelve a intentarlo.",
+      "rateLimited": "Demasiadas solicitudes. Vuelve a intentarlo en unos instantes."
     },
-    "mnpEnabled": "Recibir notificaciones de MnP"
+    "mnpEnabled": "Recibir notificaciones de MnP",
+    "webHelp": "Mantén Windows AionUi abierto e inicia sesión con la misma cuenta. Importa las credenciales de Firebase en el PC; gestiona aquí la recepción, el emparejamiento y las pruebas."
   },
   "claudeAccounts": {
     "title": "Cuentas de Claude",

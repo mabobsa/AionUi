@@ -74,6 +74,21 @@ class FakeWebSocket {
 }
 
 describe('httpBridge', () => {
+  it('redacts CSRF tokens in diagnostics while preserving the transport body', async () => {
+    const fetchSpy = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        new Response(JSON.stringify({ data: {} }), { headers: { 'Content-Type': 'application/json' } })
+    );
+    vi.stubGlobal('fetch', fetchSpy);
+    const log = vi.spyOn(console, 'debug').mockImplementation(() => {});
+    try {
+      await httpRequest('POST', '/api/mobile-push', { csrfToken: 'private-csrf-nonce' });
+      expect(JSON.stringify(log.mock.calls)).not.toContain('private-csrf-nonce');
+      expect(fetchSpy.mock.calls[0][1]?.body).toContain('private-csrf-nonce');
+    } finally {
+      log.mockRestore();
+    }
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     vi.unstubAllGlobals();

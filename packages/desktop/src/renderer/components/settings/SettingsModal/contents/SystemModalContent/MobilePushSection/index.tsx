@@ -9,7 +9,8 @@ import PairingCard from './PairingCard';
 
 export default function MobilePushSection() {
   const { t } = useTranslation();
-  const desktop = isElectronDesktop() && isWindows() && mobilePushBridge.available();
+  const native = isElectronDesktop();
+  const desktop = mobilePushBridge.available() && (!native || isWindows());
   const [status, setStatus] = useState<MobilePushStatus>();
   const [file, setFile] = useState('');
   const [name, setName] = useState('');
@@ -66,14 +67,17 @@ export default function MobilePushSection() {
         polling = false;
       }
     };
-    const timer = window.setInterval(() => {
-      void poll();
-    }, 3000);
+    const timer = window.setInterval(
+      () => {
+        void poll();
+      },
+      native ? 3000 : 10000
+    );
     return () => {
       disposed = true;
       window.clearInterval(timer);
     };
-  }, [pairing, desktop]);
+  }, [pairing, desktop, native]);
 
   const act = async <T,>(operation: () => Promise<MobilePushResult<T>>, success?: (value: T) => void) => {
     if (busy) return;
@@ -104,6 +108,7 @@ export default function MobilePushSection() {
       <div className='text-16px font-medium'>{t('settings.mobilePush.title')}</div>
       <p className='text-12px text-t-secondary'>{t('settings.mobilePush.description')}</p>
       {error && <Alert type='error' content={error} />}
+      {!native && <Alert type='info' content={t('settings.mobilePush.webHelp')} />}
       <PreferenceRow label={t('settings.mobilePush.enabled')}>
         <Switch
           aria-label={t('settings.mobilePush.enabled')}
@@ -123,32 +128,34 @@ export default function MobilePushSection() {
           onChange={(mnpEnabled) => void act(() => mobilePushBridge.options.invoke({ mnpEnabled }))}
         />
       </PreferenceRow>
-      <div className='space-y-8px'>
-        <label className='text-13px' htmlFor='mobile-push-credential-path'>
-          {t('settings.mobilePush.credentialPath')}
-        </label>
-        <div className='flex flex-wrap gap-8px'>
-          <Input
-            id='mobile-push-credential-path'
-            value={file}
-            onChange={setFile}
-            disabled={busy}
-            className='!flex-1 min-w-180px'
-          />
-          <Button
-            loading={busy}
-            disabled={!file}
-            onClick={() => void act(() => mobilePushBridge.configure.invoke({ credentialPath: file }))}
-          >
-            {t('settings.mobilePush.loadCredentials')}
-          </Button>
+      {native && (
+        <div className='space-y-8px'>
+          <label className='text-13px' htmlFor='mobile-push-credential-path'>
+            {t('settings.mobilePush.credentialPath')}
+          </label>
+          <div className='flex flex-wrap gap-8px'>
+            <Input
+              id='mobile-push-credential-path'
+              value={file}
+              onChange={setFile}
+              disabled={busy}
+              className='!flex-1 min-w-180px'
+            />
+            <Button
+              loading={busy}
+              disabled={!file}
+              onClick={() => void act(() => mobilePushBridge.configure.invoke({ credentialPath: file }))}
+            >
+              {t('settings.mobilePush.loadCredentials')}
+            </Button>
+          </div>
+          {status?.projectId && (
+            <p className='text-12px text-t-secondary'>
+              {t('settings.mobilePush.project', { projectId: status.projectId })}
+            </p>
+          )}
         </div>
-        {status?.projectId && (
-          <p className='text-12px text-t-secondary'>
-            {t('settings.mobilePush.project', { projectId: status.projectId })}
-          </p>
-        )}
-      </div>
+      )}
       <div className='space-y-8px'>
         <label className='text-13px' htmlFor='mobile-push-source-name'>
           {t('settings.mobilePush.sourceName')}

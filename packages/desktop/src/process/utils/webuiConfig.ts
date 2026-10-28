@@ -11,6 +11,7 @@ import { networkInterfaces } from 'os';
 import { getSystemDir } from './initStorage';
 import { httpRequest } from '@/common/adapter/httpBridge';
 import { startWebHost, type WebHostHandle } from '@aionui/web-host';
+import { handleMobilePushWebRequest } from '@process/startup/bootstrap/mobile-push';
 import { getDataPath } from './utils';
 
 const WEBUI_CONFIG_FILE = 'webui.config.json';
@@ -233,6 +234,7 @@ export async function startDesktopWebUI(opts: { port?: number; allowRemote?: boo
   }
 
   const handle = await startWebHost({
+    requestHandler: handleMobilePushWebRequest,
     app: {
       version: app.getVersion(),
       isPackaged: app.isPackaged,

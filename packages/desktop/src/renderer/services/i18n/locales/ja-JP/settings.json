@@ -355,7 +355,11 @@
     "bodyTurnCompletedNamed": "「{{name}}」の応答が完了しました",
     "bodyTurnFailed": "応答が中断されました: {{reason}}",
     "bodyTurnFailedNamed": "「{{name}}」の応答が中断されました: {{reason}}",
-    "failureReasonUnavailable": "会話でエラーの詳細を確認してください"
+    "failureReasonUnavailable": "会話でエラーの詳細を確認してください",
+    "connectedOnly": "Web 通知は HTTPS でページに接続中に受信したイベントを表示します。ページを閉じた後は Android 通知アプリを使用してください。",
+    "test": "Web 通知をテスト",
+    "testBody": "Web 通知を表示できます。",
+    "testFailed": "Web 通知を表示できませんでした。HTTPS とブラウザーの通知権限を確認してください。"
   },
   "notification": "通知",
   "cronNotificationEnabled": "定期タスク完了通知",
@@ -1563,9 +1567,11 @@
       "disabled": "先にスマートフォンへのプッシュを有効にしてください。",
       "device": "接続済みのスマートフォンを更新して再試行してください。",
       "invalidInput": "入力した設定を確認してください。",
-      "firebase": "Firebase と AionUi の接続を確認して再試行してください。"
+      "firebase": "Firebase と AionUi の接続を確認して再試行してください。",
+      "rateLimited": "リクエストが多すぎます。しばらくしてから再試行してください。"
     },
-    "mnpEnabled": "MnP の通知を受け取る"
+    "mnpEnabled": "MnP の通知を受け取る",
+    "webHelp": "Windows AionUi を起動し、同じアカウントでログインしてください。Firebase 認証情報は PC で読み込み、ここで受信設定・スマートフォンの接続・テストを管理します。"
   },
   "claudeAccounts": {
     "title": "Claude アカウント",

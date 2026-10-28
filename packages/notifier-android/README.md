@@ -170,6 +170,16 @@ bun run start
 
 Windows에서 **연결 해제**를 누르면 기기 등록과 연결 문서를 함께 삭제한다. Android 앱 재설치로 인증 UID가 바뀌면 새 QR로 다시 연결한다. 현재 Android 설치본은 하나의 PC 연결을 보관한다.
 
+## 모바일 Chrome에서 설정 관리
+
+Windows AionUi를 실행한 상태에서 같은 계정으로 WebUI에 로그인하면 **설정 → 시스템 → Android 푸시 알림**이 표시된다. 웹에서 푸시 사용·MnP 수신·미리보기를 설정하고 휴대폰 연결·해제·테스트를 할 수 있다. Firebase 키 불러오기는 Windows 앱에서 먼저 진행하며 키 파일 경로·비밀키·FCM 토큰은 웹으로 보내지 않는다. PC에서 사용하는 계정과 다른 계정의 요청은 거부한다. 별도로 실행한 WebUI 서버에는 Windows 앱의 전송 서비스가 없어 해당 설정을 사용할 수 없다.
+
+휴대폰 화면의 QR을 같은 휴대폰으로 스캔하기 어렵다면 **코드 복사** 후 Android 알리미의 코드 입력 화면에 붙여넣는다. Android 앱 푸시 설정은 브라우저 알림 권한과 별개다.
+
+**웹 알림**은 별도 기능이다. HTTPS 또는 localhost에서 브라우저 알림 권한을 허용하면, 웹페이지가 연결되어 있고 백그라운드일 때 받은 대화 확인·완료·오류 이벤트를 표시한다. 모바일 Chrome에서는 서비스 워커의 알림 API를 사용하며 설정의 **웹 알림 테스트**로 확인할 수 있다. 일반 LAN HTTP 접속은 브라우저 알림을 사용할 수 없다. 페이지가 닫히거나 연결·실행이 중단된 후에도 수신하는 Web Push 구독은 제공하지 않는다. 이 경우 Android 알리미를 사용한다.
+
+이 변경은 AionUi의 웹 호스트와 화면에 적용된다. AionCore 재빌드는 필요하지 않으며 Windows AionUi를 다시 실행하고 모바일 웹페이지를 새로고침한다.
+
 ## MnP 업무 알림
 
 MnP 발송 API를 지원하는 서버와 이 변경을 포함한 Windows AionUi·Android 앱을 함께 사용한다. 먼저 `firebaseDebug` APK를 업데이트하고 Windows AionUi를 다시 실행한다. 기존 휴대폰 연결과 Firebase 프로젝트를 재사용하므로 새 프로젝트나 서비스 계정은 필요하지 않다. 구형 Android 설치본은 새 MnP 메시지를 표시하지 않는다.
@@ -210,7 +220,7 @@ await fetch('/api/integrations/aionui/push-notifications', {
 | SDK 위치 또는 Build-Tools 오류                        | `ANDROID_HOME`, SDK Platform 35, Build-Tools 36.1.0, SDK 라이선스 확인                                                                                                                |
 | PowerShell 스크립트 실행이 차단됨                     | 위의 프로세스 단위 실행 명령 사용. 조직 정책으로도 차단되면 Android 앱 폴더에서 `./gradlew.bat :app:assembleFirebaseDebug :app:testFirebaseDebugUnitTest :app:lintFirebaseDebug` 실행 |
 | `google-services.json` 누락 또는 `No matching client` | 파일 위치가 `app/google-services.json`인지, Firebase 등록 패키지가 `com.mabobsa.aionnotifier`인지 확인                                                                                |
-| 실제 푸시 메뉴가 없음                                 | `previewDebug` 대신 `firebaseDebug` 설치 여부 확인. Windows 설정 메뉴라면 이 fork 코드로 실행한 Windows Electron 앱인지 확인하고 재시작. WebUI에서는 제공하지 않음                    |
+| 실제 푸시 메뉴가 없음                                 | Android 앱은 `firebaseDebug` 설치 여부 확인. 웹은 Windows AionUi를 실행하고 같은 계정으로 로그인한 뒤 새로고침. Firebase 키는 Windows 앱에서 먼저 불러옴.                             |
 | `aioncore`를 찾지 못하거나 확인 알림 API에서 404      | 4단계의 fork 백엔드 설치, `where.exe aioncore`, `AIONUI_BACKEND_BIN` 확인. 공통 upstream 백엔드와 혼용하지 않도록 실행 경로 확인                                                      |
 | Windows의 서비스 계정 설정 불러오기 실패              | Android용 JSON과 서비스 계정 JSON을 혼동하지 않았는지, 파일 경로와 비공개 키 파일을 확인                                                                                              |
 | QR 연결 실패·권한 오류                                | 두 JSON의 프로젝트 ID 일치, 익명 인증 활성화, Firestore `(default)`, 규칙 게시 여부 확인. 만료된 QR은 새로 생성                                                                       |

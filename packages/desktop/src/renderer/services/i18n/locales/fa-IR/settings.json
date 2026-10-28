@@ -355,7 +355,11 @@
     "bodyTurnCompletedNamed": "«{{name}}» پاسخ را کامل کرد",
     "bodyTurnFailed": "پاسخ متوقف شد: {{reason}}",
     "bodyTurnFailedNamed": "پاسخ «{{name}}» متوقف شد: {{reason}}",
-    "failureReasonUnavailable": "جزئیات خطا را در گفتگو ببینید"
+    "failureReasonUnavailable": "جزئیات خطا را در گفتگو ببینید",
+    "connectedOnly": "اعلان‌های وب فقط رویدادهای دریافت‌شده هنگام اتصال صفحه با HTTPS را نشان می‌دهند. پس از بستن صفحه از برنامه Android استفاده کنید.",
+    "test": "آزمایش اعلان وب",
+    "testBody": "اعلان‌های وب آماده هستند.",
+    "testFailed": "اعلان وب نمایش داده نشد. HTTPS و مجوز اعلان مرورگر را بررسی کنید."
   },
   "notification": "اعلان‌ها",
   "cronNotificationEnabled": "اتمام کار زمان‌بندی‌شده",
@@ -1561,9 +1565,11 @@
       "disabled": "ابتدا پوش تلفن را فعال کنید.",
       "device": "تلفن‌های متصل را تازه‌سازی کنید و دوباره تلاش کنید.",
       "invalidInput": "تنظیمات واردشده را بررسی کنید.",
-      "firebase": "اتصال‌های Firebase و AionUi را بررسی کنید و دوباره تلاش کنید."
+      "firebase": "اتصال‌های Firebase و AionUi را بررسی کنید و دوباره تلاش کنید.",
+      "rateLimited": "تعداد درخواست‌ها زیاد است. کمی بعد دوباره تلاش کنید."
     },
-    "mnpEnabled": "دریافت اعلان‌های MnP"
+    "mnpEnabled": "دریافت اعلان‌های MnP",
+    "webHelp": "Windows AionUi باید باز باشد و با همان حساب وارد شوید. اطلاعات Firebase را در رایانه وارد کنید؛ دریافت، اتصال گوشی و آزمایش را اینجا مدیریت کنید."
   },
   "claudeAccounts": {
     "title": "حساب‌های Claude",
