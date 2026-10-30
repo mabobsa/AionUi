@@ -464,6 +464,26 @@ describe('useAcpMessage', () => {
     expect(result.current.context_limit).toBe(0);
   });
 
+  it.each([
+    { used: 27_237, size: 1_000_000 },
+    { used: 240_255, size: 475_000 },
+  ])('restores headless usage $used/$size without a live usage event', async (usage) => {
+    vi.mocked(getConversationOrNull).mockResolvedValue(null);
+    getUsageInvokeMock.mockResolvedValue({ ...usage, _meta: { '_claude/rateLimit': { status: 'allowed' } } });
+    const { result } = renderHook(() => useAcpMessage('headless-conv'));
+    await waitFor(() => expect(result.current.tokenUsage?.total_tokens).toBe(usage.used));
+    expect(result.current.context_limit).toBe(usage.size);
+  });
+
+  it('does not infer usage from an old metadata-only snapshot', async () => {
+    vi.mocked(getConversationOrNull).mockResolvedValue(null);
+    getUsageInvokeMock.mockResolvedValue({ _meta: { '_claude/rateLimit': { status: 'allowed' } } });
+    const { result } = renderHook(() => useAcpMessage('headless-conv'));
+    await waitFor(() => expect(getUsageInvokeMock).toHaveBeenCalledWith({ conversation_id: 'headless-conv' }));
+    expect(result.current.tokenUsage).toBeNull();
+    expect(result.current.context_limit).toBe(0);
+  });
+
   it('does not clobber live stream usage with a slower HTTP snapshot', async () => {
     vi.mocked(getConversationOrNull).mockResolvedValue(null);
     const usageDeferred = deferred<{ used: number; size: number }>();
