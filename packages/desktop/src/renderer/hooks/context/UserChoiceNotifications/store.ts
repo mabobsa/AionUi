@@ -109,10 +109,11 @@ export const createChoiceNoticeStore = () => {
   const replaceFromServer = (notices: ChoiceNotice[]) => {
     const remote = new Map(notices.filter(isNotice).map((notice) => [notice.key, notice]));
     for (const key of remote.keys()) seenOnServer.add(key);
-    for (const key of staged.keys()) {
-      if (remote.has(key)) staged.delete(key);
+    for (const [key, notice] of staged) {
+      if (remote.get(key)?.preview === notice.preview) staged.delete(key);
     }
-    pending = [...remote.values(), ...staged.values()].filter((notice) => !suppressed.has(notice.key));
+    const merged = new Map([...remote, ...staged]);
+    pending = [...merged.values()].filter((notice) => !suppressed.has(notice.key));
     publish();
   };
 
@@ -130,10 +131,17 @@ export const createChoiceNoticeStore = () => {
     replaceAll: (notices: ChoiceNotice[]) => {
       replaceFromServer(notices);
     },
-    settleUpsert: (key: string, notices: ChoiceNotice[]) => {
+    settleUpsert: (
+      key: string,
+      notices: ChoiceNotice[],
+      { preview, authoritative = true }: { preview?: string; authoritative?: boolean } = {}
+    ) => {
       const notice = staged.get(key);
-      if (notice && !notices.some((item) => item.key === key)) suppressed.set(key, notice);
-      staged.delete(key);
+      // An older request must not acknowledge a newer streamed preview for the same marker.
+      if (notice && (preview === undefined || notice.preview === preview)) {
+        if (authoritative && !notices.some((item) => item.key === key)) suppressed.set(key, notice);
+        staged.delete(key);
+      }
       replaceFromServer(notices);
     },
     recoverCompleted: (message: IMessageText, text: string) => {

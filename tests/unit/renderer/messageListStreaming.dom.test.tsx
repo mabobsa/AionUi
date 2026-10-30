@@ -352,6 +352,29 @@ describe('MessageList streaming scroll behavior', () => {
     expect(scroller.scrollTop).toBe(120);
   });
 
+  it('jumps to the streamed question by its notification id instead of staying on the previous question', () => {
+    const previous = { ...createTextMessage('previous dismissed question'), id: 'previous', msg_id: 'previous' };
+    const live = {
+      ...createTextMessage('new approval question'),
+      id: 'live-renderer-row',
+      msg_id: 'notification-message',
+      content: { content: 'new approval question', replace: true as const },
+      created_at: 2,
+    };
+    locationState.state.targetMessageId = live.msg_id;
+    loadAnchor.mockResolvedValue(messagePage([]));
+    render(
+      <Wrapper messages={[previous, live]}>
+        <MessageList />
+      </Wrapper>
+    );
+    const { scroller } = trackTargetScroll(live.id);
+    act(() => vi.runAllTimers());
+
+    expect(scroller.scrollTop).toBe(120);
+    expect(loadAnchor).not.toHaveBeenCalled();
+  });
+
   it('waits for initial history even when the target is already present from a live update', async () => {
     const latest = deferredPage();
     loadLatest.mockReturnValue(latest.promise);

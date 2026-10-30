@@ -252,6 +252,33 @@ describe('prose notification lifecycle', () => {
     expect(store.getSnapshot()).toEqual([]);
   });
 
+  it('retains a newer streamed preview when an earlier server acknowledgement arrives', () => {
+    const store = createChoiceNoticeStore();
+    store.setSyncHandlers({ upsert: vi.fn(), dismiss: vi.fn() });
+    store.consume(frame(`${USER_CHOICE_MARKER}\n어느 것부터`));
+    const older = store.getSnapshot()[0];
+    store.consume(frame(' 진행할까요?\n'));
+
+    store.settleUpsert(older.key, [older], { preview: older.preview });
+
+    expect(store.getSnapshot().map((notice) => notice.preview)).toEqual(['어느 것부터 진행할까요?']);
+  });
+
+  it('does not revive a dismissed question when a different question updates', () => {
+    const store = createChoiceNoticeStore();
+    store.setSyncHandlers({ upsert: vi.fn(), dismiss: vi.fn() });
+    store.consume(frame(question));
+    const dismissed = store.getSnapshot()[0];
+    store.dismiss(dismissed.key);
+    store.consume(frame(`${USER_CHOICE_MARKER}\n배포해도 될까요?\n`, { msg_id: 'message-b' }));
+    const active = store.getSnapshot()[0];
+
+    store.replaceAll([dismissed, active]);
+    store.settleUpsert(active.key, [dismissed, active], { preview: active.preview });
+
+    expect(store.getSnapshot()).toEqual([active]);
+  });
+
   it('does not clear on lifecycle frames, opening, or an AI resolution marker', () => {
     const store = createChoiceNoticeStore();
     store.consume(frame(question));

@@ -12,6 +12,7 @@ const state = vi.hoisted(() => ({
   onStream: vi.fn(),
   onUserCreated: vi.fn(),
   onChoiceNoticesChanged: vi.fn(),
+  onReconnect: vi.fn(),
   listChoiceNotices: vi.fn(),
   registerChoiceNotice: vi.fn(),
   dismissChoiceNotice: vi.fn(),
@@ -27,6 +28,7 @@ vi.mock('@/common/adapter/ipcBridge', async (importOriginal) => {
 });
 vi.mock('@/common', () => ({
   ipcBridge: {
+    realtime: { reconnected: { on: state.onReconnect } },
     conversation: {
       responseStream: { on: state.onStream },
       userCreated: { on: state.onUserCreated },
@@ -39,6 +41,7 @@ vi.mock('@/common', () => ({
   },
 }));
 vi.mock('react-router-dom', () => ({ useNavigate: () => state.navigate }));
+vi.mock('@/renderer/hooks/context/UserChoiceNotifications/MobilePushSync', () => ({ default: () => null }));
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, params?: { count?: number }) => (params?.count === undefined ? key : `${key}:${params.count}`),
@@ -94,6 +97,7 @@ beforeEach(() => {
   state.onStream.mockReturnValue(vi.fn());
   state.onUserCreated.mockReturnValue(vi.fn());
   state.onChoiceNoticesChanged.mockReturnValue(vi.fn());
+  state.onReconnect.mockReturnValue(vi.fn());
   state.listChoiceNotices.mockResolvedValue([]);
   state.registerChoiceNotice.mockResolvedValue([]);
   state.dismissChoiceNotice.mockResolvedValue([]);
@@ -752,6 +756,141 @@ describe('in-app attention notification UI', () => {
     expect(await screen.findByTestId('conversation-choice-conversation-b')).toBeInTheDocument();
     expect(state.listChoiceNotices).toHaveBeenCalledOnce();
   });
+
+  it('does not revive a remotely dismissed question from a delayed initial load', async () => {
+    const remote = createChoiceNoticeStore();
+    remote.consume(frame());
+    const oldNotice = remote.getSnapshot()[0];
+    let resolve!: (items: ReturnType<typeof remote.getSnapshot>) => void;
+    state.listChoiceNotices.mockReturnValue(new Promise((fulfill) => (resolve = fulfill)));
+    render(
+      <UserChoiceNotificationsProvider>
+        <UserChoiceNotificationButton />
+      </UserChoiceNotificationsProvider>
+    );
+
+    act(() => {
+      state.onChoiceNoticesChanged.mock.calls[0][0]({ user_id: 'user-a', items: [] });
+    });
+    await act(async () => resolve([oldNotice]));
+
+    expect(screen.getByRole('button', { name: 'conversation.userChoiceNotifications.label:0' })).toBeInTheDocument();
+  });
+
+  it('keeps the latest question and its target after an older registration response arrives late', async () => {
+    state.mobile = true;
+    vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(390);
+    vi.useFakeTimers();
+    const store = setup(undefined, false);
+    let resolve!: (items: ReturnType<typeof store.getSnapshot>) => void;
+    state.registerChoiceNotice.mockReturnValueOnce(new Promise((fulfill) => (resolve = fulfill)));
+    act(() => store.consume(frame('conversation-a', 'old-message', '어느 것부터 진행할까요?')));
+    const oldNotice = store.getSnapshot()[0];
+    await act(async () => vi.advanceTimersByTimeAsync(250));
+
+    const remote = createChoiceNoticeStore();
+    remote.consume(frame('conversation-a', 'new-message', '이 설계로 진행할까요?'));
+    const newNotice = remote.getSnapshot()[0];
+    state.listChoiceNotices.mockResolvedValue([newNotice]);
+    act(() => {
+      state.onChoiceNoticesChanged.mock.calls[0][0]({ user_id: 'user-a', items: [oldNotice] });
+      state.onChoiceNoticesChanged.mock.calls[0][0]({ user_id: 'user-a', items: [newNotice] });
+    });
+    await act(async () => resolve([oldNotice]));
+
+    expect(store.getSnapshot()).toEqual([newNotice]);
+    vi.useRealTimers();
+    fireEvent.click(screen.getByRole('button', { name: 'conversation.userChoiceNotifications.label:1' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Conversation A.*이 설계로 진행할까요/ }));
+    expect(state.navigate).toHaveBeenCalledWith('/conversation/conversation-a', {
+      state: { targetMessageId: 'new-message', targetMarkerIndex: 0 },
+    });
+  });
+
+  it('does not replace a newer remote question with a delayed dismissal response', async () => {
+    const store = setup();
+    let resolve!: (items: ReturnType<typeof store.getSnapshot>) => void;
+    state.dismissChoiceNotice.mockReturnValueOnce(new Promise((fulfill) => (resolve = fulfill)));
+    const oldNotice = store.getSnapshot()[0];
+    act(() => store.dismiss(oldNotice.key));
+    const remote = createChoiceNoticeStore();
+    remote.consume(frame('conversation-a', 'new-message', '이 설계로 진행할까요?'));
+    state.listChoiceNotices.mockResolvedValue(remote.getSnapshot());
+    act(() => state.onChoiceNoticesChanged.mock.calls[0][0]({ user_id: 'user-a', items: remote.getSnapshot() }));
+
+    await act(async () => resolve([]));
+
+    expect(store.getSnapshot()).toEqual(remote.getSnapshot());
+  });
+
+  it('starts a dismissal before mobile navigation can unmount the provider', () => {
+    const store = createChoiceNoticeStore();
+    store.consume(frame());
+    const notice = store.getSnapshot()[0];
+    const { unmount } = render(<UserChoiceNotificationsProvider store={store} />);
+
+    act(() => store.dismiss(notice.key));
+    unmount();
+
+    expect(state.dismissChoiceNotice).toHaveBeenCalledWith(notice);
+  });
+
+  it('keeps a newer registration when an earlier refresh completes without a websocket event', async () => {
+    vi.useFakeTimers();
+    const store = setup(undefined, false);
+    let resolve!: (items: ReturnType<typeof store.getSnapshot>) => void;
+    state.listChoiceNotices.mockReturnValueOnce(new Promise((fulfill) => (resolve = fulfill)));
+    act(() => state.onReconnect.mock.calls[0][0]());
+    state.registerChoiceNotice.mockImplementation(async (notice) => [notice]);
+    act(() => store.consume(frame()));
+    const notice = store.getSnapshot()[0];
+    await act(async () => vi.advanceTimersByTimeAsync(250));
+
+    await act(async () => resolve([]));
+
+    expect(store.getSnapshot()).toEqual([notice]);
+  });
+
+  it('does not retry an older preview over a newer queued registration', async () => {
+    vi.useFakeTimers();
+    const store = setup(undefined, false);
+    let reject!: (reason: Error) => void;
+    state.registerChoiceNotice.mockReturnValueOnce(new Promise((_resolve, fail) => (reject = fail)));
+    state.registerChoiceNotice.mockImplementation(async (notice) => [notice]);
+    act(() => store.consume({ ...frame(), data: `${USER_CHOICE_MARKER}\n어느 것부터` }));
+    await act(async () => vi.advanceTimersByTimeAsync(250));
+    act(() => store.consume({ ...frame(), data: ' 진행할까요?\n' }));
+
+    await act(async () => {
+      reject(new Error('Network lost'));
+      await vi.advanceTimersByTimeAsync(7000);
+    });
+
+    expect(state.registerChoiceNotice.mock.calls.map(([notice]) => notice.preview)).toEqual([
+      '어느 것부터',
+      '어느 것부터 진행할까요?',
+    ]);
+    expect(store.getSnapshot().map((notice) => notice.preview)).toEqual(['어느 것부터 진행할까요?']);
+  });
+
+  it.each(['reconnect', 'visible'])(
+    'reconciles missed remote dismissals when the mobile page becomes %s',
+    async (event) => {
+      const store = setup();
+      state.listChoiceNotices.mockResolvedValue([]);
+
+      act(() => {
+        if (event === 'reconnect') state.onReconnect.mock.calls[0][0]();
+        else {
+          vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+          fireEvent(document, new Event('visibilitychange'));
+        }
+      });
+      await waitFor(() => expect(store.getSnapshot()).toEqual([]));
+
+      expect(state.listChoiceNotices).toHaveBeenCalledOnce();
+    }
+  );
 
   it('cancels a pending registration when the notice is dismissed immediately', async () => {
     vi.useFakeTimers();

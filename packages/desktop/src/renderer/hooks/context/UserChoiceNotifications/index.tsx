@@ -21,16 +21,36 @@ export function UserChoiceNotificationsProvider({
   const [store] = useState(() => suppliedStore ?? createChoiceNoticeStore());
   useEffect(() => {
     let disposed = false;
+    let snapshotVersion = 0;
+    let latestSnapshot: ChoiceNotice[] = [];
+    let refreshing = false;
+    let refreshQueued = false;
     const timers = new Map<string, ReturnType<typeof setTimeout>>();
+    const latestUpserts = new Map<string, ChoiceNotice>();
+    const recordSnapshot = (items: ChoiceNotice[]) => {
+      snapshotVersion += 1;
+      latestSnapshot = items;
+    };
     const scheduleUpsert = (notice: ChoiceNotice, attempt = 0) => {
+      if (attempt && latestUpserts.get(notice.key) !== notice) return;
+      latestUpserts.set(notice.key, notice);
       const existing = timers.get(notice.key);
       if (existing) clearTimeout(existing);
       const timer = setTimeout(
         () => {
           timers.delete(notice.key);
+          const version = snapshotVersion;
           void ipcBridge.conversation.registerChoiceNotice.invoke(notice).then(
             (items) => {
-              if (!disposed) store.settleUpsert(notice.key, items);
+              if (disposed) return;
+              const authoritative = version === snapshotVersion;
+              if (authoritative) recordSnapshot(items);
+              store.settleUpsert(notice.key, authoritative ? items : latestSnapshot, {
+                preview: notice.preview,
+                authoritative,
+              });
+              if (latestUpserts.get(notice.key) === notice) latestUpserts.delete(notice.key);
+              if (!authoritative) refresh();
             },
             () => {
               if (disposed) return;
@@ -51,46 +71,79 @@ export function UserChoiceNotificationsProvider({
       timers.set(notice.key, timer);
     };
     const scheduleDismiss = (notice: ChoiceNotice, attempt = 0) => {
+      latestUpserts.delete(notice.key);
       const pendingUpsert = timers.get(notice.key);
       if (pendingUpsert) {
         clearTimeout(pendingUpsert);
         timers.delete(notice.key);
       }
       const timerKey = `dismiss:${notice.key}`;
-      const timer = setTimeout(
-        () => {
-          timers.delete(timerKey);
-          void ipcBridge.conversation.dismissChoiceNotice.invoke(notice).then(
-            (items) => {
-              if (!disposed) store.replaceAll(items);
-            },
-            () => {
-              if (disposed) return;
-              if (attempt < 2) {
-                scheduleDismiss(notice, attempt + 1);
-              } else {
-                store.rollbackDismiss(notice.key);
-                console.warn('[ChoiceNotifications] Could not synchronize a dismissal');
-              }
+      const send = () => {
+        timers.delete(timerKey);
+        const version = snapshotVersion;
+        void ipcBridge.conversation.dismissChoiceNotice.invoke(notice).then(
+          (items) => {
+            if (disposed) return;
+            if (version === snapshotVersion) {
+              recordSnapshot(items);
+              store.replaceAll(items);
+            } else refresh();
+          },
+          () => {
+            if (disposed) return;
+            if (attempt < 2) {
+              scheduleDismiss(notice, attempt + 1);
+            } else {
+              store.rollbackDismiss(notice.key);
+              console.warn('[ChoiceNotifications] Could not synchronize a dismissal');
             }
-          );
-        },
-        attempt ? 1000 * 2 ** attempt : 0
-      );
-      timers.set(timerKey, timer);
+          }
+        );
+      };
+      // Start the user action before a mobile page can be suspended or unmounted.
+      if (attempt) timers.set(timerKey, setTimeout(send, 1000 * 2 ** attempt));
+      else send();
     };
     store.setSyncHandlers({ upsert: scheduleUpsert, dismiss: scheduleDismiss });
     const unsubscribeStream = ipcBridge.conversation?.responseStream?.on(store.consume);
     const unsubscribeChoiceNotices = ipcBridge.conversation?.choiceNoticesChanged?.on((event) => {
+      recordSnapshot(event.items);
       store.replaceAll(event.items);
     });
+    const refresh = (initial = false) => {
+      if (disposed) return;
+      if (refreshing) {
+        refreshQueued = true;
+        return;
+      }
+      refreshing = true;
+      const version = snapshotVersion;
+      void ipcBridge.conversation.listChoiceNotices
+        .invoke()
+        .then(
+          (items) => {
+            if (disposed || version !== snapshotVersion) return;
+            recordSnapshot(items);
+            if (initial) store.mergeAll(items);
+            else store.replaceAll(items);
+          },
+          () => console.warn('[ChoiceNotifications] Could not load synchronized notifications')
+        )
+        .finally(() => {
+          refreshing = false;
+          if (refreshQueued) {
+            refreshQueued = false;
+            refresh();
+          }
+        });
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    const unsubscribeReconnect = ipcBridge.realtime?.reconnected?.on(() => refresh());
+    document.addEventListener('visibilitychange', onVisible);
     if (!suppliedStore) {
-      void ipcBridge.conversation.listChoiceNotices.invoke().then(
-        (items) => {
-          if (!disposed) store.mergeAll(items);
-        },
-        () => console.warn('[ChoiceNotifications] Could not load synchronized notifications')
-      );
+      refresh(true);
     }
     return () => {
       disposed = true;
@@ -98,6 +151,8 @@ export function UserChoiceNotificationsProvider({
       timers.forEach((timer) => clearTimeout(timer));
       unsubscribeStream?.();
       unsubscribeChoiceNotices?.();
+      unsubscribeReconnect?.();
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, [store, suppliedStore]);
   return (
