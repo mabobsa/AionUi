@@ -695,6 +695,7 @@ const GuidPage: React.FC = () => {
       onFilesUploaded={guidInput.handleFilesUploaded}
       onFilesPicked={guidInput.handleFilesPicked}
       modelSelectorNode={modelSelectorNode}
+      mobileAccountEntry={claudeAccount.mobileEntry}
       isGeminiMode={isGeminiMode}
       modelList={modelSelection.modelList}
       current_model={modelSelection.current_model}

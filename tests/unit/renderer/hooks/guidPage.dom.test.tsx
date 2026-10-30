@@ -9,6 +9,14 @@ import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LayoutContext } from '@/renderer/hooks/context/LayoutContext';
+import type { MobileActionSheetEntry } from '@/renderer/components/chat/MobileActionSheet/types';
+import type { ManagedAgent } from '@/renderer/utils/model/agentTypes';
+
+let mockManagedAgents: ManagedAgent[] = [];
+
+vi.mock('@/renderer/hooks/agent/useManagedAgents', () => ({
+  useManagedAgentRuntimeCatalog: () => mockManagedAgents,
+}));
 
 const originalMatchMedia = window.matchMedia;
 const desktopElectronApi = window.electronAPI;
@@ -332,6 +340,7 @@ const guidInputCardProps = {
 
 describe('GuidPage', () => {
   beforeEach(() => {
+    mockManagedAgents = [];
     locationMock.state = null;
     locationMock.key = 'guid-location';
     navigateMock.mockReset();
@@ -378,6 +387,24 @@ describe('GuidPage', () => {
         deletable: false,
       },
     ];
+  });
+
+  it('passes the mobile account choice to conversation creation only while multiple accounts exist', () => {
+    const accounts = [
+      { id: 'default', number: 1, label: 'Team' },
+      { id: 'max', number: 2, label: 'Max' },
+    ];
+    mockManagedAgents = [{ backend: 'claude', claude_accounts: accounts } as ManagedAgent];
+    agentSelectionMock.selectedAssistantBackend = 'claude';
+    const { rerender } = render(<GuidPage />);
+    const entry = capturedGuidActionRowProps.at(-1)?.mobileAccountEntry as MobileActionSheetEntry;
+    act(() => entry.submenu?.onSelect('max'));
+    expect(capturedGuidSendDeps.at(-1)?.claudeAccountId).toBe('max');
+
+    mockManagedAgents = [{ backend: 'claude', claude_accounts: accounts.slice(0, 1) } as ManagedAgent];
+    rerender(<GuidPage />);
+    expect(capturedGuidSendDeps.at(-1)?.claudeAccountId).toBeNull();
+    expect(capturedGuidActionRowProps.at(-1)?.mobileAccountEntry).toBeNull();
   });
 
   it('keeps the existing replace contract for ordinary Guid prefills', () => {
