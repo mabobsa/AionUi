@@ -8,7 +8,10 @@ import type { IConversationArtifact } from '@/common/adapter/ipcBridge';
 import type { IMessageAcpToolCall, IMessageToolCall, IMessageToolGroup, TMessage } from '@/common/chat/chatLib';
 import { useConversationContextSafe } from '@/renderer/hooks/context/ConversationContext';
 import { useFillMessageViewport } from '@/renderer/pages/conversation/hooks/useFillMessageViewport';
-import { useMessageTargetScroll } from '@/renderer/pages/conversation/hooks/useMessageTargetScroll';
+import {
+  consumeMessageTargetNavigation,
+  useMessageTargetScroll,
+} from '@/renderer/pages/conversation/hooks/useMessageTargetScroll';
 import { useConversationRuntimeView } from '@/renderer/pages/conversation/runtime/useConversationRuntimeView';
 import { getChatSurfaceWidthClass } from '@/renderer/pages/conversation/utils/chatSurfaceWidth';
 import { iconColors } from '@/renderer/styles/colors';
@@ -637,6 +640,7 @@ const MessageList: React.FC<{ className?: string; emptySlot?: React.ReactNode }>
       if (!scrollToTarget(targetElement, targetMarkerIndex)) return;
       // Consume the navigation only after the loaded message has a mounted scroll target.
       handledTargetKeyRef.current = targetKey;
+      consumeMessageTargetNavigation(location.key, targetMessageId, targetMarkerIndex);
       setHighlightedMessageId(targetMessageId);
     });
 

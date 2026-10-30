@@ -18,7 +18,10 @@ import {
 import MessageList from '@/renderer/pages/conversation/Messages/MessageList';
 
 let resizeObserverCallback: ResizeObserverCallback | null = null;
-let locationState: { key: string; state: { targetMessageId?: string } } = { key: 'location-key', state: {} };
+let locationState: { key: string; state: { targetMessageId?: string; targetMarkerIndex?: number } } = {
+  key: 'location-key',
+  state: {},
+};
 const { loadLatest, loadAnchor } = vi.hoisted(() => ({ loadLatest: vi.fn(), loadAnchor: vi.fn() }));
 
 vi.mock('@/common', () => ({
@@ -255,6 +258,7 @@ describe('MessageList streaming scroll behavior', () => {
     vi.stubGlobal('cancelAnimationFrame', (handle: number) => window.clearTimeout(handle));
     resizeObserverCallback = null;
     locationState = { key: 'location-key', state: {} };
+    window.history.replaceState(null, '', '/');
     loadLatest.mockReset();
     loadAnchor.mockReset();
   });
@@ -373,6 +377,106 @@ describe('MessageList streaming scroll behavior', () => {
 
     expect(scroller.scrollTop).toBe(120);
     expect(loadAnchor).not.toHaveBeenCalled();
+  });
+
+  it('removes a completed marker jump from history while preserving the hash URL and other navigation state', () => {
+    locationState.state = { targetMessageId: 'message-1', targetMarkerIndex: 0 };
+    window.history.replaceState(
+      { key: locationState.key, idx: 4, usr: { ...locationState.state, workspace: 'project-a' } },
+      '',
+      '/?webui=1#/conversation/conversation-1'
+    );
+    const originalUrl = window.location.href;
+    const originalLength = window.history.length;
+    render(
+      <Wrapper messages={[createTextMessage('approval question')]}>
+        <MessageList />
+      </Wrapper>
+    );
+    trackTargetScroll();
+    act(() => vi.runAllTimers());
+
+    expect(window.history.state).toEqual({ key: locationState.key, idx: 4, usr: { workspace: 'project-a' } });
+    expect(window.location.href).toBe(originalUrl);
+    expect(window.history.length).toBe(originalLength);
+  });
+
+  it('shows the latest messages after reloading a conversation whose notification jump was already used', () => {
+    const messages = [createTextMessage('approval question')];
+    locationState.state = { targetMessageId: 'message-1', targetMarkerIndex: 0 };
+    window.history.replaceState({ key: locationState.key, idx: 1, usr: locationState.state }, '');
+    const firstVisit = render(
+      <Wrapper messages={messages}>
+        <MessageList />
+      </Wrapper>
+    );
+    const { scroller } = trackTargetScroll();
+    act(() => vi.runAllTimers());
+    fireEvent.pointerDown(scroller);
+    scroller.scrollTop = 600;
+    fireEvent.scroll(scroller);
+    firstVisit.unmount();
+
+    // A hard reload recreates the router from the persisted history entry.
+    locationState = { key: window.history.state.key, state: window.history.state.usr };
+    render(
+      <Wrapper messages={messages}>
+        <MessageList />
+      </Wrapper>
+    );
+    const afterReload = trackTargetScroll().scroller;
+    act(() => vi.runAllTimers());
+
+    expect(afterReload.scrollTop).toBe(600);
+  });
+
+  it('keeps aligning the question after consuming its history entry while the message layout changes', () => {
+    locationState.state = { targetMessageId: 'message-1', targetMarkerIndex: 0 };
+    window.history.replaceState({ key: locationState.key, usr: locationState.state }, '');
+    render(
+      <Wrapper messages={[createTextMessage('approval question')]}>
+        <MessageList />
+      </Wrapper>
+    );
+    const { scroller, target } = trackTargetScroll();
+    act(() => vi.runAllTimers());
+
+    target.getBoundingClientRect = () => new DOMRect(0, 700 - scroller.scrollTop, 100, 40);
+    flushResizeObserver();
+
+    expect(scroller.scrollTop).toBe(500);
+  });
+
+  it('does not clear a newer history entry when an older navigation finishes aligning', () => {
+    locationState.state = { targetMessageId: 'message-1', targetMarkerIndex: 0 };
+    const newerEntry = {
+      key: 'new-navigation',
+      idx: 2,
+      usr: { targetMessageId: 'another-question', targetMarkerIndex: 1 },
+    };
+    window.history.replaceState(newerEntry, '');
+    render(
+      <Wrapper messages={[createTextMessage('approval question')]}>
+        <MessageList />
+      </Wrapper>
+    );
+    trackTargetScroll();
+    act(() => vi.runAllTimers());
+
+    expect(window.history.state).toEqual(newerEntry);
+  });
+
+  it('retains an unconsumed notification target when its history page fails to load', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    locationState.state = { targetMessageId: 'message-1', targetMarkerIndex: 0 };
+    const entry = { key: locationState.key, idx: 1, usr: locationState.state };
+    window.history.replaceState(entry, '');
+    loadLatest.mockResolvedValueOnce(messagePage([]));
+    loadAnchor.mockRejectedValueOnce(new Error('offline'));
+    render(<Conversation />);
+    await act(async () => vi.runAllTimersAsync());
+
+    expect(window.history.state).toEqual(entry);
   });
 
   it('waits for initial history even when the target is already present from a live update', async () => {

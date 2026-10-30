@@ -9,6 +9,22 @@ import { USER_CHOICE_MARKER } from '@/renderer/hooks/context/UserChoiceNotificat
 
 type ElementRef = { readonly current: HTMLElement | null };
 
+/** Consume a completed jump in persisted history without interrupting the current scroll alignment. */
+export function consumeMessageTargetNavigation(navigationKey: string, messageId: string, markerIndex?: number): void {
+  const entry: unknown = window.history.state;
+  if (!entry || typeof entry !== 'object') return;
+  const historyState = entry as Record<string, unknown>;
+  if ((historyState.key ?? 'default') !== navigationKey) return;
+  const storedState = historyState.usr;
+  if (!storedState || typeof storedState !== 'object') return;
+  const state = storedState as Record<string, unknown>;
+  if (state.targetMessageId !== messageId || state.targetMarkerIndex !== markerIndex) return;
+  const { targetMessageId: _messageId, targetMarkerIndex: _markerIndex, ...remainingState } = state;
+  // Keep the URL (including the HashRouter prefix), history index and current router key intact.
+  // A router navigation here would cancel the active alignment before Markdown/images settle.
+  window.history.replaceState({ ...historyState, usr: remainingState }, '');
+}
+
 /** Locate a question box or legacy prose marker, including open Markdown shadow roots. */
 function findMarkerTarget(root: HTMLElement, markerIndex: number): Element | Range | undefined {
   let index = 0;
