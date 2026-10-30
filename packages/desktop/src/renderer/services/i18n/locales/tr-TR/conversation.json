@@ -558,6 +558,11 @@
     "addToQueueBusyHint": "Save to Draft box and send it later."
   },
   "contextUsage": {
+    "pending": "Kullanım doğrulanıyor",
+    "unavailable": "Kullanım doğrulanamadı",
+    "previousReading": "Son doğrulanan kullanım gösteriliyor",
+    "lastUpdated": "Son doğrulama: {{time}}",
+    "noReading": "Henüz doğrulanmış kullanım yok",
     "contextUsed": "bağlam kullanıldı",
     "tokensUsed": "{{tokens}} jeton kullanıldı",
     "windowUnknown": "Bağlam penceresi boyutu bilinmiyor",

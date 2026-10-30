@@ -77,6 +77,39 @@ describe('ContextUsageIndicator', () => {
     expect(container.querySelector('.context-usage-indicator')).toBeNull();
   });
 
+  it.each(['pending', 'unavailable'] as const)('shows %s with a muted previous reading', (status) => {
+    const { container, getByTestId } = render(
+      <ContextUsageIndicator
+        context_limit={100_000}
+        tokenUsage={{
+          total_tokens: 90_000,
+          freshness: { status, turn_id: 'turn-new', updated_at: 1000, status_changed_at: 2000 },
+        }}
+      />
+    );
+    expect(container.querySelector('.context-usage-indicator')?.getAttribute('data-usage-status')).toBe(status);
+    const arc = container.querySelectorAll('circle')[1];
+    expect(arc.getAttribute('stroke')).toBe('var(--color-text-3)');
+    expect(arc.style.opacity).toBe('0.35');
+    expect(getByTestId('popover-content').textContent).toContain('Showing the last confirmed reading');
+    expect(getByTestId('popover-content').textContent).toContain('Last confirmed:');
+  });
+
+  it('shows pending without inventing a zero-percent reading when no usage is available', () => {
+    const { container, getByTestId } = render(
+      <ContextUsageIndicator
+        context_limit={0}
+        tokenUsage={{
+          total_tokens: 0,
+          freshness: { status: 'pending', turn_id: 'first', updated_at: null, status_changed_at: 1 },
+        }}
+      />
+    );
+    expect(container.querySelectorAll('circle')).toHaveLength(1);
+    expect(getByTestId('popover-content').textContent).toContain('No confirmed usage yet');
+    expect(getByTestId('popover-content').textContent).not.toContain('%');
+  });
+
   it('shows session cost and per-turn breakdown when the agent reported them', () => {
     const { getByTestId } = render(
       <ContextUsageIndicator

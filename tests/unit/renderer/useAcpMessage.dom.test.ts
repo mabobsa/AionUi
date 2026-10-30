@@ -518,6 +518,110 @@ describe('useAcpMessage', () => {
     expect(result.current.tokenUsage).toEqual({ total_tokens: 90_000 });
   });
 
+  it.each(['pending', 'unavailable'] as const)(
+    'restores a %s reading without treating it as current',
+    async (status) => {
+      vi.mocked(getConversationOrNull).mockResolvedValue(null);
+      const freshness = { status, turn_id: 'turn-new', updated_at: 100, status_changed_at: 200, reason: null };
+      getUsageInvokeMock.mockResolvedValue({
+        used: 27_237,
+        size: 1_000_000,
+        _meta: { 'aionui/contextUsage': freshness },
+      });
+      const { result } = renderHook(() => useAcpMessage('headless-conv'));
+      await waitFor(() => expect(result.current.tokenUsage?.freshness).toEqual(freshness));
+      expect(result.current.tokenUsage?.total_tokens).toBe(27_237);
+      expect(result.current.context_limit).toBe(1_000_000);
+    }
+  );
+
+  it('restores metadata-only pending state and replaces it when confirmed usage arrives', async () => {
+    vi.mocked(getConversationOrNull).mockResolvedValue(null);
+    const freshness = { status: 'pending', turn_id: 'turn-first', updated_at: null, status_changed_at: 100 };
+    getUsageInvokeMock.mockResolvedValue({ _meta: { 'aionui/contextUsage': freshness } });
+    const { result } = renderHook(() => useAcpMessage('conv-1'));
+    await waitFor(() => expect(result.current.tokenUsage?.freshness?.status).toBe('pending'));
+    expect(result.current.context_limit).toBe(0);
+    act(() =>
+      responseStreamHandlerRef.current?.({
+        type: 'acp_context_usage',
+        conversation_id: 'conv-1',
+        msg_id: '',
+        data: {
+          used: 27_237,
+          size: 1_000_000,
+          _meta: {
+            'aionui/contextUsage': { ...freshness, status: 'current', updated_at: 200, status_changed_at: 200 },
+          },
+        },
+      } as unknown as IResponseMessage)
+    );
+    expect(result.current.tokenUsage?.total_tokens).toBe(27_237);
+    expect(result.current.tokenUsage?.freshness?.status).toBe('current');
+    expect(result.current.context_limit).toBe(1_000_000);
+  });
+
+  it('keeps count, window and confirmation together when older frames arrive', async () => {
+    vi.mocked(getConversationOrNull).mockResolvedValue(null);
+    const current = { status: 'current', turn_id: 'turn-new', updated_at: 200, status_changed_at: 200 };
+    getUsageInvokeMock.mockResolvedValue({ used: 50_000, size: 200_000, _meta: { 'aionui/contextUsage': current } });
+    const { result } = renderHook(() => useAcpMessage('conv-1'));
+    await waitFor(() => expect(result.current.tokenUsage?.freshness?.status).toBe('current'));
+    const emit = (data: unknown) =>
+      act(() =>
+        responseStreamHandlerRef.current?.({
+          type: 'acp_context_usage',
+          conversation_id: 'conv-1',
+          msg_id: '',
+          data,
+        } as unknown as IResponseMessage)
+      );
+    emit({
+      used: 1,
+      size: 10,
+      _meta: { 'aionui/contextUsage': { ...current, status: 'pending', status_changed_at: 100 } },
+    });
+    expect(result.current.tokenUsage?.total_tokens).toBe(50_000);
+    expect(result.current.context_limit).toBe(200_000);
+    emit({
+      _meta: { 'aionui/contextUsage': { ...current, turn_id: 'turn-next', status: 'pending', status_changed_at: 300 } },
+    });
+    emit({ used: 60_000, size: 1_000_000 });
+    expect(result.current.tokenUsage?.freshness?.status).toBe('pending');
+    expect(result.current.tokenUsage?.total_tokens).toBe(50_000);
+    expect(result.current.context_limit).toBe(200_000);
+  });
+
+  it('does not restore a previous turn over live pending state from a slower HTTP request', async () => {
+    vi.mocked(getConversationOrNull).mockResolvedValue(null);
+    const snapshot = deferred<Record<string, unknown>>();
+    getUsageInvokeMock.mockReturnValue(snapshot.promise);
+    const { result } = renderHook(() => useAcpMessage('conv-1'));
+    await waitFor(() => expect(getUsageInvokeMock).toHaveBeenCalledTimes(1));
+    const freshness = { status: 'pending', turn_id: 'turn-new', updated_at: 100, status_changed_at: 200 };
+    act(() =>
+      responseStreamHandlerRef.current?.({
+        type: 'acp_context_usage',
+        conversation_id: 'conv-1',
+        msg_id: '',
+        data: { used: 50_000, size: 200_000, _meta: { 'aionui/contextUsage': freshness } },
+      } as unknown as IResponseMessage)
+    );
+    await act(async () => {
+      snapshot.resolve({
+        used: 100,
+        size: 1_000_000,
+        _meta: {
+          'aionui/contextUsage': { ...freshness, status: 'current', turn_id: 'turn-old', status_changed_at: 100 },
+        },
+      });
+      await snapshot.promise;
+    });
+    expect(result.current.tokenUsage?.freshness?.status).toBe('pending');
+    expect(result.current.tokenUsage?.total_tokens).toBe(50_000);
+    expect(result.current.context_limit).toBe(200_000);
+  });
+
   it('survives a failing usage snapshot request without touching indicator state', async () => {
     vi.mocked(getConversationOrNull).mockResolvedValue(null);
     getUsageInvokeMock.mockRejectedValue(new Error('no active task'));

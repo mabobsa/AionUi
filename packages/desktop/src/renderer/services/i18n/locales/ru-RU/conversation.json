@@ -581,6 +581,11 @@
     "addToQueueBusyHint": "Save to Draft box and send it later."
   },
   "contextUsage": {
+    "pending": "Подтверждение использования",
+    "unavailable": "Не удалось подтвердить использование",
+    "previousReading": "Показаны последние подтверждённые данные",
+    "lastUpdated": "Последнее подтверждение: {{time}}",
+    "noReading": "Подтверждённых данных пока нет",
     "contextUsed": "контекст использован",
     "tokensUsed": "Использовано токенов: {{tokens}}",
     "windowUnknown": "Размер контекстного окна неизвестен",

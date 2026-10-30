@@ -573,6 +573,11 @@
     "addToQueueBusyHint": "Save to Draft box and send it later."
   },
   "contextUsage": {
+    "pending": "در حال تأیید میزان استفاده",
+    "unavailable": "تأیید میزان استفاده ناموفق بود",
+    "previousReading": "آخرین میزان استفاده تأییدشده نمایش داده می‌شود",
+    "lastUpdated": "آخرین تأیید: {{time}}",
+    "noReading": "هنوز میزان استفاده تأییدشده‌ای وجود ندارد",
     "contextUsed": "زمینه استفاده‌شده",
     "tokensUsed": "{{tokens}} توکن استفاده شده",
     "windowUnknown": "اندازه پنجره زمینه نامشخص است",

@@ -231,12 +231,22 @@ export interface TokenUsageCost {
   currency: string;
 }
 
+export type ContextUsageFreshness = {
+  status: 'pending' | 'current' | 'unavailable';
+  turn_id: string;
+  updated_at: number | null;
+  status_changed_at: number;
+  reason?: string | null;
+};
+
 export interface TokenUsageData {
   total_tokens: number;
   /** Per-turn token counters from the agent's end-of-turn usage report */
   breakdown?: TokenUsageBreakdown;
   /** Cumulative session cost as reported by the agent */
   cost?: TokenUsageCost;
+  /** Confirmation of the reading for the current conversation turn. */
+  freshness?: ContextUsageFreshness;
 }
 
 export type TChatConversation =

@@ -33,6 +33,15 @@ const ContextUsageIndicator: React.FC<ContextUsageIndicatorProps> = ({
   const locale = i18n.language;
 
   const hasWindow = context_limit > 0;
+  const freshness = tokenUsage?.freshness;
+  const unconfirmed = freshness !== undefined && freshness.status !== 'current';
+  const hasReading = !freshness || (tokenUsage?.total_tokens ?? 0) > 0;
+  const freshnessLabel =
+    freshness?.status === 'pending'
+      ? t('conversation.contextUsage.pending', 'Confirming usage')
+      : freshness?.status === 'unavailable'
+        ? t('conversation.contextUsage.unavailable', 'Usage confirmation failed')
+        : null;
 
   const { percentage, displayTotal, displayLimit, isWarning, isDanger } = useMemo(() => {
     if (!tokenUsage) {
@@ -79,6 +88,7 @@ const ContextUsageIndicator: React.FC<ContextUsageIndicatorProps> = ({
 
   // 根据状态获取颜色
   const getStrokeColor = () => {
+    if (unconfirmed) return 'var(--color-text-3)';
     if (isDanger) return 'rgb(var(--danger-6))';
     if (isWarning) return 'rgb(var(--warning-6))';
     return 'rgb(var(--primary-6))';
@@ -121,6 +131,19 @@ const ContextUsageIndicator: React.FC<ContextUsageIndicatorProps> = ({
 
   const details = (
     <>
+      {freshnessLabel && <div className='text-12px text-t-secondary mt-4px'>{freshnessLabel}</div>}
+      {unconfirmed && hasReading && (
+        <div className='text-12px text-t-secondary mt-4px'>
+          {t('conversation.contextUsage.previousReading', 'Showing the last confirmed reading')}
+        </div>
+      )}
+      {freshness?.updated_at != null && (
+        <div className='text-12px text-t-secondary mt-4px'>
+          {t('conversation.contextUsage.lastUpdated', 'Last confirmed: {{time}}', {
+            time: new Date(freshness.updated_at).toLocaleString(locale),
+          })}
+        </div>
+      )}
       {tokenUsage.cost && (
         <div className='text-12px text-t-secondary mt-4px'>
           {t('conversation.contextUsage.sessionCost', 'Session cost')} ≈ {formatCostAmount(tokenUsage.cost, locale)}
@@ -135,7 +158,14 @@ const ContextUsageIndicator: React.FC<ContextUsageIndicatorProps> = ({
   // Percentages are only honest against an agent-reported window size —
   // never substitute a hardcoded per-model default here. Without a window
   // the popover reports the raw count and says the window is unknown.
-  const popoverContent = hasWindow ? (
+  const popoverContent = !hasReading ? (
+    <div className='p-8px min-w-160px'>
+      <div className='text-14px font-medium text-t-primary'>{freshnessLabel}</div>
+      <div className='text-12px text-t-secondary mt-4px'>
+        {t('conversation.contextUsage.noReading', 'No confirmed usage yet')}
+      </div>
+    </div>
+  ) : hasWindow ? (
     <div className='p-8px min-w-160px'>
       <div className='text-14px font-medium text-t-primary'>
         {formatPercentage(percentage, locale)} · {displayTotal} / {displayLimit}{' '}
@@ -158,7 +188,9 @@ const ContextUsageIndicator: React.FC<ContextUsageIndicatorProps> = ({
   return (
     <Popover content={popoverContent} position='top' trigger='hover' className='context-usage-popover'>
       <div
-        className={`context-usage-indicator cursor-pointer flex items-center justify-center ${className}`}
+        className={`context-usage-indicator cursor-pointer relative flex items-center justify-center ${className}`}
+        data-usage-status={freshness?.status}
+        aria-label={freshnessLabel ?? undefined}
         style={{ width: 32, height: 32 }}
       >
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)' }}>
@@ -172,7 +204,7 @@ const ContextUsageIndicator: React.FC<ContextUsageIndicatorProps> = ({
             strokeWidth={strokeWidth}
           />
           {/* 进度圆环 — only when the denominator is known; otherwise the hollow track alone signals "count available, window unknown" */}
-          {hasWindow && (
+          {hasWindow && hasReading && (
             <circle
               cx={size / 2}
               cy={size / 2}
@@ -183,10 +215,15 @@ const ContextUsageIndicator: React.FC<ContextUsageIndicatorProps> = ({
               strokeLinecap='round'
               strokeDasharray={circumference}
               strokeDashoffset={strokeDashoffset}
-              style={{ transition: 'stroke-dashoffset 0.3s ease, stroke 0.3s ease' }}
+              style={{ transition: 'stroke-dashoffset 0.3s ease, stroke 0.3s ease', opacity: unconfirmed ? 0.35 : 1 }}
             />
           )}
         </svg>
+        {unconfirmed && (
+          <span className='absolute text-12px text-t-secondary' aria-hidden>
+            {freshness?.status === 'pending' ? '…' : '!'}
+          </span>
+        )}
       </div>
     </Popover>
   );

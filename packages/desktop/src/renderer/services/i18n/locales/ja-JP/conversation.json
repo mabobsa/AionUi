@@ -573,6 +573,11 @@
     "addToQueueBusyHint": "Save to Draft box and send it later."
   },
   "contextUsage": {
+    "pending": "使用量を確認中",
+    "unavailable": "使用量の確認に失敗しました",
+    "previousReading": "最後に確認された使用量を表示しています",
+    "lastUpdated": "最終確認：{{time}}",
+    "noReading": "確認済みの使用量はまだありません",
     "contextUsed": "コンテキスト使用量",
     "tokensUsed": "{{tokens}} トークン使用済み",
     "windowUnknown": "コンテキストウィンドウのサイズは不明",

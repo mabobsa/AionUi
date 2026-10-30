@@ -573,6 +573,11 @@
     "addToQueueBusyHint": "先存到草稿箱，稍后发送。"
   },
   "contextUsage": {
+    "pending": "正在确认用量",
+    "unavailable": "用量确认失败",
+    "previousReading": "显示最后确认的用量",
+    "lastUpdated": "最后确认：{{time}}",
+    "noReading": "尚无已确认的用量",
     "contextUsed": "上下文已使用",
     "tokensUsed": "已使用 {{tokens}} tokens",
     "windowUnknown": "上下文窗口大小未知",

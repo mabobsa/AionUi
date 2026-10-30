@@ -573,6 +573,11 @@
     "addToQueueBusyHint": "Save to Draft box and send it later."
   },
   "contextUsage": {
+    "pending": "Confirming usage",
+    "unavailable": "Usage confirmation failed",
+    "previousReading": "Showing the last confirmed reading",
+    "lastUpdated": "Last confirmed: {{time}}",
+    "noReading": "No confirmed usage yet",
     "contextUsed": "context used",
     "tokensUsed": "{{tokens}} tokens used",
     "windowUnknown": "Context window size unknown",
