@@ -7,6 +7,7 @@
 import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { SWRConfig } from 'swr';
 import type { ManagedAgent } from '@/renderer/utils/model/agentTypes';
 
 let mockAgents: ManagedAgent[] = [];
@@ -22,12 +23,20 @@ vi.mock('@/renderer/services/FileService', () => ({
   getCleanFileNames: (files: string[]) => files,
   FileService: { processDroppedFiles: vi.fn().mockResolvedValue([]) },
 }));
-vi.mock('@/common', () => ({ ipcBridge: { dialog: { showOpen: { invoke: vi.fn().mockResolvedValue([]) } } } }));
+vi.mock('@/common', () => ({
+  ipcBridge: {
+    dialog: { showOpen: { invoke: vi.fn().mockResolvedValue([]) } },
+    conversation: { get: { invoke: vi.fn(async () => maxConversation) } },
+  },
+}));
+vi.mock('@/renderer/hooks/agent/usePresetAssistantInfo', () => ({ usePresetAssistantInfo: () => ({ info: null }) }));
+vi.mock('@/renderer/components/agent/AgentBadge', () => ({ AgentLogoIcon: () => <span /> }));
 
 import type { TChatConversation } from '@/common/config/storage';
 import { ConversationClaudeAccountBadge } from '@/renderer/pages/conversation/platforms/acp/claudeAccounts/ClaudeAccountBadge';
 import { useGuidClaudeAccountSelection } from '@/renderer/pages/conversation/platforms/acp/claudeAccounts/GuidClaudeAccountSelector';
 import GuidActionRow from '@/renderer/pages/guid/components/GuidActionRow';
+import MobileConversationBrand from '@/renderer/components/layout/Titlebar/MobileConversationBrand';
 
 const claudeRow = (claudeAccounts?: { id: string; number: number; label: string }[]): ManagedAgent =>
   ({ id: 'claude-row', backend: 'claude', claude_accounts: claudeAccounts }) as unknown as ManagedAgent;
@@ -101,6 +110,31 @@ describe('ConversationClaudeAccountBadge', () => {
     mockAgents = [claudeRow(twoAccounts)];
     render(<ConversationClaudeAccountBadge conversation={maxConversation} variant='tag' />);
     expect(screen.getByTestId('claude-account-tag')).toHaveTextContent('2Max');
+  });
+
+  it('keeps account details available on hover outside the mobile titlebar', async () => {
+    mockAgents = [claudeRow(twoAccounts)];
+    render(<ConversationClaudeAccountBadge conversation={maxConversation} />);
+    fireEvent.mouseEnter(screen.getByTestId('claude-account-badge'));
+    expect(await screen.findByText('conversation.claudeAccount.badgeTooltip')).toBeVisible();
+  });
+
+  it('keeps the mobile titlebar number visible without opening account details on touch or hover', async () => {
+    mockAgents = [claudeRow(twoAccounts)];
+    render(
+      <SWRConfig value={{ provider: () => new Map() }}>
+        <MobileConversationBrand conversation_id='c1' fallbackTitle='모바일 대화' />
+      </SWRConfig>
+    );
+    const badge = await screen.findByTestId('claude-account-badge');
+    fireEvent.touchStart(badge);
+    fireEvent.touchEnd(badge);
+    fireEvent.click(badge);
+    fireEvent.mouseEnter(badge);
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 300)));
+    expect(badge).toHaveTextContent('2');
+    expect(screen.getByText('모바일 대화')).toBeVisible();
+    expect(screen.queryByText('conversation.claudeAccount.badgeTooltip')).not.toBeInTheDocument();
   });
 });
 

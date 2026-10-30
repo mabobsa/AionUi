@@ -51,7 +51,7 @@ const MobileConversationBrand: React.FC<MobileConversationBrandProps> = ({ conve
             agentLogoIsEmoji={presetAssistant?.isEmoji}
             agentLogoIsFallback={presetAssistant?.isFallback}
           />
-          {claudeAccount && <ClaudeAccountBadge account={claudeAccount} />}
+          {claudeAccount && <ClaudeAccountBadge account={claudeAccount} tooltipEnabled={false} />}
         </span>
       )}
       <span className='app-titlebar__brand-text'>{title}</span>

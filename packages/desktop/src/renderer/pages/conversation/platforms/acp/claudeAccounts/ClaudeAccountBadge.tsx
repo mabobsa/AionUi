@@ -16,10 +16,12 @@ type BadgeProps = {
   account: ClaudeAccountSummary;
   /** `number`: small circle over an agent icon. `tag`: number plus label. `mark`: inline number only. */
   variant?: 'number' | 'tag' | 'mark';
+  /** Disable the number's pointer target where it overlaps mobile titlebar controls. */
+  tooltipEnabled?: boolean;
 };
 
 /** Circled account number shared with MindNProgress and the account selectors. */
-export const ClaudeAccountBadge: React.FC<BadgeProps> = ({ account, variant = 'number' }) => {
+export const ClaudeAccountBadge: React.FC<BadgeProps> = ({ account, variant = 'number', tooltipEnabled = true }) => {
   const { t } = useTranslation();
   const label = t('conversation.claudeAccount.badgeTooltip', { number: account.number, label: account.label });
 
@@ -40,12 +42,21 @@ export const ClaudeAccountBadge: React.FC<BadgeProps> = ({ account, variant = 'n
     );
   }
 
-  return (
+  const badge = (
+    <span
+      className={`${styles.number}${tooltipEnabled ? '' : ` ${styles.passive}`}`}
+      aria-label={label}
+      data-testid='claude-account-badge'
+    >
+      {account.number}
+    </span>
+  );
+  return tooltipEnabled ? (
     <Tooltip content={label} position='right' mini>
-      <span className={styles.number} aria-label={label} data-testid='claude-account-badge'>
-        {account.number}
-      </span>
+      {badge}
     </Tooltip>
+  ) : (
+    badge
   );
 };
 

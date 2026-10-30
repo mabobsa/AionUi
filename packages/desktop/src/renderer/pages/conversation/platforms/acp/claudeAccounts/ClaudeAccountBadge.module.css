@@ -19,6 +19,10 @@
   pointer-events: auto;
 }
 
+.passive {
+  pointer-events: none;
+}
+
 .tag {
   display: inline-flex;
   align-items: center;
