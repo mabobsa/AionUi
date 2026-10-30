@@ -38,6 +38,8 @@ const ChatLayout: React.FC<{
   /** Fallback agent name (used when no presetAssistant, e.g. from conversation.extra.agent_name) */
   agent_name?: string;
   headerExtra?: React.ReactNode;
+  /** Optional badge over the title's agent icon. */
+  headerIconBadge?: React.ReactNode;
   workspaceEnabled?: boolean;
   /**
    * When true (project conversations), the preview panel is hoisted to the
@@ -226,13 +228,21 @@ const ChatLayout: React.FC<{
           leading={
             props.headerLeading ??
             ((backend || presetAssistant) && (
-              <AgentLogoIcon
-                backend={backend}
-                agent_name={display_name}
-                agentLogo={presetAssistant?.logo}
-                agentLogoIsEmoji={presetAssistant?.isEmoji}
-                agentLogoIsFallback={presetAssistant?.isFallback}
-              />
+              <span
+                className={classNames(
+                  'relative inline-flex items-center justify-center shrink-0',
+                  props.headerIconBadge && 'size-22px'
+                )}
+              >
+                <AgentLogoIcon
+                  backend={backend}
+                  agent_name={display_name}
+                  agentLogo={presetAssistant?.logo}
+                  agentLogoIsEmoji={presetAssistant?.isEmoji}
+                  agentLogoIsFallback={presetAssistant?.isFallback}
+                />
+                {props.headerIconBadge}
+              </span>
             ))
           }
         />

@@ -87,7 +87,7 @@ In the account list you can rename an account inline, toggle settings sharing, r
 ## 4. Use the accounts
 
 - **New conversation**: when Claude Code is selected, an account selector appears next to the model selector. It starts on the default account; a launch from MindNProgress preselects the account that MindNProgress chose.
-- **Conversation list and header**: the Claude icon carries the account number, and the conversation header shows the number and name.
+- **대화 목록과 상단 제목**: 좌측 목록과 PC·모바일 상단 제목의 Claude 아이콘에 같은 계정 번호를 표시합니다. PC 대화 헤더에는 계정 번호와 이름도 함께 표시합니다.
 - **Usage indicator**: the titlebar shows the account with the highest usage, taking the higher of its 5-hour and weekly values. Ties go to the lower number. Hover to see every account. A new account shows **No usage data yet** until it has a conversation whose workspace still exists; usage is refreshed about every two minutes.
 - **모바일 WebUI 사용량**: 캡션바의 사용량을 누르면 등록 순서대로 모든 Claude 계정의 번호·이름과 5시간/주간 사용량을 볼 수 있습니다. 조회되지 않았거나 5분 이상 지난 계정은 **사용량 정보 없음**으로 표시합니다. 모바일 요약값은 최신 Claude 계정별 사용량과 Codex 사용량 중 가장 높은 값입니다. 계정 목록 전달을 지원하는 AionCore와 AionUi를 함께 적용해야 합니다.
 - **Reordering** renumbers accounts everywhere. AI author names that MindNProgress has already written (for example `Claude Code ②(Opus)`) keep the old number.
