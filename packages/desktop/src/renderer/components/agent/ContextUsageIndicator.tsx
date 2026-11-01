@@ -213,7 +213,7 @@ const ContextUsageIndicator: React.FC<ContextUsageIndicatorProps> = ({
         aria-label={[freshnessLabel, compactionLabel].filter(Boolean).join(' · ')}
         style={{ width: 32, height: 32 }}
       >
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)' }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
           {/* 背景圆环 */}
           <circle
             cx={size / 2}
@@ -235,19 +235,25 @@ const ContextUsageIndicator: React.FC<ContextUsageIndicatorProps> = ({
               strokeLinecap='round'
               strokeDasharray={circumference}
               strokeDashoffset={strokeDashoffset}
+              transform={`rotate(-90 ${size / 2} ${size / 2})`}
               style={{ transition: 'stroke-dashoffset 0.3s ease, stroke 0.3s ease', opacity: unconfirmed ? 0.35 : 1 }}
             />
           )}
+          {hasCompactionCount && (
+            <text
+              className='context-compaction-count font-medium text-t-secondary tabular-nums'
+              x={size / 2}
+              y={size / 2}
+              dy='0.35em'
+              textAnchor='middle'
+              fill='currentColor'
+              style={{ fontSize: compaction.count > 99 ? 8 : 10 }}
+              aria-hidden
+            >
+              {compaction.count > 99 ? '99+' : compaction.count}
+            </text>
+          )}
         </svg>
-        {hasCompactionCount && (
-          <span
-            className='context-compaction-count absolute font-medium text-t-secondary tabular-nums leading-none'
-            style={{ fontSize: compaction.count > 99 ? 8 : 10 }}
-            aria-hidden
-          >
-            {compaction.count > 99 ? '99+' : compaction.count}
-          </span>
-        )}
         {unconfirmed && (
           <span
             className='context-usage-status absolute text-10px text-t-secondary flex items-center justify-center'
