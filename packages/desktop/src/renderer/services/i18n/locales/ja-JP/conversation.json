@@ -573,6 +573,10 @@
     "addToQueueBusyHint": "Save to Draft box and send it later."
   },
   "contextUsage": {
+    "compactionCount": "会話の圧縮 {{count}} 回",
+    "compactionLast": "最終圧縮: {{time}}",
+    "compactionIncomplete": "過去の圧縮履歴が一部欠けている可能性があります",
+    "compactionUnknown": "圧縮回数不明",
     "pending": "使用量を確認中",
     "unavailable": "使用量の確認に失敗しました",
     "previousReading": "最後に確認された使用量を表示しています",

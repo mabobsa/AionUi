@@ -581,6 +581,10 @@
     "addToQueueBusyHint": "Save to Draft box and send it later."
   },
   "contextUsage": {
+    "compactionCount": "Розмову стиснуто {{count}} разів",
+    "compactionLast": "Останнє стиснення: {{time}}",
+    "compactionIncomplete": "Попередні записи про стиснення можуть бути відсутні",
+    "compactionUnknown": "Кількість стиснень невідома",
     "pending": "Підтвердження використання",
     "unavailable": "Не вдалося підтвердити використання",
     "previousReading": "Показано останні підтверджені дані",

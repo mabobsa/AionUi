@@ -84,6 +84,106 @@ describe('useAcpMessage', () => {
     responseStreamHandlerRef.current = undefined;
   });
 
+  it('restores a metadata-only compaction snapshot before usage has been reported', async () => {
+    vi.mocked(getConversationOrNull).mockResolvedValue(null);
+    const compaction = { count: 10, history_complete: true, last_compacted_at: 1000, updated_at: 2000 };
+    getUsageInvokeMock.mockResolvedValue({ _meta: { 'aionui/contextCompaction': compaction } });
+    const { result } = renderHook(() => useAcpMessage('conv-1'));
+    await waitFor(() => expect(result.current.tokenUsage?.compaction).toEqual(compaction));
+    expect(result.current.context_limit).toBe(0);
+  });
+
+  it('merges live compaction revisions independently without rolling back usage freshness', async () => {
+    vi.mocked(getConversationOrNull).mockResolvedValue(null);
+    const { result } = renderHook(() => useAcpMessage('conv-1'));
+    await waitFor(() => expect(result.current.hasHydratedRunningState).toBe(true));
+    const freshness = { status: 'pending', turn_id: 'new', status_changed_at: 100, updated_at: 1 };
+    const compaction = { count: 2, history_complete: true, last_compacted_at: 50, updated_at: 100 };
+    const emit = (data: unknown) =>
+      act(() =>
+        responseStreamHandlerRef.current?.({
+          type: 'acp_context_usage',
+          conversation_id: 'conv-1',
+          msg_id: '',
+          data,
+        } as IResponseMessage)
+      );
+    emit({
+      used: 3000,
+      size: 100000,
+      _meta: { 'aionui/contextUsage': freshness, 'aionui/contextCompaction': compaction },
+    });
+    emit({ _meta: { 'aionui/contextCompaction': { ...compaction, count: 3, updated_at: 200 } } });
+    emit({
+      used: 10,
+      size: 200,
+      _meta: {
+        'aionui/contextUsage': { ...freshness, status: 'current', status_changed_at: 90 },
+        'aionui/contextCompaction': compaction,
+      },
+    });
+    expect(result.current.tokenUsage).toMatchObject({ total_tokens: 3000, freshness, compaction: { count: 3 } });
+    expect(result.current.context_limit).toBe(100000);
+  });
+
+  it('restores compactions from a delayed snapshot without replacing a newer live usage reading', async () => {
+    vi.mocked(getConversationOrNull).mockResolvedValue(null);
+    const snapshot = deferred<{ used: number; size: number; _meta: Record<string, unknown> }>();
+    getUsageInvokeMock.mockReturnValue(snapshot.promise);
+    const { result } = renderHook(() => useAcpMessage('conv-1'));
+    await waitFor(() => expect(getUsageInvokeMock).toHaveBeenCalled());
+    act(() =>
+      responseStreamHandlerRef.current?.({
+        type: 'acp_context_usage',
+        conversation_id: 'conv-1',
+        msg_id: '',
+        data: { used: 200, size: 200000 },
+      } as unknown as IResponseMessage)
+    );
+    await act(async () => {
+      snapshot.resolve({
+        used: 100,
+        size: 200000,
+        _meta: {
+          'aionui/contextCompaction': { count: 10, history_complete: true, last_compacted_at: 1000, updated_at: 2000 },
+        },
+      });
+      await snapshot.promise;
+    });
+    expect(result.current.tokenUsage).toMatchObject({ total_tokens: 200, compaction: { count: 10 } });
+  });
+
+  it('retains compactions when subsequent usage frames omit the extension', async () => {
+    vi.mocked(getConversationOrNull).mockResolvedValue(null);
+    const compaction = { count: 10, history_complete: true, last_compacted_at: 1000, updated_at: 2000 };
+    getUsageInvokeMock.mockResolvedValue({
+      used: 100,
+      size: 200000,
+      _meta: { 'aionui/contextCompaction': compaction },
+    });
+    const { result } = renderHook(() => useAcpMessage('conv-1'));
+    await waitFor(() => expect(result.current.tokenUsage?.compaction).toEqual(compaction));
+    act(() =>
+      responseStreamHandlerRef.current?.({
+        type: 'acp_context_usage',
+        conversation_id: 'conv-1',
+        msg_id: '',
+        data: { used: 200, size: 200000 },
+      } as unknown as IResponseMessage)
+    );
+    expect(result.current.tokenUsage).toMatchObject({ total_tokens: 200, compaction });
+  });
+
+  it.each([-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])('ignores an invalid compaction count %s', (count) => {
+    const usage = tokenUsageFromAcpUsage({
+      used: 123,
+      _meta: {
+        'aionui/contextCompaction': { count, history_complete: true, updated_at: 1 },
+      },
+    });
+    expect(usage).toEqual({ total_tokens: 123 });
+  });
+
   it('completes hydration when the conversation lookup fails', async () => {
     vi.mocked(getConversationOrNull).mockRejectedValue(new TypeError('Failed to fetch'));
 

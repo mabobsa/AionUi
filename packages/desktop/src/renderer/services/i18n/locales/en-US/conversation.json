@@ -573,6 +573,10 @@
     "addToQueueBusyHint": "Save to Draft box and send it later."
   },
   "contextUsage": {
+    "compactionCount": "Conversation compacted {{count}} time(s)",
+    "compactionLast": "Last compaction: {{time}}",
+    "compactionIncomplete": "Earlier compactions may be missing",
+    "compactionUnknown": "Compaction count unknown",
     "pending": "Confirming usage",
     "unavailable": "Usage confirmation failed",
     "previousReading": "Showing the last confirmed reading",

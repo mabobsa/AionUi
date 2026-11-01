@@ -573,6 +573,10 @@
     "addToQueueBusyHint": "Save to Draft box and send it later."
   },
   "contextUsage": {
+    "compactionCount": "گفتگو {{count}} بار فشرده شده است",
+    "compactionLast": "آخرین فشرده‌سازی: {{time}}",
+    "compactionIncomplete": "ممکن است سوابق فشرده‌سازی‌های قبلی موجود نباشد",
+    "compactionUnknown": "تعداد فشرده‌سازی نامشخص است",
     "pending": "در حال تأیید میزان استفاده",
     "unavailable": "تأیید میزان استفاده ناموفق بود",
     "previousReading": "آخرین میزان استفاده تأییدشده نمایش داده می‌شود",

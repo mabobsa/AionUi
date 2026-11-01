@@ -574,6 +574,10 @@
     "addToQueueBusyHint": "Save to Draft box and send it later."
   },
   "contextUsage": {
+    "compactionCount": "Gespräch {{count}} Mal komprimiert",
+    "compactionLast": "Letzte Komprimierung: {{time}}",
+    "compactionIncomplete": "Frühere Komprimierungen fehlen möglicherweise",
+    "compactionUnknown": "Anzahl der Komprimierungen unbekannt",
     "pending": "Nutzung wird bestätigt",
     "unavailable": "Nutzung konnte nicht bestätigt werden",
     "previousReading": "Der letzte bestätigte Wert wird angezeigt",

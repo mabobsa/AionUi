@@ -239,6 +239,13 @@ export type ContextUsageFreshness = {
   reason?: string | null;
 };
 
+export type ContextCompaction = {
+  count: number;
+  history_complete: boolean;
+  last_compacted_at: number | null;
+  updated_at: number;
+};
+
 export interface TokenUsageData {
   total_tokens: number;
   /** Per-turn token counters from the agent's end-of-turn usage report */
@@ -247,6 +254,8 @@ export interface TokenUsageData {
   cost?: TokenUsageCost;
   /** Confirmation of the reading for the current conversation turn. */
   freshness?: ContextUsageFreshness;
+  /** Completed compactions, independent of context occupancy/freshness. */
+  compaction?: ContextCompaction;
 }
 
 export type TChatConversation =

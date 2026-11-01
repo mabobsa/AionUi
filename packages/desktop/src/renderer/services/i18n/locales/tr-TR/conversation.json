@@ -558,6 +558,10 @@
     "addToQueueBusyHint": "Save to Draft box and send it later."
   },
   "contextUsage": {
+    "compactionCount": "Konuşma {{count}} kez sıkıştırıldı",
+    "compactionLast": "Son sıkıştırma: {{time}}",
+    "compactionIncomplete": "Önceki sıkıştırma kayıtları eksik olabilir",
+    "compactionUnknown": "Sıkıştırma sayısı bilinmiyor",
     "pending": "Kullanım doğrulanıyor",
     "unavailable": "Kullanım doğrulanamadı",
     "previousReading": "Son doğrulanan kullanım gösteriliyor",

@@ -574,6 +574,10 @@
     "addToQueueBusyHint": "Save to Draft box and send it later."
   },
   "contextUsage": {
+    "compactionCount": "Conversación compactada {{count}} veces",
+    "compactionLast": "Última compactación: {{time}}",
+    "compactionIncomplete": "Pueden faltar compactaciones anteriores",
+    "compactionUnknown": "Número de compactaciones desconocido",
     "pending": "Confirmando uso",
     "unavailable": "No se pudo confirmar el uso",
     "previousReading": "Se muestra el último uso confirmado",

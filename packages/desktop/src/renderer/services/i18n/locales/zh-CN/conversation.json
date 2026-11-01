@@ -573,6 +573,10 @@
     "addToQueueBusyHint": "先存到草稿箱，稍后发送。"
   },
   "contextUsage": {
+    "compactionCount": "对话已压缩 {{count}} 次",
+    "compactionLast": "最近压缩：{{time}}",
+    "compactionIncomplete": "可能缺少早期压缩记录",
+    "compactionUnknown": "压缩次数未知",
     "pending": "正在确认用量",
     "unavailable": "用量确认失败",
     "previousReading": "显示最后确认的用量",

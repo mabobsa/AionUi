@@ -573,6 +573,10 @@
     "addToQueueBusyHint": "先存到草稿箱，稍後傳送。"
   },
   "contextUsage": {
+    "compactionCount": "對話已壓縮 {{count}} 次",
+    "compactionLast": "最近壓縮：{{time}}",
+    "compactionIncomplete": "可能缺少早期壓縮紀錄",
+    "compactionUnknown": "壓縮次數未知",
     "pending": "正在確認用量",
     "unavailable": "用量確認失敗",
     "previousReading": "顯示最後確認的用量",

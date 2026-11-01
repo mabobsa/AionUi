@@ -581,6 +581,10 @@
     "addToQueueBusyHint": "Save to Draft box and send it later."
   },
   "contextUsage": {
+    "compactionCount": "Диалог сжат {{count}} раз",
+    "compactionLast": "Последнее сжатие: {{time}}",
+    "compactionIncomplete": "Более ранние записи о сжатии могут отсутствовать",
+    "compactionUnknown": "Число сжатий неизвестно",
     "pending": "Подтверждение использования",
     "unavailable": "Не удалось подтвердить использование",
     "previousReading": "Показаны последние подтверждённые данные",

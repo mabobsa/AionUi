@@ -65,6 +65,28 @@ export function tokenUsageFromAcpUsage(data: {
     usage.cost = { amount: data.cost.amount, currency: data.cost.currency || 'USD' };
   }
   if (data._meta) {
+    const rawCompaction = data._meta['aionui/contextCompaction'];
+    if (rawCompaction && typeof rawCompaction === 'object') {
+      const compaction = rawCompaction as Record<string, unknown>;
+      if (
+        typeof compaction.count === 'number' &&
+        Number.isSafeInteger(compaction.count) &&
+        compaction.count >= 0 &&
+        typeof compaction.history_complete === 'boolean' &&
+        typeof compaction.updated_at === 'number' &&
+        Number.isFinite(compaction.updated_at)
+      ) {
+        usage.compaction = {
+          count: compaction.count,
+          history_complete: compaction.history_complete,
+          updated_at: compaction.updated_at,
+          last_compacted_at:
+            typeof compaction.last_compacted_at === 'number' && Number.isFinite(compaction.last_compacted_at)
+              ? compaction.last_compacted_at
+              : null,
+        };
+      }
+    }
     const raw = data._meta['aionui/contextUsage'];
     if (raw && typeof raw === 'object') {
       const freshness = raw as Record<string, unknown>;
@@ -107,15 +129,23 @@ function mergeUsageFrame(
   data: Parameters<typeof tokenUsageFromAcpUsage>[0]
 ): TokenUsageData | null {
   const next = tokenUsageFromAcpUsage(data);
-  if (!next.freshness && prev?.freshness) return prev;
+  // Compaction snapshots have their own revision. A late usage frame must not
+  // roll back the count, and a metadata-only frame must not erase occupancy.
+  const compaction =
+    next.compaction && next.compaction.updated_at >= (prev?.compaction?.updated_at ?? 0)
+      ? next.compaction
+      : prev?.compaction;
+  const withCompaction = (value: TokenUsageData | null): TokenUsageData | null =>
+    compaction ? { ...(value ?? { total_tokens: 0 }), compaction } : value;
+  if (!next.freshness && prev?.freshness) return withCompaction(prev);
   if (next.freshness && prev?.freshness && next.freshness.status_changed_at < prev.freshness.status_changed_at)
-    return prev;
+    return withCompaction(prev);
   if (!(typeof data.used === 'number' && data.used > 0)) {
-    return next.freshness ? { ...(prev ?? { total_tokens: 0 }), freshness: next.freshness } : prev;
+    return withCompaction(next.freshness ? { ...(prev ?? { total_tokens: 0 }), freshness: next.freshness } : prev);
   }
   if (!next.breakdown && prev?.breakdown) next.breakdown = prev.breakdown;
   if (!next.cost && prev?.cost) next.cost = prev.cost;
-  return next;
+  return withCompaction(next);
 }
 
 const slashCommandsInFlight = new Map<string, Promise<SlashCommandItem[]>>();
@@ -165,13 +195,13 @@ export const useAcpMessage = (
 
   const applyUsage = useCallback((data: Parameters<typeof tokenUsageFromAcpUsage>[0] & { size?: number }) => {
     const freshness = tokenUsageFromAcpUsage(data).freshness;
+    setTokenUsage((prev) => mergeUsageFrame(prev, data));
     if (freshness) {
       if (freshness.status_changed_at < usageChangedAt.current) return;
       usageChangedAt.current = freshness.status_changed_at;
     } else if (usageChangedAt.current > 0) {
       return;
     }
-    setTokenUsage((prev) => mergeUsageFrame(prev, data));
     if (data.size && data.size > 0) setContextLimit(data.size);
   }, []);
 
@@ -544,7 +574,12 @@ export const useAcpMessage = (
             cost?: { amount: number; currency: string };
             _meta?: Record<string, unknown>;
           };
-          if (usageData && (typeof usageData.used === 'number' || tokenUsageFromAcpUsage(usageData).freshness)) {
+          if (
+            usageData &&
+            (typeof usageData.used === 'number' ||
+              tokenUsageFromAcpUsage(usageData).freshness ||
+              tokenUsageFromAcpUsage(usageData).compaction)
+          ) {
             usageStreamRevision.current += 1;
             applyUsage(usageData);
           }
@@ -752,6 +787,10 @@ export const useAcpMessage = (
         const usage = await ipcBridge.conversation.getUsage.invoke({ conversation_id });
         if (cancelled || !usage) return;
         if (usageStreamRevision.current !== revision) {
+          const compaction = tokenUsageFromAcpUsage(usage).compaction;
+          if (compaction) {
+            setTokenUsage((prev) => mergeUsageFrame(prev, { _meta: { 'aionui/contextCompaction': compaction } }));
+          }
           if (!tokenUsageFromAcpUsage(usage).freshness && usage.size > 0) {
             setContextLimit((prev) => (prev > 0 ? prev : usage.size));
           }

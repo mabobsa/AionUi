@@ -34,8 +34,15 @@ const ContextUsageIndicator: React.FC<ContextUsageIndicatorProps> = ({
 
   const hasWindow = context_limit > 0;
   const freshness = tokenUsage?.freshness;
+  const compaction = tokenUsage?.compaction;
   const unconfirmed = freshness !== undefined && freshness.status !== 'current';
-  const hasReading = !freshness || (tokenUsage?.total_tokens ?? 0) > 0;
+  const hasReading = (!freshness && !compaction) || (tokenUsage?.total_tokens ?? 0) > 0;
+  const hasCompactionCount = compaction !== undefined && (compaction.history_complete || compaction.count > 0);
+  const compactionLabel = hasCompactionCount
+    ? t('conversation.contextUsage.compactionCount', 'Conversation compacted {{count}} time(s)', {
+        count: compaction.count,
+      })
+    : t('conversation.contextUsage.compactionUnknown', 'Compaction count unknown');
   const freshnessLabel =
     freshness?.status === 'pending'
       ? t('conversation.contextUsage.pending', 'Confirming usage')
@@ -131,6 +138,19 @@ const ContextUsageIndicator: React.FC<ContextUsageIndicatorProps> = ({
 
   const details = (
     <>
+      <div className='text-12px text-t-secondary mt-4px'>{compactionLabel}</div>
+      {compaction && !compaction.history_complete && (
+        <div className='text-12px text-t-secondary mt-4px'>
+          {t('conversation.contextUsage.compactionIncomplete', 'Earlier compactions may be missing')}
+        </div>
+      )}
+      {compaction?.last_compacted_at != null && (
+        <div className='text-12px text-t-secondary mt-4px'>
+          {t('conversation.contextUsage.compactionLast', 'Last compaction: {{time}}', {
+            time: new Date(compaction.last_compacted_at).toLocaleString(locale),
+          })}
+        </div>
+      )}
       {freshnessLabel && <div className='text-12px text-t-secondary mt-4px'>{freshnessLabel}</div>}
       {unconfirmed && hasReading && (
         <div className='text-12px text-t-secondary mt-4px'>
@@ -160,10 +180,10 @@ const ContextUsageIndicator: React.FC<ContextUsageIndicatorProps> = ({
   // the popover reports the raw count and says the window is unknown.
   const popoverContent = !hasReading ? (
     <div className='p-8px min-w-160px'>
-      <div className='text-14px font-medium text-t-primary'>{freshnessLabel}</div>
-      <div className='text-12px text-t-secondary mt-4px'>
+      <div className='text-14px font-medium text-t-primary'>
         {t('conversation.contextUsage.noReading', 'No confirmed usage yet')}
       </div>
+      {details}
     </div>
   ) : hasWindow ? (
     <div className='p-8px min-w-160px'>
@@ -190,7 +210,7 @@ const ContextUsageIndicator: React.FC<ContextUsageIndicatorProps> = ({
       <div
         className={`context-usage-indicator cursor-pointer relative flex items-center justify-center ${className}`}
         data-usage-status={freshness?.status}
-        aria-label={freshnessLabel ?? undefined}
+        aria-label={[freshnessLabel, compactionLabel].filter(Boolean).join(' · ')}
         style={{ width: 32, height: 32 }}
       >
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)' }}>
@@ -219,8 +239,21 @@ const ContextUsageIndicator: React.FC<ContextUsageIndicatorProps> = ({
             />
           )}
         </svg>
+        {hasCompactionCount && (
+          <span
+            className='context-compaction-count absolute font-medium text-t-secondary tabular-nums leading-none'
+            style={{ fontSize: compaction.count > 99 ? 8 : 10 }}
+            aria-hidden
+          >
+            {compaction.count > 99 ? '99+' : compaction.count}
+          </span>
+        )}
         {unconfirmed && (
-          <span className='absolute text-12px text-t-secondary' aria-hidden>
+          <span
+            className='context-usage-status absolute text-10px text-t-secondary flex items-center justify-center'
+            style={{ right: 0, top: 0, width: 12, height: 12, borderRadius: '50%', background: 'var(--color-bg-1)' }}
+            aria-hidden
+          >
             {freshness?.status === 'pending' ? '…' : '!'}
           </span>
         )}
