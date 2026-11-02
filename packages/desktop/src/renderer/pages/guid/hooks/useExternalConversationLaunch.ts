@@ -48,12 +48,25 @@ export function useExternalConversationLaunch({
   const appliedTokenRef = useRef<string | null>(null);
   const sentTokenRef = useRef<string | null>(null);
   const launch = session?.launch;
+  // Setter calls alone do not prove the next render retained these values.
+  const runtimeOptionsMatch = Boolean(
+    launch &&
+    agentSelection.selectedAssistantId === `bare:${launch.agentId}` &&
+    (!launch.modelId ||
+      (agentSelection.selectedAssistantBackend === 'aionrs'
+        ? modelSelection.current_model?.use_model === launch.modelId &&
+          (!launch.providerId || modelSelection.current_model.id === launch.providerId)
+        : agentSelection.selectedAcpModel === launch.modelId)) &&
+    (!launch.mode || agentSelection.selectedMode === launch.mode) &&
+    (!launch.thoughtLevel || agentSelection.selectedThoughtLevelValue === launch.thoughtLevel)
+  );
+  const optionsReady = readyToken === session?.token && (!launch?.autoSend || runtimeOptionsMatch);
 
   useEffect(() => {
-    if (!session || !onUnavailable || readyToken === session.token) return;
+    if (!session || !onUnavailable || optionsReady || sentTokenRef.current === session.token) return;
     const timeout = window.setTimeout(onUnavailable, 15_000);
     return () => window.clearTimeout(timeout);
-  }, [onUnavailable, readyToken, session]);
+  }, [onUnavailable, optionsReady, session]);
 
   useEffect(() => {
     if (!session || !launch || !agentSelection.selectedAssistantId) return;
@@ -141,10 +154,10 @@ export function useExternalConversationLaunch({
   ]);
 
   useEffect(() => {
-    if (!session || !launch?.autoSend || readyToken !== session.token || !input.trim()) return;
+    if (!session || !launch?.autoSend || !optionsReady || !input.trim()) return;
     if (sentTokenRef.current === session.token) return;
     sentTokenRef.current = session.token;
     if (!takeExternalConversationAutoSend(session)) return;
     sendMessage();
-  }, [input, launch?.autoSend, readyToken, sendMessage, session]);
+  }, [input, launch?.autoSend, optionsReady, sendMessage, session]);
 }

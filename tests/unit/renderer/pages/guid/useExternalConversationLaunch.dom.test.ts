@@ -70,13 +70,13 @@ function createAgentSelection(): GuidAssistantSelectionResult {
       options: [{ label: 'high', value: 'high' }],
     },
     defaultAssistantId: null,
-    selectedAcpModel: null,
+    selectedAcpModel: 'gpt-5.6-sol',
     selectedAssistant: undefined,
     selectedAssistantAvailable: true,
     selectedAssistantBackend: 'codex',
     selectedAssistantId: 'bare:codex',
-    selectedMode: '',
-    selectedThoughtLevelValue: '',
+    selectedMode: 'agent',
+    selectedThoughtLevelValue: 'high',
     setSelectedAcpModel: vi.fn(),
     setSelectedAssistantId: vi.fn(),
     setSelectedMode: vi.fn(),
@@ -143,24 +143,35 @@ const createGuidSendDeps = (): GuidSendDeps => ({
 });
 
 describe('useExternalConversationLaunch', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('applies available runtime options before automatically sending', async () => {
-    const agentSelection = createAgentSelection();
+    const agentSelection = {
+      ...createAgentSelection(),
+      selectedAcpModel: null,
+      selectedMode: '',
+      selectedThoughtLevelValue: '',
+    };
     const modelSelection = createModelSelection();
     const sendMessage = vi.fn();
 
-    renderHook(() =>
-      useExternalConversationLaunch({
-        agentSelection,
-        allSkills: [],
-        availableMcpServers: [],
-        input: 'Review this card',
-        modelSelection,
-        sendMessage,
-        session: createSession(),
-        setDisabledBuiltinSkills: vi.fn(),
-        setEnabledSkills: vi.fn(),
-        setSelectedMcpServerIds: vi.fn(),
-      })
+    const { rerender } = renderHook(
+      (selection) =>
+        useExternalConversationLaunch({
+          agentSelection: selection,
+          allSkills: [],
+          availableMcpServers: [],
+          input: 'Review this card',
+          modelSelection,
+          sendMessage,
+          session: createSession(),
+          setDisabledBuiltinSkills: vi.fn(),
+          setEnabledSkills: vi.fn(),
+          setSelectedMcpServerIds: vi.fn(),
+        }),
+      { initialProps: agentSelection as GuidAssistantSelectionResult }
     );
 
     await waitFor(() => {
@@ -171,8 +182,105 @@ describe('useExternalConversationLaunch', () => {
       expect(agentSelection.setSelectedThoughtLevelValue).toHaveBeenCalledWith('high', {
         persistPreference: false,
       });
-      expect(sendMessage).toHaveBeenCalledTimes(1);
     });
+    expect(sendMessage).not.toHaveBeenCalled();
+    rerender(createAgentSelection());
+    await waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(1));
+  });
+
+  it.each([{ selectedAcpModel: 'stale-model' }, { selectedMode: 'stale-mode' }, { selectedThoughtLevelValue: 'max' }])(
+    'does not consume a launch ticket while the applied options differ: %j',
+    async (staleSelection) => {
+      const sendMessage = vi.fn();
+      const session = {
+        ...createSession(),
+        source: 'web' as const,
+        token: `stale-options-${Object.keys(staleSelection)[0]}`,
+      };
+      const options = {
+        agentSelection: { ...createAgentSelection(), ...staleSelection },
+        modelSelection: createModelSelection(),
+        allSkills: [],
+        availableMcpServers: [],
+        input: 'Review this card',
+        sendMessage,
+        session,
+        setDisabledBuiltinSkills: vi.fn(),
+        setEnabledSkills: vi.fn(),
+        setSelectedMcpServerIds: vi.fn(),
+      };
+      const { rerender } = renderHook(
+        (selection) => useExternalConversationLaunch({ ...options, agentSelection: selection }),
+        { initialProps: options.agentSelection }
+      );
+      expect(sendMessage).not.toHaveBeenCalled();
+
+      rerender(createAgentSelection());
+      await waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(1));
+      rerender(createAgentSelection());
+      expect(sendMessage).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it('waits for the requested Aion CLI provider and model before sending', async () => {
+    const sendMessage = vi.fn();
+    const agentSelection = { ...createAgentSelection(), selectedAssistantBackend: 'aionrs' };
+    const provider = { id: 'requested-provider', models: ['gpt-5.6-sol'], use_model: 'gpt-5.6-sol' };
+    const modelSelection = {
+      ...createModelSelection(),
+      modelList: [provider],
+      current_model: { ...provider, id: 'other-provider' },
+    } as GuidModelSelectionResult;
+    const session = createSession();
+    session.launch.providerId = provider.id;
+    const { rerender } = renderHook(
+      (selection) =>
+        useExternalConversationLaunch({
+          agentSelection,
+          modelSelection: selection,
+          allSkills: [],
+          availableMcpServers: [],
+          input: 'Review this card',
+          sendMessage,
+          session,
+          setDisabledBuiltinSkills: vi.fn(),
+          setEnabledSkills: vi.fn(),
+          setSelectedMcpServerIds: vi.fn(),
+        }),
+      { initialProps: modelSelection }
+    );
+    await act(async () => {});
+    expect(sendMessage).not.toHaveBeenCalled();
+
+    rerender({ ...modelSelection, current_model: provider } as GuidModelSelectionResult);
+    await waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(1));
+  });
+
+  it('reports options that never match instead of sending with another thought level', async () => {
+    vi.useFakeTimers();
+    const onUnavailable = vi.fn();
+    const sendMessage = vi.fn();
+    renderHook(() =>
+      useExternalConversationLaunch({
+        agentSelection: { ...createAgentSelection(), selectedThoughtLevelValue: 'max' },
+        modelSelection: createModelSelection(),
+        allSkills: [],
+        availableMcpServers: [],
+        input: 'Review this card',
+        sendMessage,
+        onUnavailable,
+        session: createSession(),
+        setDisabledBuiltinSkills: vi.fn(),
+        setEnabledSkills: vi.fn(),
+        setSelectedMcpServerIds: vi.fn(),
+      })
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15_000);
+    });
+    expect(onUnavailable).toHaveBeenCalledTimes(1);
+    expect(sendMessage).not.toHaveBeenCalled();
+    vi.useRealTimers();
   });
 
   it('waits without sending when a requested model is unavailable', async () => {
@@ -265,6 +373,24 @@ describe('useGuidSend external launch integration', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it('passes the requested thought level to the conversation creation API', async () => {
+    const deps = {
+      ...createGuidSendDeps(),
+      selectedAcpModel: 'opus',
+      selectedMode: 'acceptEdits',
+      selectedThoughtLevelValue: 'xhigh',
+    };
+    const { result } = renderHook(() => useGuidSend(deps));
+    await act(async () => {
+      await result.current.handleSend();
+    });
+    expect(createConversationInvokeMock.mock.calls[0][0].assistant.conversation_overrides).toMatchObject({
+      model: 'opus',
+      permission: 'acceptEdits',
+      thought_level: 'xhigh',
+    });
   });
 
   it('uses an external title for an ACP conversation while retaining the prompt as the initial message', async () => {

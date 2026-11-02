@@ -158,6 +158,9 @@ const GuidPage: React.FC = () => {
   const resetMentionActiveIndex = useCallback<React.Dispatch<React.SetStateAction<number>>>(() => {}, []);
 
   const selectedAssistantId = agentSelection.selectedAssistantId;
+  // Explicit external choices take precedence over asynchronously loaded defaults.
+  const externalLaunchOptions =
+    selectedAssistantId === `bare:${externalConversation?.launch.agentId}` ? externalConversation?.launch : undefined;
   const hasSelectedAssistant = selectedAssistantId !== null;
   const { data: selectedAssistantDetail } = useSWR(
     selectedAssistantId ? `guid.assistant.detail.${selectedAssistantId}.${localeKey}` : null,
@@ -396,22 +399,22 @@ const GuidPage: React.FC = () => {
   // Sync disabledBuiltinSkills + enabledSkills from assistant detail defaults.
   useEffect(() => {
     if (!selectedAssistantId || !selectedAssistantDetail) {
-      setGuidDisabledBuiltinSkills(undefined);
-      setGuidEnabledSkills(undefined);
+      if (!externalLaunchOptions?.disabledBuiltinSkillIds) setGuidDisabledBuiltinSkills(undefined);
+      if (!externalLaunchOptions?.enabledSkillIds) setGuidEnabledSkills(undefined);
       return;
     }
 
     const resolvedDefaults = resolveGuidAssistantDefaults(selectedAssistantDetail);
-    setGuidDisabledBuiltinSkills(defaultDisabledBuiltinSkillIds);
-    setGuidEnabledSkills(resolvedDefaults.skillIds);
-  }, [defaultDisabledBuiltinSkillIds, selectedAssistantDetail, selectedAssistantId]);
+    if (!externalLaunchOptions?.disabledBuiltinSkillIds) setGuidDisabledBuiltinSkills(defaultDisabledBuiltinSkillIds);
+    if (!externalLaunchOptions?.enabledSkillIds) setGuidEnabledSkills(resolvedDefaults.skillIds);
+  }, [defaultDisabledBuiltinSkillIds, externalLaunchOptions, selectedAssistantDetail, selectedAssistantId]);
 
   // New Chat reapplies this default even when Guid is already open.
   useEffect(() => {
-    if (resetAssistantRequested) {
+    if (resetAssistantRequested && !externalLaunchOptions?.disabledBuiltinSkillIds) {
       setGuidDisabledBuiltinSkills((previous) => previous?.filter((name) => name !== 'session-message'));
     }
-  }, [location.key, resetAssistantRequested]);
+  }, [externalLaunchOptions, location.key, resetAssistantRequested]);
 
   const appliedAssistantDefaultsKeyRef = useRef<string | null>(null);
   const manualModelSelectionAssistantRef = useRef<string | null>(null);
@@ -426,6 +429,12 @@ const GuidPage: React.FC = () => {
 
     const signature = JSON.stringify({
       assistantId: selectedAssistantId,
+      externalOptions: externalLaunchOptions && [
+        externalLaunchOptions.modelId,
+        externalLaunchOptions.mode,
+        externalLaunchOptions.thoughtLevel,
+        externalLaunchOptions.mcpIds,
+      ],
       backend: agentSelection.selectedAssistantBackend,
       defaults: selectedAssistantDetail.defaults,
       preferences: {
@@ -452,8 +461,10 @@ const GuidPage: React.FC = () => {
     const applyAssistantDefaults = async () => {
       const resolvedDefaults = resolveGuidAssistantDefaults(selectedAssistantDetail);
       const effectiveBackend = agentSelection.selectedAssistantBackend;
-      const shouldApplyDefaultModel = manualModelSelectionAssistantRef.current !== selectedAssistantId;
-      const shouldApplyDefaultThoughtLevel = manualThoughtLevelSelectionAssistantRef.current !== selectedAssistantId;
+      const shouldApplyDefaultModel =
+        !externalLaunchOptions?.modelId && manualModelSelectionAssistantRef.current !== selectedAssistantId;
+      const shouldApplyDefaultThoughtLevel =
+        !externalLaunchOptions?.thoughtLevel && manualThoughtLevelSelectionAssistantRef.current !== selectedAssistantId;
 
       if (shouldApplyDefaultModel && effectiveBackend === 'aionrs') {
         if (resolvedDefaults.modelId) {
@@ -484,7 +495,7 @@ const GuidPage: React.FC = () => {
         agentSelection.setSelectedAcpModel(null, { persistPreference: false });
       }
 
-      if (resolvedDefaults.permissionMode) {
+      if (resolvedDefaults.permissionMode && !externalLaunchOptions?.mode) {
         const availableModeIds = new Set(agentSelection.currentAgentModeOptions.map((mode) => mode.value));
         if (availableModeIds.size === 0 || availableModeIds.has(resolvedDefaults.permissionMode)) {
           agentSelection.setSelectedMode(resolvedDefaults.permissionMode, { persistPreference: false });
@@ -509,7 +520,7 @@ const GuidPage: React.FC = () => {
           agentSelection.setSelectedThoughtLevelValue(fallbackThoughtLevel, { persistPreference: false });
         }
       }
-      setGuidSelectedMcpServerIds(resolvedDefaults.mcpIds);
+      if (!externalLaunchOptions?.mcpIds) setGuidSelectedMcpServerIds(resolvedDefaults.mcpIds);
     };
 
     void applyAssistantDefaults().catch((error) => {
@@ -523,6 +534,7 @@ const GuidPage: React.FC = () => {
     agentSelection.setSelectedAcpModel,
     agentSelection.setSelectedMode,
     agentSelection.setSelectedThoughtLevelValue,
+    externalLaunchOptions,
     modelSelection.modelList,
     modelSelection.resetCurrentModel,
     modelSelection.setCurrentModel,

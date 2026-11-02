@@ -9,8 +9,9 @@ import React from 'react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { SWRConfig } from 'swr';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Assistant } from '@/common/types/agent/assistantTypes';
+import type { Assistant, AssistantDetail } from '@/common/types/agent/assistantTypes';
 import type { GuidSendDeps } from '@/renderer/pages/guid/hooks/useGuidSend';
+import type { AgentRuntimeCatalog } from '@/renderer/utils/model/agentRuntimeCatalog';
 
 const mocks = vi.hoisted(() => ({
   request: vi.fn(),
@@ -19,7 +20,10 @@ const mocks = vi.hoisted(() => ({
   configGet: vi.fn(),
   configSet: vi.fn(),
   sent: [] as Array<{ selectedAssistantId: string | null; input: string; dir: string }>,
+  sentOptions: [] as GuidSendDeps[],
   latestSend: null as GuidSendDeps | null,
+  runtimeCatalog: [] as Array<AgentRuntimeCatalog & { id: string }>,
+  runtimeListeners: new Set<() => void>(),
   translate: (key: string) => key,
 }));
 
@@ -39,9 +43,20 @@ vi.mock('@/common', () => ({
 vi.mock('@/common/config/configService', () => ({
   configService: { get: mocks.configGet, set: mocks.configSet },
 }));
-vi.mock('@/renderer/hooks/agent/useManagedAgents', () => {
-  const catalog: never[] = [];
-  return { useManagedAgentRuntimeCatalog: () => catalog };
+vi.mock('@/renderer/hooks/agent/useManagedAgents', async () => {
+  const { useSyncExternalStore } = await import('react');
+  return {
+    useManagedAgentRuntimeCatalog: () =>
+      useSyncExternalStore(
+        (listener) => {
+          mocks.runtimeListeners.add(listener);
+          return () => {
+            mocks.runtimeListeners.delete(listener);
+          };
+        },
+        () => mocks.runtimeCatalog
+      ),
+  };
 });
 vi.mock('@/renderer/hooks/mcp/catalog', () => ({
   ensureBackendMcpCatalog: vi.fn().mockResolvedValue({ allServers: [] }),
@@ -66,6 +81,7 @@ vi.mock('@/renderer/pages/guid/hooks/useGuidSend', () => {
     sendMessageHandler: () => {
       const latest = mocks.latestSend!;
       mocks.sent.push({ selectedAssistantId: latest.selectedAssistantId, input: latest.input, dir: latest.dir });
+      mocks.sentOptions.push(latest);
     },
   };
   return {
@@ -144,6 +160,66 @@ function assistant(id: string, runtime: string): Assistant {
 
 const defaultAssistant = assistant('default-agent', 'aionrs');
 const requestedAssistant = assistant('requested-agent', 'codex');
+const claudeAssistant = assistant('requested-agent', 'claude');
+const claudeRuntimeCatalog = {
+  id: claudeAssistant.agent_id,
+  available_models: { current_model_id: 'sonnet', available_models: [{ id: 'opus' }, { id: 'sonnet' }] },
+  available_modes: {
+    current_mode_id: 'default',
+    available_modes: [
+      { id: 'default', name: 'Default' },
+      { id: 'acceptEdits', name: 'Accept Edits' },
+    ],
+  },
+  config_options: [
+    {
+      id: 'reasoning_effort',
+      category: 'thought_level',
+      type: 'select',
+      current_value: 'max',
+      options: [
+        { value: 'xhigh', label: 'xhigh' },
+        { value: 'max', label: 'max' },
+      ],
+    },
+  ],
+};
+
+function claudeDetail(): AssistantDetail {
+  return {
+    id: claudeAssistant.id,
+    source: 'generated',
+    agent_status: 'online',
+    team_selectable: true,
+    deletable: false,
+    profile: { name: 'Claude Code', name_i18n: {}, description_i18n: {} },
+    state: { enabled: true, sort_order: 0 },
+    engine: { agent_id: claudeAssistant.agent_id },
+    rules: { content: '', storage_mode: 'none' },
+    prompts: { recommended: [], recommended_i18n: {} },
+    defaults: {
+      model: { mode: 'auto' },
+      permission: { mode: 'auto' },
+      thought_level: { mode: 'auto' },
+      skills: { mode: 'auto', value: [] },
+      mcps: { mode: 'auto', value: [] },
+    },
+    capabilities: { default_skill_ids: [], custom_skill_names: [], default_disabled_builtin_skill_ids: [] },
+    preferences: {
+      last_model_id: 'sonnet',
+      last_permission_value: 'default',
+      last_thought_level_value: 'max',
+      last_skill_ids: ['default-skill'],
+      last_disabled_builtin_skill_ids: ['default-builtin'],
+      last_mcp_ids: ['default-mcp'],
+    },
+  };
+}
+
+function publishRuntimeCatalog() {
+  mocks.runtimeCatalog = [claudeRuntimeCatalog];
+  mocks.runtimeListeners.forEach((listener) => listener());
+}
 const launchPrompt = '선택한 AI로 이 카드의 작업을 진행합니다.';
 const launchWorkspace = 'C:/isolated/project';
 const launchResponse = {
@@ -178,7 +254,9 @@ describe('GuidPage external launch assistant selection', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     mocks.sent.length = 0;
+    mocks.sentOptions.length = 0;
     mocks.latestSend = null;
+    mocks.runtimeCatalog = [];
     mocks.request.mockReset();
     mocks.configGet.mockReturnValue(undefined);
     mocks.configSet.mockResolvedValue(undefined);
@@ -193,6 +271,95 @@ describe('GuidPage external launch assistant selection', () => {
   afterEach(() => {
     cleanup();
     vi.useRealTimers();
+  });
+
+  it('preserves external runtime options when the catalog arrives after conflicting assistant defaults', async () => {
+    mocks.getAssistant.mockResolvedValue(claudeDetail());
+    mocks.request.mockResolvedValue({
+      ...launchResponse,
+      launch: {
+        ...launchResponse.launch,
+        modelId: 'opus',
+        mode: 'acceptEdits',
+        thoughtLevel: 'xhigh',
+        enabledSkillIds: [],
+        disabledBuiltinSkillIds: [],
+        mcpIds: [],
+      },
+    });
+    renderGuid();
+    await act(async () => releaseCatalog([defaultAssistant, claudeAssistant]));
+    expect(mocks.sent).toEqual([]);
+
+    await act(async () => publishRuntimeCatalog());
+
+    expect(mocks.sentOptions).toHaveLength(1);
+    expect(mocks.sentOptions[0]).toMatchObject({
+      selectedAssistantId: claudeAssistant.id,
+      selectedAcpModel: 'opus',
+      selectedMode: 'acceptEdits',
+      selectedThoughtLevelValue: 'xhigh',
+      guidEnabledSkills: [],
+      guidDisabledBuiltinSkills: [],
+      selectedMcpServerIds: [],
+    });
+  });
+
+  it('uses assistant defaults only for options omitted by an external launch', async () => {
+    mocks.getAssistant.mockResolvedValue(claudeDetail());
+    mocks.request.mockResolvedValue({
+      ...launchResponse,
+      launch: {
+        ...launchResponse.launch,
+        mode: 'acceptEdits',
+      },
+    });
+    renderGuid();
+    await act(async () => releaseCatalog([defaultAssistant, claudeAssistant]));
+    await act(async () => publishRuntimeCatalog());
+
+    expect(mocks.sentOptions).toHaveLength(1);
+    expect(mocks.sentOptions[0]).toMatchObject({
+      selectedAcpModel: 'sonnet',
+      selectedMode: 'acceptEdits',
+      selectedThoughtLevelValue: 'max',
+    });
+  });
+
+  it('does not replace external options when assistant details arrive after the launch options', async () => {
+    let releaseDetail!: (value: AssistantDetail) => void;
+    mocks.getAssistant.mockReturnValue(
+      new Promise<AssistantDetail>((resolve) => {
+        releaseDetail = resolve;
+      })
+    );
+    mocks.runtimeCatalog = [claudeRuntimeCatalog];
+    mocks.request.mockResolvedValue({
+      ...launchResponse,
+      launch: {
+        ...launchResponse.launch,
+        autoSend: false,
+        modelId: 'opus',
+        mode: 'acceptEdits',
+        thoughtLevel: 'xhigh',
+        enabledSkillIds: [],
+        disabledBuiltinSkillIds: [],
+        mcpIds: [],
+      },
+    });
+    renderGuid();
+    await act(async () => releaseCatalog([defaultAssistant, claudeAssistant]));
+    await act(async () => releaseDetail(claudeDetail()));
+
+    expect(mocks.latestSend).toMatchObject({
+      selectedAcpModel: 'opus',
+      selectedMode: 'acceptEdits',
+      selectedThoughtLevelValue: 'xhigh',
+      guidEnabledSkills: [],
+      guidDisabledBuiltinSkills: [],
+      selectedMcpServerIds: [],
+    });
+    expect(mocks.sent).toEqual([]);
   });
 
   it('starts with the requested assistant when the launch is claimed before the assistant catalog loads', async () => {
