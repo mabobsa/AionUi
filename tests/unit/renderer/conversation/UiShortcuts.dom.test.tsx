@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import type { TMessage } from '@/common/chat/chatLib';
 import type { TChatConversation } from '@/common/config/storage';
-import type { IMessageSearchItem } from '@/common/types/team/database';
+import type { IMessageSearchItem, IMessageSearchResponse } from '@/common/types/team/database';
 import type { NavigateFunction } from 'react-router-dom';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -146,6 +146,140 @@ describe('global conversation ID search', () => {
     return view;
   };
 
+  const pendingSearchBatch = () => {
+    let resolve!: (value: IMessageSearchResponse) => void;
+    const promise = new Promise<IMessageSearchResponse>((finish) => {
+      resolve = finish;
+    });
+    return { promise, resolve };
+  };
+
+  it('publishes recent hits while older ranges are still being searched', async () => {
+    const pending = pendingSearchBatch();
+    serviceMocks.searchMessages
+      .mockResolvedValueOnce({ items: [searchMessage('recent', 'Recent hit')], has_more: true, next_cursor: 'range-1' })
+      .mockReturnValueOnce(pending.promise);
+    openSearch('needle');
+    expect(await screen.findByText('Recent hit')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(serviceMocks.searchMessages).toHaveBeenLastCalledWith({
+        keyword: 'needle',
+        cursor: 'range-1',
+        page_size: 19,
+      })
+    );
+    await act(async () =>
+      pending.resolve({ items: [searchMessage('older', 'Older hit')], has_more: false, next_cursor: null })
+    );
+    expect(screen.getAllByRole('button', { name: /Recent hit|Older hit/ }).map((button) => button.textContent)).toEqual(
+      [expect.stringContaining('Recent hit'), expect.stringContaining('Older hit')]
+    );
+  });
+
+  it('continues an empty scanned range without announcing an empty search', async () => {
+    const pending = pendingSearchBatch();
+    serviceMocks.searchMessages
+      .mockResolvedValueOnce({ items: [], has_more: true, next_cursor: 'empty-range' })
+      .mockReturnValueOnce(pending.promise);
+    openSearch('needle');
+    await waitFor(() => expect(serviceMocks.searchMessages).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText('conversation.historySearch.empty')).not.toBeInTheDocument();
+    await act(async () =>
+      pending.resolve({ items: [searchMessage('old', 'Old match')], has_more: false, next_cursor: null })
+    );
+    expect(screen.getByText('Old match')).toBeInTheDocument();
+  });
+
+  it('invalidates the old search immediately when typing a different keyword', async () => {
+    const old = pendingSearchBatch();
+    serviceMocks.searchMessages
+      .mockReturnValueOnce(old.promise)
+      .mockResolvedValueOnce({ items: [searchMessage('fresh', 'Fresh hit')], has_more: false, next_cursor: null });
+    openSearch('old');
+    await waitFor(() => expect(serviceMocks.searchMessages).toHaveBeenCalledTimes(1));
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'new' } });
+    await act(async () =>
+      old.resolve({ items: [searchMessage('stale', 'Stale hit')], has_more: true, next_cursor: 'stale' })
+    );
+    expect(screen.queryByText('Stale hit')).not.toBeInTheDocument();
+    expect(await screen.findByText('Fresh hit')).toBeInTheDocument();
+    expect(serviceMocks.searchMessages).toHaveBeenCalledTimes(2);
+  });
+
+  it('stops issuing scan requests when the search dialog is closed', async () => {
+    const pending = pendingSearchBatch();
+    serviceMocks.searchMessages.mockReturnValueOnce(pending.promise);
+    openSearch('needle');
+    await waitFor(() => expect(serviceMocks.searchMessages).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    await act(async () => {
+      pending.resolve({ items: [], has_more: true, next_cursor: 'older' });
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    });
+    expect(serviceMocks.searchMessages).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('keeps partial results after failure and retries from the last successful cursor', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    serviceMocks.searchMessages
+      .mockResolvedValueOnce({ items: [searchMessage('recent', 'Recent hit')], has_more: true, next_cursor: 'resume' })
+      .mockRejectedValueOnce(new Error('Network failure'))
+      .mockResolvedValueOnce({
+        items: [searchMessage('recent', 'Recent hit'), searchMessage('old', 'Older hit')],
+        has_more: false,
+        next_cursor: null,
+      });
+    openSearch('needle');
+    await screen.findByRole('alert');
+    expect(screen.getByText('Recent hit')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }));
+    expect(await screen.findByText('Older hit')).toBeInTheDocument();
+    expect(serviceMocks.searchMessages).toHaveBeenLastCalledWith({
+      keyword: 'needle',
+      cursor: 'resume',
+      page_size: 20,
+    });
+    expect(screen.getAllByText('Recent hit')).toHaveLength(1);
+  });
+
+  it('reports a failed first scan instead of claiming there are no matches', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    serviceMocks.searchMessages.mockRejectedValueOnce(new Error('Network failure'));
+    openSearch('needle');
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.queryByText('conversation.historySearch.empty')).not.toBeInTheDocument();
+  });
+
+  it('stops a repeated cursor instead of requesting the same range indefinitely', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    serviceMocks.searchMessages.mockResolvedValue({ items: [], has_more: true, next_cursor: 'same' });
+    openSearch('needle');
+    await screen.findByRole('alert');
+    expect(serviceMocks.searchMessages).toHaveBeenCalledTimes(2);
+  });
+
+  it('pauses after a page of hits and serializes requests for older results', async () => {
+    const pending = pendingSearchBatch();
+    serviceMocks.searchMessages
+      .mockResolvedValueOnce({
+        items: Array.from({ length: 20 }, (_, index) => searchMessage(`m-${index}`, `Hit ${index}`)),
+        has_more: true,
+        next_cursor: 'older',
+      })
+      .mockReturnValueOnce(pending.promise);
+    openSearch('needle');
+    const more = await screen.findByRole('button', { name: 'common.more' });
+    expect(serviceMocks.searchMessages).toHaveBeenCalledTimes(1);
+    fireEvent.click(more);
+    fireEvent.click(more);
+    await waitFor(() => expect(serviceMocks.searchMessages).toHaveBeenCalledTimes(2));
+    await act(async () =>
+      pending.resolve({ items: [searchMessage('last', 'Last hit')], has_more: false, next_cursor: null })
+    );
+    expect(screen.getByText('Last hit')).toBeInTheDocument();
+  });
+
   it('shows the same parent/folder project label as the sidebar for an active ID result', async () => {
     serviceMocks.getConversation.mockResolvedValue({
       ...idConversation,
@@ -164,7 +298,11 @@ describe('global conversation ID search', () => {
     await screen.findByRole('button', { name: /Target conversation/ });
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Matched' } });
     await waitFor(() =>
-      expect(serviceMocks.searchMessages).toHaveBeenLastCalledWith({ keyword: 'Matched', page: 1, page_size: 20 })
+      expect(serviceMocks.searchMessages).toHaveBeenLastCalledWith({
+        keyword: 'Matched',
+        cursor: undefined,
+        page_size: 20,
+      })
     );
     expect(conversationPresence.refreshConversationListPresence).toHaveBeenCalledTimes(1);
   });
@@ -316,7 +454,7 @@ describe('global conversation ID search', () => {
     async (keyword) => {
       openSearch(keyword);
       await waitFor(() =>
-        expect(serviceMocks.searchMessages).toHaveBeenCalledWith({ keyword, page: 1, page_size: 20 })
+        expect(serviceMocks.searchMessages).toHaveBeenCalledWith({ keyword, cursor: undefined, page_size: 20 })
       );
       expect(serviceMocks.getConversation).not.toHaveBeenCalled();
     }
@@ -324,14 +462,26 @@ describe('global conversation ID search', () => {
 
   it('loads the next message page without duplicating the conversation result', async () => {
     serviceMocks.getConversation.mockResolvedValue(idConversation);
-    serviceMocks.searchMessages.mockResolvedValueOnce({ items: [searchMessage()], has_more: true });
-    serviceMocks.searchMessages.mockResolvedValueOnce({ items: [searchMessage('message-2')], has_more: false });
+    serviceMocks.searchMessages.mockResolvedValueOnce({
+      items: Array.from({ length: 20 }, (_, index) => searchMessage(`message-${index}`)),
+      has_more: true,
+      next_cursor: 'next-page',
+    });
+    serviceMocks.searchMessages.mockResolvedValueOnce({
+      items: [searchMessage('message-20')],
+      has_more: false,
+      next_cursor: null,
+    });
     openSearch('9e36690f');
-    await waitFor(() => expect(screen.getAllByRole('button', { name: /Target conversation/ })).toHaveLength(2));
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /Target conversation/ })).toHaveLength(21));
     const result = screen.getAllByRole('button', { name: /Target conversation/ })[0];
     fireEvent.scroll(result.parentElement!.parentElement!);
-    await waitFor(() => expect(screen.getAllByRole('button', { name: /Target conversation/ })).toHaveLength(3));
-    expect(serviceMocks.searchMessages).toHaveBeenLastCalledWith({ keyword: '9e36690f', page: 2, page_size: 20 });
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /Target conversation/ })).toHaveLength(22));
+    expect(serviceMocks.searchMessages).toHaveBeenLastCalledWith({
+      keyword: '9e36690f',
+      cursor: 'next-page',
+      page_size: 20,
+    });
     expect(serviceMocks.getConversation).toHaveBeenCalledTimes(1);
   });
 });

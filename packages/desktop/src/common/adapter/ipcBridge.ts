@@ -119,7 +119,7 @@ import {
   wsEmitter,
   wsMappedEmitter,
 } from './httpBridge';
-import { fromApiSearchResult, type ApiMessageSearchItem } from './searchMapper';
+import { fromApiSearchResult, type ApiMessageSearchResponse } from './searchMapper';
 import { fromApiSidebar, fromApiSidebarItems } from './sidebarMapper';
 import type { IAddTeamAssistantParams, ICreateTeamParams } from './teamMapper';
 import {
@@ -1560,9 +1560,9 @@ export const database = {
     fromApiPaginatedConversations
   ),
   searchConversationMessages: withResponseMap(
-    httpGet<PaginatedResult<ApiMessageSearchItem>, { keyword: string; page?: number; page_size?: number }>(
+    httpGet<ApiMessageSearchResponse, { keyword: string; cursor?: string; page_size?: number }>(
       (p) =>
-        `/api/messages/search?keyword=${encodeURIComponent(p.keyword)}&page=${p.page ?? 1}&page_size=${p.page_size ?? 50}`
+        `/api/messages/search?keyword=${encodeURIComponent(p.keyword)}&page_size=${p.page_size ?? 20}${p.cursor ? `&cursor=${encodeURIComponent(p.cursor)}` : ''}`
     ),
     fromApiSearchResult
   ),
