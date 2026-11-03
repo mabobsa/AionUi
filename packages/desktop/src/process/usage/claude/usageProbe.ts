@@ -6,7 +6,7 @@
 
 /** Run and cache the interactive Claude subscription-usage probe. */
 import type { ClaudeUsageSnapshot } from '@/common/types/platform/claudeUsage';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { delimiter, extname, join } from 'node:path';
 import { spawn, type IPty } from 'node-pty';
 import { parseClaudeUsageOutput, stripClaudeUsageTerminalOutput } from './usageParser';
@@ -31,10 +31,18 @@ export type ClaudeUsageProbeOptions = {
   exitCommandDelayMs?: number;
   failureTtlMs?: number;
   now?: () => number;
+  /** Fork: called after each probe console has been released. */
+  onFinished?: () => void;
   readyCommandDelayMs?: number;
   spawnPty?: SpawnPty;
   successTtlMs?: number;
   timeoutMs?: number;
+  /**
+   * Fork: dedicated folder the probe console starts in, so its session stays
+   * out of the user's workspaces. Without it the console starts in the
+   * workspace passed to `getUsage`.
+   */
+  workingDirectory?: () => string;
 };
 
 type CacheEntry = {
@@ -81,10 +89,12 @@ export class ClaudeUsageProbe {
   readonly #exitCommandDelayMs: number;
   readonly #failureTtlMs: number;
   readonly #now: () => number;
+  readonly #onFinished: (() => void) | undefined;
   readonly #readyCommandDelayMs: number;
   readonly #spawnPty: SpawnPty;
   readonly #successTtlMs: number;
   readonly #timeoutMs: number;
+  readonly #workingDirectory: (() => string) | undefined;
 
   #cache: CacheEntry | undefined;
   #inFlight: Promise<ClaudeUsageSnapshot | null> | undefined;
@@ -96,10 +106,12 @@ export class ClaudeUsageProbe {
     this.#exitCommandDelayMs = options.exitCommandDelayMs ?? DEFAULT_EXIT_COMMAND_DELAY_MS;
     this.#failureTtlMs = options.failureTtlMs ?? DEFAULT_FAILURE_TTL_MS;
     this.#now = options.now ?? Date.now;
+    this.#onFinished = options.onFinished;
     this.#readyCommandDelayMs = options.readyCommandDelayMs ?? DEFAULT_READY_COMMAND_DELAY_MS;
     this.#spawnPty = options.spawnPty ?? spawn;
     this.#successTtlMs = options.successTtlMs ?? DEFAULT_SUCCESS_TTL_MS;
     this.#timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    this.#workingDirectory = options.workingDirectory;
   }
 
   async getUsage(cwd: string): Promise<ClaudeUsageSnapshot | null> {
@@ -142,8 +154,10 @@ export class ClaudeUsageProbe {
     return new Promise((resolve, reject) => {
       let terminal: IPty;
       try {
+        const directory = this.#workingDirectory?.() ?? cwd;
+        if (this.#workingDirectory) mkdirSync(directory, { recursive: true });
         terminal = this.#spawnPty(executable, ['--ax-screen-reader', '--safe-mode'], {
-          cwd,
+          cwd: directory,
           env: this.#env,
           name: 'xterm-256color',
           cols: 120,
@@ -186,6 +200,11 @@ export class ClaudeUsageProbe {
           terminal.kill();
         } catch {
           // The PTY may already have been fully released.
+        }
+        try {
+          this.#onFinished?.();
+        } catch {
+          // Cleanup hooks must not change the probe result.
         }
         if (error) {
           reject(error);

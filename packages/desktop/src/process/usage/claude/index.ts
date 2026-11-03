@@ -8,16 +8,43 @@
 import { DEFAULT_CLAUDE_ACCOUNT_ID } from '@/common/types/platform/claudeAccount';
 import type { ClaudeUsageSnapshot } from '@/common/types/platform/claudeUsage';
 import { statSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+import { getDataPath } from '@process/utils/utils';
 import { getClaudeAccounts } from './claudeAccounts';
+import { claudeProjectDirectory, removeProbeTranscripts } from './probeSessionCleanup';
 import { ClaudeUsageProbe } from './usageProbe';
 
 // One probe (and cache) per Claude account; the default account keeps the original probe.
 const probes = new Map<string, ClaudeUsageProbe>();
 
+// Fork: the probe runs in a dedicated folder so its sessions stay out of user
+// workspaces, and the transcript each run leaves there is removed shortly after.
+const PROBE_TRANSCRIPT_SWEEP_DELAY_MS = 5_000;
+const PROBE_TRANSCRIPT_MIN_AGE_MS = 2_000;
+
+const probeWorkingDirectory = (): string => join(getDataPath(), 'claude-usage-probe');
+
+const sweepProbeTranscripts = (env: NodeJS.ProcessEnv | undefined): void => {
+  const configDir = (env ?? process.env).CLAUDE_CONFIG_DIR || join(homedir(), '.claude');
+  const timer = setTimeout(() => {
+    try {
+      removeProbeTranscripts(claudeProjectDirectory(configDir, probeWorkingDirectory()), PROBE_TRANSCRIPT_MIN_AGE_MS);
+    } catch {
+      // Cleanup is best effort; the next run retries.
+    }
+  }, PROBE_TRANSCRIPT_SWEEP_DELAY_MS);
+  timer.unref?.();
+};
+
 const getProbe = (accountId: string, env?: NodeJS.ProcessEnv): ClaudeUsageProbe => {
   let probe = probes.get(accountId);
   if (!probe) {
-    probe = new ClaudeUsageProbe(env ? { env } : {});
+    probe = new ClaudeUsageProbe({
+      ...(env ? { env } : {}),
+      workingDirectory: probeWorkingDirectory,
+      onFinished: () => sweepProbeTranscripts(env),
+    });
     probes.set(accountId, probe);
   }
   return probe;

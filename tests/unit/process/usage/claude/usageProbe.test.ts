@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { existsSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import type { IPty } from 'node-pty';
 import { ClaudeUsageProbe, resolveExecutableFromPath, type SpawnPty } from '@process/usage/claude/usageProbe';
@@ -94,6 +97,37 @@ describe('ClaudeUsageProbe', () => {
       expect(terminal.kill).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
+    }
+  });
+
+  it('starts in the dedicated working directory and reports each finished run', async () => {
+    const directory = join(tmpdir(), `aionui-usage-probe-test-${process.pid}-${Date.now()}`);
+    const terminal = new FakePty();
+    const spawnPty = vi.fn(() => terminal as unknown as IPty) as unknown as SpawnPty;
+    const onFinished = vi.fn();
+    const probe = new ClaudeUsageProbe({
+      command: process.execPath,
+      onFinished,
+      spawnPty,
+      workingDirectory: () => directory,
+    });
+    try {
+      const result = probe.getUsage(process.cwd());
+      expect(spawnPty).toHaveBeenCalledWith(
+        process.execPath,
+        expect.any(Array),
+        expect.objectContaining({ cwd: directory })
+      );
+      expect(existsSync(directory)).toBe(true);
+      expect(onFinished).not.toHaveBeenCalled();
+
+      terminal.emitData(completeUsage);
+      terminal.emitExit();
+      await expect(result).resolves.toMatchObject({ session: { utilization: 25 } });
+      expect(terminal.kill).toHaveBeenCalledTimes(1);
+      expect(onFinished).toHaveBeenCalledTimes(1);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
     }
   });
 
