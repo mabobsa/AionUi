@@ -155,11 +155,16 @@ const WebConversationUsageIndicator: React.FC = () => {
     t('common.claudeUsage.resets', { time, defaultValue: 'Resets {{time}}' });
   const claudePercentages = getClaudePercentages(claudeUsage);
   const codexPercent = usage.codex.weekly?.usedPercent;
+  // The Codex 5-hour window is present only while the plan reports it.
+  const codexSession = usage.codex.session ?? null;
+  const codexPercentages = [codexSession?.usedPercent, codexPercent].filter(
+    (percent): percent is number => typeof percent === 'number'
+  );
   const claudeTone = getSubscriptionUsageTone(...claudePercentages);
-  const codexTone = getSubscriptionUsageTone(codexPercent, usage.codex.limitReached ? 100 : undefined);
+  const codexTone = getSubscriptionUsageTone(...codexPercentages, usage.codex.limitReached ? 100 : undefined);
   const highestPercent = Math.max(
     ...(claudeVisible ? claudePercentages : []),
-    ...(codexVisible && typeof codexPercent === 'number' ? [codexPercent] : []),
+    ...(codexVisible ? codexPercentages : []),
     codexVisible && usage.codex.limitReached ? 100 : 0
   );
   const summaryTone = getSubscriptionUsageTone(highestPercent);
@@ -212,11 +217,20 @@ const WebConversationUsageIndicator: React.FC = () => {
     codexVisible && usage.codex.weekly ? (
       <div className='flex w-200px flex-col gap-12px p-4px'>
         <span className='text-12px font-600 text-t-primary'>{codexTitle}</span>
+        {codexSession ? (
+          <UsageWindow
+            label={sessionLabel}
+            usage={codexSession}
+            includeDate={false}
+            tone={getSubscriptionUsageTone(codexSession.usedPercent)}
+            resetLabel={resetLabel}
+          />
+        ) : null}
         <UsageWindow
           label={weeklyLabel}
           usage={usage.codex.weekly}
           includeDate
-          tone={codexTone}
+          tone={codexSession ? getSubscriptionUsageTone(usage.codex.weekly.usedPercent) : codexTone}
           resetLabel={resetLabel}
         />
       </div>
@@ -240,7 +254,7 @@ const WebConversationUsageIndicator: React.FC = () => {
             </Button>
           </Popover>
         ) : null}
-        {codexVisible && typeof codexPercent === 'number' ? (
+        {codexVisible && codexPercentages.length > 0 ? (
           <Popover trigger='click' position='br' content={codexDetails}>
             <Button
               type='text'
@@ -248,7 +262,9 @@ const WebConversationUsageIndicator: React.FC = () => {
               aria-label={codexTitle}
             >
               <Dashboard theme='outline' size={14} fill='currentColor' />
-              <span className='text-12px font-600 leading-none'>{Math.round(codexPercent)}%</span>
+              <span className='text-12px font-600 leading-none'>
+                {codexPercentages.map((percent) => `${Math.round(percent)}%`).join(' · ')}
+              </span>
             </Button>
           </Popover>
         ) : null}

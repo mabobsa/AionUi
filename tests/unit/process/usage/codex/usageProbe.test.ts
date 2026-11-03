@@ -51,7 +51,7 @@ const rateLimitsResult = {
 };
 
 describe('parseCodexRateLimitsResult', () => {
-  it('uses the longest main account window and ignores model-specific buckets', () => {
+  it('reads the 5-hour and weekly main account windows and ignores model-specific buckets', () => {
     expect(
       parseCodexRateLimitsResult(
         {
@@ -70,9 +70,44 @@ describe('parseCodexRateLimitsResult', () => {
         windowDurationMins: 10_080,
         resetsAt: 200,
       },
+      session: {
+        usedPercent: 10,
+        windowDurationMins: 300,
+        resetsAt: 100,
+      },
       limitReached: false,
       updatedAt: 300,
     });
+  });
+
+  it('keeps a weekly-only snapshot when the plan reports a single window', () => {
+    const usage = parseCodexRateLimitsResult(rateLimitsResult, 300);
+    expect(usage).toEqual({
+      weekly: { usedPercent: 28, windowDurationMins: 10_080, resetsAt: 1_785_902_955 },
+      limitReached: false,
+      updatedAt: 300,
+    });
+    expect(usage).not.toHaveProperty('session');
+  });
+
+  it('does not guess a 5-hour window when window durations are missing', () => {
+    expect(
+      parseCodexRateLimitsResult({
+        rateLimits: { primary: { usedPercent: 10 }, secondary: { usedPercent: 28 } },
+      })
+    ).not.toHaveProperty('session');
+  });
+
+  it('treats an exhausted 5-hour window as a reached limit', () => {
+    expect(
+      parseCodexRateLimitsResult({
+        rateLimits: {
+          primary: { usedPercent: 100, windowDurationMins: 300 },
+          secondary: { usedPercent: 40, windowDurationMins: 10_080 },
+          rateLimitReachedType: null,
+        },
+      })
+    ).toMatchObject({ session: { usedPercent: 100 }, weekly: { usedPercent: 40 }, limitReached: true });
   });
 
   it('rejects responses without a structured usage window', () => {

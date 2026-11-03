@@ -10,7 +10,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 import { subscriptionUsageBridge } from '@/common/platform/subscriptionUsageBridge';
-import type { CodexUsageSnapshot } from '@/common/types/platform/codexUsage';
+import type { CodexRateLimitWindow, CodexUsageSnapshot } from '@/common/types/platform/codexUsage';
 import { isElectronDesktop } from '@/renderer/utils/platform';
 import styles from './SubscriptionUsageIndicator.module.css';
 import {
@@ -20,13 +20,12 @@ import {
   type SubscriptionUsageTone,
 } from './subscriptionUsageTone';
 
-const formatReset = (resetsAt: number | undefined): string | undefined => {
+const formatReset = (resetsAt: number | undefined, includeDate: boolean): string | undefined => {
   if (typeof resetsAt !== 'number' || resetsAt <= 0) return undefined;
   const date = new Date(resetsAt * 1000);
   if (Number.isNaN(date.getTime())) return undefined;
   return date.toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
+    ...(includeDate ? { month: 'short', day: 'numeric' } : {}),
     hour: 'numeric',
     minute: '2-digit',
   });
@@ -103,31 +102,33 @@ const CodexUsageIndicator: React.FC = () => {
 
   if (!usage || !isSubscriptionUsageFresh(usage.updatedAt)) return null;
 
-  const tone = getSubscriptionUsageTone(usage.weekly.usedPercent, usage.limitReached ? 100 : undefined);
-  const percent = Math.round(usage.weekly.usedPercent);
-  const reset = formatReset(usage.weekly.resetsAt);
-  const content = (
-    <div className='flex w-200px flex-col gap-12px p-4px'>
-      <span className='text-12px font-600 text-t-primary'>
-        {t('common.claudeUsage.codexTitle', { defaultValue: 'Codex Usage' })}
-      </span>
+  const { session, weekly } = usage;
+  const tone = getSubscriptionUsageTone(weekly.usedPercent, session?.usedPercent, usage.limitReached ? 100 : undefined);
+  const weeklyPercent = Math.round(weekly.usedPercent);
+  // The 5-hour window is shown only while Codex reports it; a plan without it keeps the weekly-only pill.
+  const pillText = session ? `${Math.round(session.usedPercent)}% · ${weeklyPercent}%` : `${weeklyPercent}%`;
+
+  const renderWindow = (label: string, window: CodexRateLimitWindow, includeDate: boolean) => {
+    const percent = Math.round(window.usedPercent);
+    // With both windows each row shows its own level; a single window keeps the overall tone.
+    const windowTone = session ? getSubscriptionUsageTone(window.usedPercent) : tone;
+    const reset = formatReset(window.resetsAt, includeDate);
+    return (
       <div className='flex flex-col gap-4px'>
         <div className='flex items-center justify-between gap-12px'>
-          <span className='text-12px font-500 text-t-primary'>
-            {t('common.claudeUsage.weekly', { defaultValue: 'Weekly (all models)' })}
-          </span>
-          <span className={`text-12px font-600 ${toneClass(tone, 'text')}`}>{percent}%</span>
+          <span className='text-12px font-500 text-t-primary'>{label}</span>
+          <span className={`text-12px font-600 ${toneClass(windowTone, 'text')}`}>{percent}%</span>
         </div>
         <div
           className='h-6px w-full overflow-hidden rounded-999px bg-fill-2'
           role='progressbar'
-          aria-label={t('common.claudeUsage.weekly', { defaultValue: 'Weekly (all models)' })}
+          aria-label={label}
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={Math.min(100, percent)}
         >
           <div
-            className={`h-full rounded-999px ${toneClass(tone, 'bg')}`}
+            className={`h-full rounded-999px ${toneClass(windowTone, 'bg')}`}
             style={{ width: `${Math.min(100, percent)}%` }}
           />
         </div>
@@ -137,6 +138,16 @@ const CodexUsageIndicator: React.FC = () => {
           </span>
         ) : null}
       </div>
+    );
+  };
+
+  const content = (
+    <div className='flex w-200px flex-col gap-12px p-4px'>
+      <span className='text-12px font-600 text-t-primary'>
+        {t('common.claudeUsage.codexTitle', { defaultValue: 'Codex Usage' })}
+      </span>
+      {session ? renderWindow(t('common.claudeUsage.session', { defaultValue: '5-hour limit' }), session, false) : null}
+      {renderWindow(t('common.claudeUsage.weekly', { defaultValue: 'Weekly (all models)' }), weekly, true)}
     </div>
   );
 
@@ -147,7 +158,7 @@ const CodexUsageIndicator: React.FC = () => {
         aria-label={t('common.claudeUsage.codexTitle', { defaultValue: 'Codex Usage' })}
       >
         <Dashboard theme='outline' size={14} fill='currentColor' />
-        <span className='text-12px font-600 leading-none'>{percent}%</span>
+        <span className='text-12px font-600 leading-none'>{pillText}</span>
       </div>
     </Popover>
   );

@@ -20,14 +20,19 @@ export type ClaudeSubscriptionUsage = {
   weekly: SubscriptionUsageWindow | null;
 };
 
+export type CodexSubscriptionUsageWindow = SubscriptionUsageWindow & {
+  windowDurationMins: number | null;
+};
+
 export type CodexSubscriptionUsage = {
   state: ProviderUsageState;
   updatedAt: string | null;
-  weekly:
-    | (SubscriptionUsageWindow & {
-        windowDurationMins: number | null;
-      })
-    | null;
+  /**
+   * 5-hour window. `null` when the plan has no such limit; absent in snapshots
+   * written before the field existed.
+   */
+  session?: CodexSubscriptionUsageWindow | null;
+  weekly: CodexSubscriptionUsageWindow | null;
   limitReached: boolean;
 };
 

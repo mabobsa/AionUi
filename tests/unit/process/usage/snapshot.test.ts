@@ -58,6 +58,30 @@ describe('subscription usage normalization', () => {
     });
   });
 
+  it('publishes the Codex 5-hour window and null once the plan no longer reports it', () => {
+    expect(
+      normalizeCodexSubscriptionUsage(
+        {
+          session: { usedPercent: 49, windowDurationMins: 300, resetsAt: 1_800_000_000 },
+          weekly: { usedPercent: 8, windowDurationMins: 10_080, resetsAt: 1_800_500_000 },
+          limitReached: false,
+          updatedAt: 1_700_000_000_000,
+        },
+        1
+      )
+    ).toEqual({
+      state: 'ready',
+      updatedAt: new Date(1_700_000_000_000).toISOString(),
+      session: { usedPercent: 49, resetsAt: new Date(1_800_000_000_000).toISOString(), windowDurationMins: 300 },
+      weekly: { usedPercent: 8, resetsAt: new Date(1_800_500_000_000).toISOString(), windowDurationMins: 10_080 },
+      limitReached: false,
+    });
+    expect(
+      normalizeCodexSubscriptionUsage({ weekly: { usedPercent: 8 }, limitReached: false, updatedAt: 1 }, 1)?.session
+    ).toBeNull();
+    expect(createCodexProviderState('loading').session).toBeNull();
+  });
+
   it('keeps exact one-percent values from Claude CLI and Codex app-server as one percent', () => {
     const claude = normalizeClaudeSubscriptionUsage(
       {

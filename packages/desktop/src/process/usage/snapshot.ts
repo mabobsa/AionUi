@@ -5,11 +5,12 @@
  */
 
 import type { ClaudeUsageSnapshot, ClaudeUtilizationUnit } from '@/common/types/platform/claudeUsage';
-import type { CodexUsageSnapshot } from '@/common/types/platform/codexUsage';
+import type { CodexRateLimitWindow, CodexUsageSnapshot } from '@/common/types/platform/codexUsage';
 import type {
   ClaudeAccountSubscriptionUsage,
   ClaudeSubscriptionUsage,
   CodexSubscriptionUsage,
+  CodexSubscriptionUsageWindow,
   ProviderUsageState,
   SubscriptionUsageSnapshot,
   SubscriptionUsageState,
@@ -62,25 +63,34 @@ export const normalizeClaudeSubscriptionUsage = (
   };
 };
 
+const normalizeCodexWindow = (window: CodexRateLimitWindow | undefined): CodexSubscriptionUsageWindow | null => {
+  const usedPercent = normalizeUsedPercent(window?.usedPercent, 'percent');
+  if (!window || usedPercent === null) return null;
+
+  const windowDurationMins = window.windowDurationMins;
+  return {
+    usedPercent,
+    resetsAt: isoFromEpoch(window.resetsAt),
+    windowDurationMins:
+      typeof windowDurationMins === 'number' && Number.isFinite(windowDurationMins) && windowDurationMins > 0
+        ? windowDurationMins
+        : null,
+  };
+};
+
 export const normalizeCodexSubscriptionUsage = (
   usage: CodexUsageSnapshot,
   fallbackUpdatedAt: number
 ): CodexSubscriptionUsage | null => {
-  const usedPercent = normalizeUsedPercent(usage.weekly.usedPercent, 'percent');
-  if (usedPercent === null) return null;
+  const weekly = normalizeCodexWindow(usage.weekly);
+  if (!weekly) return null;
 
-  const windowDurationMins = usage.weekly.windowDurationMins;
   return {
     state: 'ready',
     updatedAt: isoFromMilliseconds(usage.updatedAt) ?? isoFromMilliseconds(fallbackUpdatedAt),
-    weekly: {
-      usedPercent,
-      resetsAt: isoFromEpoch(usage.weekly.resetsAt),
-      windowDurationMins:
-        typeof windowDurationMins === 'number' && Number.isFinite(windowDurationMins) && windowDurationMins > 0
-          ? windowDurationMins
-          : null,
-    },
+    // `null` once a plan no longer reports a 5-hour window.
+    session: normalizeCodexWindow(usage.session),
+    weekly,
     limitReached: usage.limitReached,
   };
 };
@@ -95,6 +105,7 @@ export const createClaudeProviderState = (state: ProviderUsageState): ClaudeSubs
 export const createCodexProviderState = (state: ProviderUsageState): CodexSubscriptionUsage => ({
   state,
   updatedAt: null,
+  session: null,
   weekly: null,
   limitReached: false,
 });

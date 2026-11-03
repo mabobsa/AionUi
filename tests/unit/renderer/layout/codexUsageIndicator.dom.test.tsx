@@ -138,6 +138,48 @@ describe('CodexUsageIndicator', () => {
     expect(fixtures.invoke).toHaveBeenCalledTimes(1);
   });
 
+  it('shows the 5-hour and weekly windows together while Codex reports both', async () => {
+    fixtures.invoke.mockReturnValue(new Promise(() => {}));
+    render(<CodexUsageIndicator />);
+
+    await act(async () => {
+      fixtures.listener?.({
+        session: { usedPercent: 49, windowDurationMins: 300, resetsAt: 1_800_000_000 },
+        weekly: { usedPercent: 8, windowDurationMins: 10_080, resetsAt: 1_800_500_000 },
+        limitReached: false,
+        updatedAt: Date.now(),
+      });
+    });
+
+    expect(screen.getByLabelText('Codex Usage')).toHaveTextContent('49% · 8%');
+    expect(screen.getByRole('progressbar', { name: '5-hour limit' })).toHaveAttribute('aria-valuenow', '49');
+    expect(screen.getByRole('progressbar', { name: 'Weekly (all models)' })).toHaveAttribute('aria-valuenow', '8');
+  });
+
+  it('returns to the weekly-only display when the 5-hour window disappears', async () => {
+    fixtures.invoke.mockReturnValue(new Promise(() => {}));
+    render(<CodexUsageIndicator />);
+
+    await act(async () => {
+      fixtures.listener?.({
+        session: { usedPercent: 49, windowDurationMins: 300 },
+        weekly: { usedPercent: 8, windowDurationMins: 10_080 },
+        limitReached: false,
+        updatedAt: Date.now(),
+      });
+    });
+    await act(async () => {
+      fixtures.listener?.({
+        weekly: { usedPercent: 9, windowDurationMins: 10_080 },
+        limitReached: false,
+        updatedAt: Date.now(),
+      });
+    });
+
+    expect(screen.getByLabelText('Codex Usage')).toHaveTextContent(/^9%$/);
+    expect(screen.queryByRole('progressbar', { name: '5-hour limit' })).not.toBeInTheDocument();
+  });
+
   it('fills the weekly progress bar to match warning-level usage', async () => {
     fixtures.invoke.mockReturnValue(new Promise(() => {}));
     render(<CodexUsageIndicator />);

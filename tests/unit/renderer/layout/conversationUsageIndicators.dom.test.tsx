@@ -272,6 +272,32 @@ describe('ConversationUsageIndicator', () => {
     expect(fixtures.codexInvoke).not.toHaveBeenCalled();
   });
 
+  it('shows the Codex 5-hour window in WebUI only while the snapshot has it', async () => {
+    fixtures.electronDesktop = false;
+    const now = new Date().toISOString();
+    const webUsage: SubscriptionUsageSnapshot = {
+      schemaVersion: 1,
+      state: 'partial',
+      generatedAt: now,
+      updatedAt: now,
+      retryAfterMs: null,
+      claude: { state: 'unavailable', updatedAt: null, session: null, weekly: null },
+      codex: {
+        state: 'ready',
+        updatedAt: now,
+        session: { usedPercent: 92, resetsAt: null, windowDurationMins: 300 },
+        weekly: { usedPercent: 8, resetsAt: null, windowDurationMins: 10_080 },
+        limitReached: false,
+      },
+    };
+    fixtures.webUsageInvoke.mockResolvedValue(webUsage);
+
+    render(<ConversationUsageIndicator />);
+
+    expect(await screen.findByLabelText('Codex Usage')).toHaveTextContent('92% · 8%');
+    expect(screen.getByRole('button', { name: 'Claude Usage / Codex Usage' })).toHaveTextContent('92%');
+  });
+
   it('keeps WebUI usage hidden when the desktop snapshot is unavailable', async () => {
     fixtures.electronDesktop = false;
     fixtures.webUsageInvoke.mockResolvedValue(null);

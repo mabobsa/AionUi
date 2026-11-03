@@ -62,10 +62,18 @@ const parseWindow = (value: unknown): CodexRateLimitWindow | undefined => {
   };
 };
 
+const isShorterWindow = (candidate: CodexRateLimitWindow, than: CodexRateLimitWindow): boolean =>
+  candidate.windowDurationMins !== undefined &&
+  than.windowDurationMins !== undefined &&
+  candidate.windowDurationMins < than.windowDurationMins;
+
 /**
  * Parse the structured `account/rateLimits/read` result. The installed Codex
- * app-server schema exposes primary/secondary windows; selecting the longest
- * main `rateLimits` window keeps model-specific buckets out of the titlebar.
+ * app-server schema exposes primary/secondary windows of the main `rateLimits`
+ * bucket; model-specific buckets stay out of the titlebar. The longest window is
+ * the weekly limit and a strictly shorter one (normally 5 hours) the session
+ * limit. Plans without a 5-hour limit report a single window, so `session` is
+ * then absent.
  */
 export const parseCodexRateLimitsResult = (value: unknown, now = Date.now()): CodexUsageSnapshot | null => {
   const result = asObject(value);
@@ -80,11 +88,14 @@ export const parseCodexRateLimitsResult = (value: unknown, now = Date.now()): Co
   const weekly = windows.reduce((longest, candidate) =>
     (candidate.windowDurationMins ?? 0) > (longest.windowDurationMins ?? 0) ? candidate : longest
   );
+  const session = windows.find((window) => window !== weekly && isShorterWindow(window, weekly));
   const reachedType = rateLimits.rateLimitReachedType;
+  const highestUsage = Math.max(weekly.usedPercent, session?.usedPercent ?? 0);
 
   return {
     weekly,
-    limitReached: typeof reachedType === 'string' ? reachedType.length > 0 : weekly.usedPercent >= 100,
+    ...(session ? { session } : {}),
+    limitReached: typeof reachedType === 'string' ? reachedType.length > 0 : highestUsage >= 100,
     updatedAt: now,
   };
 };

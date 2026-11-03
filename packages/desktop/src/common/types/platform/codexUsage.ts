@@ -16,6 +16,12 @@ export type CodexRateLimitWindow = {
 export type CodexUsageSnapshot = {
   /** Longest account-wide Codex quota window, normally the weekly limit. */
   weekly: CodexRateLimitWindow;
+  /**
+   * Shorter account-wide window reported next to the weekly one, normally the
+   * 5-hour limit. Absent when the plan reports a single window, for example
+   * after an upgrade removes the 5-hour limit.
+   */
+  session?: CodexRateLimitWindow;
   limitReached: boolean;
   updatedAt: number;
 };
