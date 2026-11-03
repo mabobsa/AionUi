@@ -235,7 +235,7 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
           highlightTone && notificationHighlightStyles.conversation,
           highlightTone === 'source' && notificationHighlightStyles.sourceConversation,
           {
-            'hover:bg-fill-3': !batchMode && !selected,
+            'hover:bg-fill-2': !batchMode && !selected,
             '!bg-fill-3': selected,
             'bg-[rgba(var(--primary-6),0.08)]': batchMode && checked,
           }
