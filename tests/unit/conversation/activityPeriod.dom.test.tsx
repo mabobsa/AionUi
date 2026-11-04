@@ -252,6 +252,29 @@ describe('ConversationActivityFilter', () => {
     }
   });
 
+  it('keeps the bookmark view list on the bookmark settings while another view is open', () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(atLocalTime(9));
+      const conversations = [conversation('today', atLocalTime(9)), conversation('older', atLocalTime(6))];
+      const { result, rerender } = renderActivityFilter(conversations);
+      act(() => result.current.setEnabled(true));
+      expect(result.current.filteredConversations.map(({ id }) => id)).toEqual(['today']);
+      expect(result.current.bookmarkViewConversations).toBeUndefined();
+
+      rerender({ view: 'bookmarks' });
+      act(() => {
+        result.current.setEnabled(true);
+        result.current.setPeriod('last7Days');
+      });
+      rerender({ view: 'all' });
+      expect(result.current.filteredConversations.map(({ id }) => id)).toEqual(['today']);
+      expect(result.current.bookmarkViewConversations?.map(({ id }) => id)).toEqual(['today', 'older']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('refreshes only the active view cutoff', () => {
     vi.useFakeTimers();
     try {

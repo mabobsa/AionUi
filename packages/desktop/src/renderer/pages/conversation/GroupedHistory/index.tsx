@@ -82,6 +82,14 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
         : { pinnedConversations: allPinnedConversations, timelineSections: allTimelineSections },
     [activityFilter.enabled, activityFilter.filteredConversations, allPinnedConversations, allTimelineSections, t]
   );
+  // Fork: the bookmark tab count follows the bookmark view's own filter, whichever tab is open.
+  const { bookmarkViewConversations } = activityFilter;
+  const bookmarkCount = useMemo(() => {
+    if (historyView === 'bookmarks') return pinnedConversations.length;
+    return bookmarkViewConversations
+      ? buildGroupedHistory(bookmarkViewConversations, t).pinnedConversations.length
+      : allPinnedConversations.length;
+  }, [allPinnedConversations, bookmarkViewConversations, historyView, pinnedConversations, t]);
   const visibleConversationOrderKey = useMemo(
     () =>
       JSON.stringify(
@@ -447,11 +455,7 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
 
         {!collapsed && (
           <>
-            <HistoryViewTabs
-              activeView={historyView}
-              bookmarkCount={pinnedConversations.length}
-              onChange={setHistoryView}
-            />
+            <HistoryViewTabs activeView={historyView} bookmarkCount={bookmarkCount} onChange={setHistoryView} />
             <ConversationActivityFilter
               enabled={activityFilter.enabled}
               period={activityFilter.period}

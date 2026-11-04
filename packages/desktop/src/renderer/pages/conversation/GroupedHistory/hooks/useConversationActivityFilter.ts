@@ -98,6 +98,17 @@ export const useConversationActivityFilter = (conversations: TChatConversation[]
     [conversations, enabled, period, referenceTime]
   );
 
+  // The bookmark tab shows its count on every view, so that count always uses
+  // the bookmark view's own settings. `undefined` while that filter is off.
+  const bookmarkFilter = filters.bookmarks;
+  const bookmarkViewConversations = useMemo(
+    () =>
+      bookmarkFilter.enabled
+        ? filterConversationsByActivityPeriod(conversations, bookmarkFilter.period, bookmarkFilter.referenceTime)
+        : undefined,
+    [bookmarkFilter, conversations]
+  );
+
   return {
     enabled,
     setEnabled,
@@ -105,5 +116,6 @@ export const useConversationActivityFilter = (conversations: TChatConversation[]
     setPeriod,
     refresh,
     filteredConversations,
+    bookmarkViewConversations,
   };
 };
