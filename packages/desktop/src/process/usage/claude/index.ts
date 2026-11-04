@@ -12,7 +12,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { getDataPath } from '@process/utils/utils';
 import { getClaudeAccounts } from './claudeAccounts';
-import { claudeProjectDirectory, removeProbeTranscripts } from './probeSessionCleanup';
+import { probeProjectDirectories, removeProbeTranscripts } from './probeSessionCleanup';
 import { ClaudeUsageProbe } from './usageProbe';
 
 // One probe (and cache) per Claude account; the default account keeps the original probe.
@@ -29,7 +29,9 @@ const sweepProbeTranscripts = (env: NodeJS.ProcessEnv | undefined): void => {
   const configDir = (env ?? process.env).CLAUDE_CONFIG_DIR || join(homedir(), '.claude');
   const timer = setTimeout(() => {
     try {
-      removeProbeTranscripts(claudeProjectDirectory(configDir, probeWorkingDirectory()), PROBE_TRANSCRIPT_MIN_AGE_MS);
+      for (const directory of probeProjectDirectories(configDir, probeWorkingDirectory())) {
+        removeProbeTranscripts(directory, PROBE_TRANSCRIPT_MIN_AGE_MS);
+      }
     } catch {
       // Cleanup is best effort; the next run retries.
     }

@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   claudeProjectDirectory,
   isProbeTranscript,
+  probeProjectDirectories,
   removeProbeTranscripts,
 } from '@process/usage/claude/probeSessionCleanup';
 
@@ -41,6 +42,32 @@ describe('claudeProjectDirectory', () => {
     expect(claudeProjectDirectory('/cfg', '/home/me/system_default_user/aionui.dev')).toBe(
       join('/cfg', 'projects', '-home-me-system-default-user-aionui-dev')
     );
+  });
+});
+
+describe('probeProjectDirectories', () => {
+  it('covers the resolved path when the folder is reached through a symlink', () => {
+    expect(
+      probeProjectDirectories(
+        '/cfg',
+        '/Users/me/.aionui-dev/claude-usage-probe',
+        () => '/Users/me/Library/Application Support/AionUi-Dev/aionui/claude-usage-probe'
+      )
+    ).toEqual([
+      join('/cfg', 'projects', '-Users-me--aionui-dev-claude-usage-probe'),
+      join('/cfg', 'projects', '-Users-me-Library-Application-Support-AionUi-Dev-aionui-claude-usage-probe'),
+    ]);
+  });
+
+  it('keeps one entry when the path is already resolved or cannot be resolved', () => {
+    expect(probeProjectDirectories('/cfg', '/data/probe', (path) => path)).toEqual([
+      join('/cfg', 'projects', '-data-probe'),
+    ]);
+    expect(
+      probeProjectDirectories('/cfg', '/data/probe', () => {
+        throw new Error('missing');
+      })
+    ).toEqual([join('/cfg', 'projects', '-data-probe')]);
   });
 });
 

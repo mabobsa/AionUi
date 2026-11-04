@@ -9,7 +9,7 @@
  * is an interactive Claude session that only opens `/usage`; without cleanup
  * one transcript per run accumulates.
  */
-import { readdirSync, readFileSync, statSync, unlinkSync } from 'node:fs';
+import { readdirSync, readFileSync, realpathSync, statSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 
 const MAX_PROBE_TRANSCRIPT_BYTES = 4096;
@@ -18,6 +18,25 @@ const PROBE_ENTRY_TYPES = new Set(['mode', 'permission-mode', 'session-owner', '
 /** Claude stores a folder's sessions under `projects/<path with non-alphanumerics as "-">`. */
 export const claudeProjectDirectory = (configDir: string, workingDirectory: string): string =>
   join(configDir, 'projects', workingDirectory.replace(/[^a-zA-Z0-9]/g, '-'));
+
+/**
+ * Project folders that may hold the probe's sessions. On macOS the data folder
+ * is reached through a home-directory symlink while Claude records the resolved
+ * path, so both spellings are covered.
+ */
+export const probeProjectDirectories = (
+  configDir: string,
+  workingDirectory: string,
+  resolvePath: (path: string) => string = realpathSync
+): string[] => {
+  const paths = [workingDirectory];
+  try {
+    paths.push(resolvePath(workingDirectory));
+  } catch {
+    // The folder may not exist yet; the given path is still checked.
+  }
+  return [...new Set(paths.map((path) => claudeProjectDirectory(configDir, path)))];
+};
 
 /**
  * True only for a transcript holding nothing but local `/usage` commands and
