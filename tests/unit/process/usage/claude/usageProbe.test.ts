@@ -131,6 +131,70 @@ describe('ClaudeUsageProbe', () => {
     }
   });
 
+  it('finishes with the weekly bucket alone once a weekly-only plan view settles', async () => {
+    vi.useFakeTimers();
+    try {
+      const terminal = new FakePty();
+      const spawnPty = vi.fn(() => terminal as unknown as IPty) as unknown as SpawnPty;
+      const probe = new ClaudeUsageProbe({
+        command: process.execPath,
+        commandDelayMs: 100,
+        exitCommandDelayMs: 50,
+        partialSettleMs: 1_000,
+        spawnPty,
+      });
+
+      const result = probe.getUsage(process.cwd());
+      await vi.advanceTimersByTimeAsync(100);
+      expect(terminal.write).toHaveBeenCalledWith('/usage\r');
+
+      terminal.emitData('Current week (all models)\n64% used\nResets Nov 7, 4pm\n');
+      await vi.advanceTimersByTimeAsync(999);
+      expect(terminal.write).not.toHaveBeenCalledWith('\u001b');
+      await vi.advanceTimersByTimeAsync(1);
+      expect(terminal.write).toHaveBeenCalledWith('\u001b');
+
+      terminal.emitData('Settings dialog dismissed');
+      await vi.advanceTimersByTimeAsync(50);
+      const usage = await result;
+      expect(usage).toMatchObject({ weekly: { utilization: 64 } });
+      expect(usage?.session).toBeUndefined();
+      expect(terminal.kill).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not finish early from usage text shown before /usage is sent', async () => {
+    vi.useFakeTimers();
+    try {
+      const terminal = new FakePty();
+      const spawnPty = vi.fn(() => terminal as unknown as IPty) as unknown as SpawnPty;
+      const probe = new ClaudeUsageProbe({
+        command: process.execPath,
+        commandDelayMs: 100,
+        exitCommandDelayMs: 50,
+        partialSettleMs: 1_000,
+        spawnPty,
+      });
+
+      const result = probe.getUsage(process.cwd());
+      terminal.emitData('Current week (all models)\n76% used\nResets Nov 3, 9pm\n');
+      await vi.advanceTimersByTimeAsync(100);
+      expect(terminal.write).toHaveBeenCalledWith('/usage\r');
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(terminal.write).not.toHaveBeenCalledWith('\u001b');
+
+      terminal.emitData(completeUsage);
+      expect(terminal.write).toHaveBeenCalledWith('\u001b');
+      terminal.emitData('Settings dialog dismissed');
+      await vi.advanceTimersByTimeAsync(50);
+      await expect(result).resolves.toMatchObject({ session: { utilization: 25 }, weekly: { utilization: 24 } });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('caches successful usage for two minutes', async () => {
     let now = new Date(2026, 6, 31, 7, 0, 0).getTime();
     const firstTerminal = new FakePty();

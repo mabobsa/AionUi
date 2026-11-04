@@ -17,6 +17,7 @@ const DEFAULT_COMMAND_DELAY_MS = 25_000;
 const DEFAULT_READY_COMMAND_DELAY_MS = 12_000;
 const DEFAULT_EXIT_COMMAND_DELAY_MS = 1_000;
 const DEFAULT_SHUTDOWN_TIMEOUT_MS = 5_000;
+const DEFAULT_PARTIAL_SETTLE_MS = 3_000;
 const DEFAULT_TIMEOUT_MS = 120_000;
 const MAX_CAPTURE_CHARS = 256 * 1024;
 const TRUST_CONFIRMATION = /quick safety check|trust this folder/i;
@@ -33,6 +34,12 @@ export type ClaudeUsageProbeOptions = {
   now?: () => number;
   /** Fork: called after each probe console has been released. */
   onFinished?: () => void;
+  /**
+   * Fork: how long a `/usage` view showing a single bucket may settle before
+   * the read finishes with it. Plans without a 5-hour limit (for example
+   * Ultra) only ever show the weekly bucket.
+   */
+  partialSettleMs?: number;
   readyCommandDelayMs?: number;
   spawnPty?: SpawnPty;
   successTtlMs?: number;
@@ -90,6 +97,7 @@ export class ClaudeUsageProbe {
   readonly #failureTtlMs: number;
   readonly #now: () => number;
   readonly #onFinished: (() => void) | undefined;
+  readonly #partialSettleMs: number;
   readonly #readyCommandDelayMs: number;
   readonly #spawnPty: SpawnPty;
   readonly #successTtlMs: number;
@@ -107,6 +115,7 @@ export class ClaudeUsageProbe {
     this.#failureTtlMs = options.failureTtlMs ?? DEFAULT_FAILURE_TTL_MS;
     this.#now = options.now ?? Date.now;
     this.#onFinished = options.onFinished;
+    this.#partialSettleMs = options.partialSettleMs ?? DEFAULT_PARTIAL_SETTLE_MS;
     this.#readyCommandDelayMs = options.readyCommandDelayMs ?? DEFAULT_READY_COMMAND_DELAY_MS;
     this.#spawnPty = options.spawnPty ?? spawn;
     this.#successTtlMs = options.successTtlMs ?? DEFAULT_SUCCESS_TTL_MS;
@@ -169,6 +178,8 @@ export class ClaudeUsageProbe {
       }
 
       let captured = '';
+      // Output after /usage was sent; a single bucket only counts once it appears here.
+      let afterCommand = '';
       let completedSnapshot: ClaudeUsageSnapshot | undefined;
       let commandSent = false;
       let cleanupQueued = false;
@@ -180,6 +191,7 @@ export class ClaudeUsageProbe {
       let commandTimer: ReturnType<typeof setTimeout> | undefined;
       let readyCommandTimer: ReturnType<typeof setTimeout> | undefined;
       let cleanupTimer: ReturnType<typeof setTimeout> | undefined;
+      let partialTimer: ReturnType<typeof setTimeout> | undefined;
       let shutdownTimer: ReturnType<typeof setTimeout> | undefined;
       let timeoutTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -189,6 +201,7 @@ export class ClaudeUsageProbe {
         if (commandTimer) clearTimeout(commandTimer);
         if (readyCommandTimer) clearTimeout(readyCommandTimer);
         if (cleanupTimer) clearTimeout(cleanupTimer);
+        if (partialTimer) clearTimeout(partialTimer);
         if (shutdownTimer) clearTimeout(shutdownTimer);
         if (timeoutTimer) clearTimeout(timeoutTimer);
         dataSubscription?.dispose();
@@ -246,6 +259,7 @@ export class ClaudeUsageProbe {
         completedSnapshot = snapshot;
         if (commandTimer) clearTimeout(commandTimer);
         if (readyCommandTimer) clearTimeout(readyCommandTimer);
+        if (partialTimer) clearTimeout(partialTimer);
         if (timeoutTimer) clearTimeout(timeoutTimer);
 
         // `/usage` is a settings dialog. Close it before releasing the PTY.
@@ -255,8 +269,20 @@ export class ClaudeUsageProbe {
         shutdownTimer = setTimeout(() => finish(snapshot), DEFAULT_SHUTDOWN_TIMEOUT_MS);
       };
 
+      // Fork: a plan without a 5-hour limit renders only the weekly bucket, so
+      // waiting for both would always run into the timeout. Once /usage shows
+      // one bucket, let the view settle briefly and finish with what it shows.
+      const schedulePartialClose = (): void => {
+        if (partialTimer || !parseClaudeUsageOutput(afterCommand, new Date(this.#now()))) return;
+        partialTimer = setTimeout(() => {
+          const latest = parseClaudeUsageOutput(afterCommand, new Date(this.#now()));
+          if (latest) closeGracefully(latest);
+        }, this.#partialSettleMs);
+      };
+
       dataSubscription = terminal.onData((chunk) => {
         captured = `${captured}${chunk}`.slice(-MAX_CAPTURE_CHARS);
+        if (commandSent) afterCommand = `${afterCommand}${chunk}`.slice(-MAX_CAPTURE_CHARS);
         const plainOutput = stripClaudeUsageTerminalOutput(captured);
         if (!trustConfirmed && TRUST_CONFIRMATION.test(plainOutput)) {
           trustConfirmed = true;
@@ -276,9 +302,12 @@ export class ClaudeUsageProbe {
           return;
         }
 
-        const snapshot = parseClaudeUsageOutput(captured, new Date(this.#now()));
+        // After /usage is sent only its own output is read, so earlier screen text cannot leak in.
+        const snapshot = parseClaudeUsageOutput(commandSent ? afterCommand : captured, new Date(this.#now()));
         if (snapshot?.session && snapshot.weekly) {
           closeGracefully(snapshot);
+        } else if (commandSent) {
+          schedulePartialClose();
         } else if (plainOutput.trim()) {
           // Claude startup time varies with local configuration. Send /usage
           // after the interactive screen has become quiet, while retaining the
