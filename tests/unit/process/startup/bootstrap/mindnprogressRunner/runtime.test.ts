@@ -70,6 +70,28 @@ describe('MindNProgress Runner runtime', () => {
     expect(() => normalizeRunnerOperationRequest({ method, pathname })).toThrow('Runner operation is not allowed.');
   });
 
+  it('allows a session message relayed from another machine', () => {
+    const body = {
+      fromConversationId: 'conv-main',
+      fromName: 'Main',
+      to: 'conv-mac',
+      message: 'hi',
+      fromMachine: 'PC',
+    };
+    expect(
+      normalizeRunnerOperationRequest({ method: 'POST', pathname: '/api/internal/session-messages/remote', body })
+    ).toMatchObject({ method: 'POST', pathname: '/api/internal/session-messages/remote', body });
+  });
+
+  it.each([
+    ['GET', '/api/internal/session-messages/remote'],
+    ['POST', '/api/internal/session-messages/remote?retry=1'],
+    ['POST', '/api/internal/session-messages/remote/extra'],
+    ['POST', '/api/session-messages'],
+  ])('rejects other session message access: %s %s', (method, pathname) => {
+    expect(() => normalizeRunnerOperationRequest({ method, pathname })).toThrow('Runner operation is not allowed.');
+  });
+
   it('normalizes bounded configuration without exposing the token in derived URLs', () => {
     const config = normalizeRunnerEnvironment({
       MNP_RUNNER_API_URL: 'https://mnp.example.test/path?q=1',

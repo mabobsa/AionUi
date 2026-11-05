@@ -243,6 +243,7 @@ function isAllowedLocalRequest(method: string, url: URL): boolean {
         pathname === '/api/internal/external-conversation-dispatches' ||
         new RegExp(`^/api/sidebar/conversation/${AIONUI_ENTITY_ID_PATTERN}/archive$`).test(pathname) ||
         pathname === '/api/internal/external-conversation-launches' ||
+        pathname === '/api/internal/session-messages/remote' ||
         new RegExp(`^/api/conversations/${AIONUI_ENTITY_ID_PATTERN}/external-reports$`).test(pathname) ||
         new RegExp(`^/api/internal/external-conversation-dispatches/${AIONUI_ENTITY_ID_PATTERN}/complete$`).test(
           pathname
