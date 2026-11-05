@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TChatConversation } from '@/common/config/storage';
@@ -131,6 +131,32 @@ describe('ConversationRow', () => {
     expect(popup).toHaveStyle({ maxWidth: '350px' });
 
     await user.click(document.getElementById('c-conv-1')!);
+    await waitFor(() => expect(screen.queryByRole('tooltip')).not.toBeInTheDocument());
+  });
+
+  it('does not show the title tooltip when the cursor only passes over the row', async () => {
+    renderRow({
+      conversation: { ...conversation, name: 'A title that is longer than the sidebar width' } as TChatConversation,
+    });
+    const row = document.getElementById('c-conv-1')!;
+
+    fireEvent.mouseEnter(row);
+    fireEvent.mouseLeave(row);
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  });
+
+  it('closes the title tooltip as soon as the list scrolls', async () => {
+    const user = userEvent.setup();
+    renderRow({
+      conversation: { ...conversation, name: 'A title that is longer than the sidebar width' } as TChatConversation,
+    });
+
+    await user.hover(document.getElementById('c-conv-1')!);
+    await screen.findByRole('tooltip');
+
+    fireEvent.scroll(document.body);
     await waitFor(() => expect(screen.queryByRole('tooltip')).not.toBeInTheDocument());
   });
 

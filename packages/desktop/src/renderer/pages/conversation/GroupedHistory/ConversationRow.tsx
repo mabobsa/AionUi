@@ -36,6 +36,9 @@ import {
 const getConversationTitlePopupContainer = (_node: HTMLElement): HTMLElement => document.body;
 const MNP_TITLE_TOOLTIP_STYLE: React.CSSProperties = { width: 'max-content', maxWidth: 'none' };
 const TITLE_OVERFLOW_TOLERANCE_PX = 1;
+// Rows scrolling under a still cursor fire hover events in quick succession; a
+// popup opened at once could flash at the top-left before Arco positioned it.
+const TITLE_TOOLTIP_SHOW_DELAY_MS = 300;
 
 const renderConversationTitleTooltip = (title: string): React.ReactNode => {
   const separatorIndex = title.indexOf(':');
@@ -94,6 +97,8 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
   const { t } = useTranslation();
   const titleRef = React.useRef<HTMLSpanElement>(null);
   const [isTitleTooltipVisible, setIsTitleTooltipVisible] = React.useState(false);
+  const titleTooltipTimerRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const titleTooltipScrollCleanupRef = React.useRef<(() => void) | undefined>(undefined);
   const { info: assistantInfo } = usePresetAssistantInfo(conversation);
   const isPinned = isConversationPinned(conversation);
   // Fork-lineage badge: present only on forked conversations (extra.fork is
@@ -167,8 +172,28 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
     );
   };
 
-  const handleRowClick = () => {
+  const cancelTitleTooltip = () => {
+    if (titleTooltipTimerRef.current) clearTimeout(titleTooltipTimerRef.current);
+    titleTooltipTimerRef.current = undefined;
+    titleTooltipScrollCleanupRef.current?.();
+    titleTooltipScrollCleanupRef.current = undefined;
+  };
+
+  const hideTitleTooltip = () => {
+    cancelTitleTooltip();
     setIsTitleTooltipVisible(false);
+  };
+
+  React.useEffect(
+    () => () => {
+      if (titleTooltipTimerRef.current) clearTimeout(titleTooltipTimerRef.current);
+      titleTooltipScrollCleanupRef.current?.();
+    },
+    []
+  );
+
+  const handleRowClick = () => {
+    hideTitleTooltip();
     cleanupSiderTooltips();
     if (batchMode) {
       onToggleChecked(conversation);
@@ -180,7 +205,7 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
   const handleRowContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    setIsTitleTooltipVisible(false);
+    hideTitleTooltip();
     cleanupSiderTooltips();
     if (batchMode) {
       return;
@@ -190,14 +215,22 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
 
   const handleRowMouseEnter = () => {
     if (collapsed || isMobile || !conversation.name) return;
-    const titleElement = titleRef.current;
-    setIsTitleTooltipVisible(
-      Boolean(titleElement && titleElement.scrollWidth > titleElement.clientWidth + TITLE_OVERFLOW_TOLERANCE_PX)
-    );
+    hideTitleTooltip();
+    // Only the hovered row listens, and any scroll closes its pending or open tooltip.
+    const handleScroll = () => hideTitleTooltip();
+    document.addEventListener('scroll', handleScroll, { capture: true, passive: true });
+    titleTooltipScrollCleanupRef.current = () => document.removeEventListener('scroll', handleScroll, true);
+    titleTooltipTimerRef.current = setTimeout(() => {
+      titleTooltipTimerRef.current = undefined;
+      const titleElement = titleRef.current;
+      setIsTitleTooltipVisible(
+        Boolean(titleElement && titleElement.scrollWidth > titleElement.clientWidth + TITLE_OVERFLOW_TOLERANCE_PX)
+      );
+    }, TITLE_TOOLTIP_SHOW_DELAY_MS);
   };
 
   const handleRowMouseLeave = () => {
-    if (!collapsed) setIsTitleTooltipVisible(false);
+    if (!collapsed) hideTitleTooltip();
   };
 
   const renderCompletionUnreadDot = () => {
