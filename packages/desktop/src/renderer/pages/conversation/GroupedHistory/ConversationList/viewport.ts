@@ -11,6 +11,14 @@ type ListRegistration = {
   scrollMargin: () => number;
 };
 
+/**
+ * Switch for sidebar row virtualization. When on, only rows near the viewport
+ * are mounted, which keeps long lists light but briefly shows empty space
+ * while scrolling fast. Turned off for now; set to `true` to enable it again.
+ * Scroll tracking and revealing offscreen conversations work either way.
+ */
+export const CONVERSATION_LIST_VIRTUALIZATION_ENABLED = false;
+
 const ROW_HEIGHT = 34;
 const OVERSCAN_ROWS = 6;
 

@@ -5,7 +5,7 @@
  */
 
 import React, { useLayoutEffect, useRef, useState } from 'react';
-import { getVisibleRange, registerConversationList } from './viewport';
+import { CONVERSATION_LIST_VIRTUALIZATION_ENABLED, getVisibleRange, registerConversationList } from './viewport';
 
 export { scrollConversationIntoView } from './viewport';
 export { default as SortableConversationRow } from './SortableConversationRow';
@@ -59,8 +59,10 @@ export default function ConversationList<T extends { id: string }>({
     };
   }, []);
 
+  // With virtualization off every row stays mounted, so fast scrolling never shows empty space.
+  const visible = CONVERSATION_LIST_VIRTUALIZATION_ENABLED ? range : { start: 0, end: items.length };
   const indices = new Set<number>();
-  for (let index = range.start; index < Math.min(items.length, range.end); index++) indices.add(index);
+  for (let index = visible.start; index < Math.min(items.length, visible.end); index++) indices.add(index);
   for (const id of retainedIds) {
     if (!id) continue;
     const index = items.findIndex((item) => item.id === id);

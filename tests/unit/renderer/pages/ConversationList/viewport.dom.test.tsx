@@ -8,6 +8,11 @@ import ConversationList, {
 vi.mock('@/renderer/pages/conversation/GroupedHistory/ConversationList/SortableConversationRow', () => ({
   default: () => null,
 }));
+// These cases cover the virtualized path, which is switched off by default.
+vi.mock('@/renderer/pages/conversation/GroupedHistory/ConversationList/viewport', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/renderer/pages/conversation/GroupedHistory/ConversationList/viewport')>()),
+  CONVERSATION_LIST_VIRTUALIZATION_ENABLED: true,
+}));
 
 const items = Array.from({ length: 814 }, (_, index) => ({ id: `row-${index}` }));
 const row = (item: { id: string }) => (
