@@ -204,6 +204,7 @@
   "selectedSkills": "선택된 스킬",
   "aiAssistant": "AI 어시스턴트",
   "claudeUsage": {
+    "refreshDelayed": "갱신 지연",
     "title": "Claude 사용량",
     "codexTitle": "Codex 사용량",
     "session": "5시간 한도",

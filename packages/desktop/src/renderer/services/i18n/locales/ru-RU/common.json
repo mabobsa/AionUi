@@ -206,6 +206,7 @@
   "selectedSkills": "Выбранные навыки",
   "aiAssistant": "ИИ-ассистент",
   "claudeUsage": {
+    "refreshDelayed": "Обновление задерживается",
     "title": "Использование Claude",
     "codexTitle": "Использование Codex",
     "session": "5-часовой лимит",

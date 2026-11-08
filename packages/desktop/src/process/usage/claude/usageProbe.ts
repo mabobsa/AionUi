@@ -12,7 +12,9 @@ import { spawn, type IPty } from 'node-pty';
 import { parseClaudeUsageOutput, stripClaudeUsageTerminalOutput } from './usageParser';
 
 const DEFAULT_SUCCESS_TTL_MS = 120_000;
-const DEFAULT_FAILURE_TTL_MS = 120_000;
+const DEFAULT_FAILURE_TTL_MS = 30_000;
+const COMMAND_RETRY_DELAY_MS = 10_000;
+const MAX_COMMAND_RETRIES = 2;
 const DEFAULT_COMMAND_DELAY_MS = 25_000;
 const DEFAULT_READY_COMMAND_DELAY_MS = 12_000;
 const DEFAULT_EXIT_COMMAND_DELAY_MS = 1_000;
@@ -26,6 +28,7 @@ const USAGE_DIALOG_DISMISSED = /settings dialog dismissed/i;
 export type SpawnPty = typeof spawn;
 
 export type ClaudeUsageProbeOptions = {
+  accountId?: string;
   command?: string;
   commandDelayMs?: number;
   env?: NodeJS.ProcessEnv;
@@ -90,6 +93,7 @@ export const resolveExecutableFromPath = (
 };
 
 export class ClaudeUsageProbe {
+  readonly #accountId: string;
   readonly #command: string;
   readonly #commandDelayMs: number;
   readonly #env: NodeJS.ProcessEnv;
@@ -108,6 +112,7 @@ export class ClaudeUsageProbe {
   #inFlight: Promise<ClaudeUsageSnapshot | null> | undefined;
 
   constructor(options: ClaudeUsageProbeOptions = {}) {
+    this.#accountId = options.accountId ?? 'default';
     this.#command = options.command ?? 'claude';
     this.#commandDelayMs = options.commandDelayMs ?? DEFAULT_COMMAND_DELAY_MS;
     this.#env = options.env ?? process.env;
@@ -137,9 +142,14 @@ export class ClaudeUsageProbe {
         return value;
       })
       .catch((error: unknown): ClaudeUsageSnapshot | null => {
-        console.warn('[ClaudeUsageProbe] Unable to refresh Claude plan usage', {
-          reason: error instanceof Error ? error.message : String(error),
-        });
+        // Timeouts already have account/phase diagnostics in finish(). Never
+        // log spawn errors verbatim: they can include environment or paths.
+        if (!(error instanceof Error && error.message === 'Claude usage probe timed out')) {
+          console.warn('[ClaudeUsageProbe] Unable to refresh Claude plan usage', {
+            accountId: this.#accountId,
+            phase: 'startup',
+          });
+        }
         this.#cache = {
           value: null,
           expiresAt: this.#now() + this.#failureTtlMs,
@@ -186,6 +196,10 @@ export class ClaudeUsageProbe {
       let exited = false;
       let settled = false;
       let trustConfirmed = false;
+      let commandAccepted = false;
+      let commandRetries = 0;
+      let phase = 'startup';
+      const startedAt = this.#now();
       let dataSubscription: { dispose(): void } | undefined;
       let exitSubscription: { dispose(): void } | undefined;
       let commandTimer: ReturnType<typeof setTimeout> | undefined;
@@ -194,6 +208,7 @@ export class ClaudeUsageProbe {
       let partialTimer: ReturnType<typeof setTimeout> | undefined;
       let shutdownTimer: ReturnType<typeof setTimeout> | undefined;
       let timeoutTimer: ReturnType<typeof setTimeout> | undefined;
+      let retryTimer: ReturnType<typeof setTimeout> | undefined;
 
       const finish = (value: ClaudeUsageSnapshot | null, error?: Error): void => {
         if (settled) return;
@@ -204,6 +219,10 @@ export class ClaudeUsageProbe {
         if (partialTimer) clearTimeout(partialTimer);
         if (shutdownTimer) clearTimeout(shutdownTimer);
         if (timeoutTimer) clearTimeout(timeoutTimer);
+        if (retryTimer) clearTimeout(retryTimer);
+        const details = { accountId: this.#accountId, phase, elapsedMs: this.#now() - startedAt, commandRetries };
+        if (value) console.info('[ClaudeUsageProbe] Usage refreshed', details);
+        else console.warn('[ClaudeUsageProbe] Probe ended without usage', details);
         dataSubscription?.dispose();
         exitSubscription?.dispose();
         try {
@@ -236,9 +255,38 @@ export class ClaudeUsageProbe {
         }
       };
 
+      const scheduleCommandRetry = (): void => {
+        if (retryTimer || commandAccepted || completedSnapshot || commandRetries >= MAX_COMMAND_RETRIES) return;
+        retryTimer = setTimeout(() => {
+          retryTimer = undefined;
+          if (settled || exited || commandAccepted || completedSnapshot) return;
+          const output = stripClaudeUsageTerminalOutput(afterCommand);
+          // Screen-reader mode can consume the first Enter in autocomplete. Only
+          // retry the exact pending command at the prompt, never a dialog or answer.
+          if (
+            !/\/usage\s+Show session cost, plan usage, and activity stats/i.test(output) ||
+            !/\$\s*\/usage\s*$/.test(output)
+          )
+            return;
+          if (writeIfActive('\r')) {
+            commandRetries += 1;
+            phase = 'autocomplete';
+            console.info('[ClaudeUsageProbe] Retrying pending command Enter', {
+              accountId: this.#accountId,
+              phase,
+              attempt: commandRetries,
+              elapsedMs: this.#now() - startedAt,
+            });
+            scheduleCommandRetry();
+          }
+        }, COMMAND_RETRY_DELAY_MS);
+      };
+
       const sendUsageCommand = (): void => {
         if (commandSent || !writeIfActive('/usage\r')) return;
         commandSent = true;
+        phase = 'command-sent';
+        scheduleCommandRetry();
         if (commandTimer) clearTimeout(commandTimer);
         if (readyCommandTimer) clearTimeout(readyCommandTimer);
       };
@@ -261,6 +309,8 @@ export class ClaudeUsageProbe {
         if (readyCommandTimer) clearTimeout(readyCommandTimer);
         if (partialTimer) clearTimeout(partialTimer);
         if (timeoutTimer) clearTimeout(timeoutTimer);
+        if (retryTimer) clearTimeout(retryTimer);
+        phase = 'closing';
 
         // `/usage` is a settings dialog. Close it before releasing the PTY.
         // Letting Claude exit first can strand the Windows ConPTY host because
@@ -286,9 +336,21 @@ export class ClaudeUsageProbe {
         const plainOutput = stripClaudeUsageTerminalOutput(captured);
         if (!trustConfirmed && TRUST_CONFIRMATION.test(plainOutput)) {
           trustConfirmed = true;
+          phase = 'trust';
           writeIfActive('y\r');
           scheduleFallbackCommand();
           return;
+        }
+
+        if (commandSent && !completedSnapshot) {
+          const output = stripClaudeUsageTerminalOutput(afterCommand);
+          if (/you:\s*\/usage|Settings\s+Status\s+Config\s+Usage|Current (?:session|week)/i.test(output)) {
+            commandAccepted = true;
+            phase = 'usage-view';
+            if (retryTimer) clearTimeout(retryTimer);
+          } else {
+            scheduleCommandRetry();
+          }
         }
 
         if (completedSnapshot) {

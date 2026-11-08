@@ -47,7 +47,94 @@ Resets Aug 4, 9pm
 
 const windowsPathExists = (path: string): boolean => path === 'C:\\tools\\claude.EXE';
 
+// Screen-reader output captured from Claude Code 2.1.319: the first Enter
+// leaves /usage at the prompt with the autocomplete menu still visible.
+const pendingUsage =
+  '/usage    Show session cost, plan usage, and activity stats\n/usage-credits    Configure usage credits\n$  /usage';
+
 describe('ClaudeUsageProbe', () => {
+  it('retries only Enter for a pending autocomplete command and reads the resulting usage', async () => {
+    vi.useFakeTimers();
+    try {
+      const terminal = new FakePty();
+      const probe = new ClaudeUsageProbe({
+        command: process.execPath,
+        commandDelayMs: 1,
+        spawnPty: (() => terminal) as unknown as SpawnPty,
+      });
+      const result = probe.getUsage(process.cwd());
+      await vi.advanceTimersByTimeAsync(1);
+      terminal.emitData(pendingUsage);
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(terminal.write.mock.calls).toEqual([['/usage\r'], ['\r']]);
+      terminal.emitData('you: /usage\n' + completeUsage);
+      terminal.emitExit();
+      await expect(result).resolves.toMatchObject({ session: { utilization: 25 } });
+      await vi.advanceTimersByTimeAsync(120_000);
+      expect(terminal.write.mock.calls.filter(([text]) => text === '\r')).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each([
+    pendingUsage + 'you: /usage\nIdeating…',
+    pendingUsage + '\nSettings  Status   Config   Usage   Stats\nRefreshing…',
+    'Sign in to continue',
+    'Quick safety check\nYes, I trust this folder\nNo, exit\n',
+    '$ /context',
+    pendingUsage + '\nSome other question?',
+  ])('does not retry Enter outside a pending autocomplete prompt: %s', async (output) => {
+    vi.useFakeTimers();
+    try {
+      const terminal = new FakePty();
+      const probe = new ClaudeUsageProbe({
+        command: process.execPath,
+        commandDelayMs: 1,
+        spawnPty: (() => terminal) as unknown as SpawnPty,
+      });
+      const result = probe.getUsage(process.cwd());
+      await vi.advanceTimersByTimeAsync(1);
+      terminal.emitData(output);
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(terminal.write).not.toHaveBeenCalledWith('\r');
+      terminal.emitExit();
+      await result;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('bounds Enter retries and logs account/phase without terminal or credential contents', async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+    try {
+      const terminal = new FakePty();
+      const probe = new ClaudeUsageProbe({
+        accountId: 'secondary',
+        command: process.execPath,
+        commandDelayMs: 1,
+        spawnPty: (() => terminal) as unknown as SpawnPty,
+      });
+      const result = probe.getUsage(process.cwd());
+      await vi.advanceTimersByTimeAsync(1);
+      terminal.emitData('private-token-value\n' + pendingUsage);
+      await vi.advanceTimersByTimeAsync(120_000);
+      await expect(result).resolves.toBeNull();
+      expect(terminal.write.mock.calls).toEqual([['/usage\r'], ['\r'], ['\r']]);
+      expect(warn).toHaveBeenCalledWith(
+        '[ClaudeUsageProbe] Probe ended without usage',
+        expect.objectContaining({ accountId: 'secondary', phase: 'autocomplete', commandRetries: 2 })
+      );
+      expect(JSON.stringify([warn.mock.calls, info.mock.calls])).not.toContain('private-token-value');
+    } finally {
+      warn.mockRestore();
+      info.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
   it('waits for startup, runs /usage, releases the live PTY, and caches concurrent reads', async () => {
     vi.useFakeTimers();
     try {
@@ -355,7 +442,7 @@ describe('ClaudeUsageProbe', () => {
     }
   });
 
-  it('retries a failed probe after the two-minute failure cache expires', async () => {
+  it('retries a failed probe after the thirty-second failure cache expires', async () => {
     vi.useFakeTimers();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
@@ -378,7 +465,7 @@ describe('ClaudeUsageProbe', () => {
       expect(spawnPty).toHaveBeenCalledTimes(1);
       expect(firstTerminal.kill).toHaveBeenCalledTimes(1);
 
-      now += 119_999;
+      now += 29_999;
       await expect(probe.getUsage(process.cwd())).resolves.toBeNull();
       expect(spawnPty).toHaveBeenCalledTimes(1);
 

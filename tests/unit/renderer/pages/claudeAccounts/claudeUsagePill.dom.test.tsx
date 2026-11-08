@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ManagedAgent } from '@/renderer/utils/model/agentTypes';
@@ -69,9 +69,37 @@ describe('pickClaudeUsageAccountIndex', () => {
     };
     expect(pickClaudeUsageAccountIndex([state(90, 90), rejected])).toBe(1);
   });
+
+  it('falls back to the highest known reading when every account is stale', () => {
+    expect(pickClaudeUsageAccountIndex([state(20, 30, 1), state(40, 50, 1)])).toBe(1);
+    expect(pickClaudeUsageAccountIndex([{ updatedAt: 0 }, state(5, 5, 1)])).toBe(1);
+  });
 });
 
 describe('ClaudeUsagePill with Claude accounts', () => {
+  it('updates freshness when each account expires at a different time', async () => {
+    vi.useFakeTimers();
+    try {
+      mockAgents = [
+        claudeRow([
+          { id: 'default', number: 1, label: 'Team' },
+          { id: 'staggered', number: 2, label: 'Max' },
+        ]),
+      ];
+      pushUsage('default', 80, 90);
+      await vi.advanceTimersByTimeAsync(60_000);
+      pushUsage('staggered', 40, 50);
+      render(<ClaudeUsagePill />);
+      await act(async () => vi.advanceTimersByTimeAsync(240_000));
+      expect(screen.getByLabelText('common.claudeUsage.title')).toHaveTextContent('40% · 50%');
+      await act(async () => vi.advanceTimersByTimeAsync(60_000));
+      expect(screen.getByLabelText('common.claudeUsage.title')).toHaveTextContent(
+        '80% · 90%common.claudeUsage.refreshDelayed'
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
   it('shows the default account without an account mark while one account exists', () => {
     mockAgents = [claudeRow()];
     pushUsage('default', 30, 10);

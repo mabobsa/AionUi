@@ -43,6 +43,9 @@ const isFresh = (updatedAt: string | null): boolean => {
 const hasFreshClaudeUsage = (usage: ClaudeSubscriptionUsage | undefined): boolean =>
   Boolean(usage?.state === 'ready' && isFresh(usage.updatedAt) && (usage.session || usage.weekly));
 
+const hasClaudeUsage = (usage: ClaudeSubscriptionUsage | undefined): boolean =>
+  Boolean(usage?.state === 'ready' && (usage.session || usage.weekly));
+
 const getClaudePercentages = (usage: ClaudeSubscriptionUsage | undefined): number[] =>
   [usage?.session?.usedPercent, usage?.weekly?.usedPercent].filter(
     (percent): percent is number => typeof percent === 'number' && Number.isFinite(percent)
@@ -113,7 +116,8 @@ const WebConversationUsageIndicator: React.FC = () => {
         }
       } catch {
         if (!active) return;
-        setUsage(null);
+        // Keep the last reading on transport errors; freshness is shown below.
+        setUsage((previous) => (previous ? { ...previous } : null));
       }
       if (active) {
         timer = window.setTimeout((): void => {
@@ -134,7 +138,7 @@ const WebConversationUsageIndicator: React.FC = () => {
   // Fork: match the desktop's highest-usage account, preserving shared order on ties.
   const claudeAccounts = usage.claudeAccounts && usage.claudeAccounts.length >= 2 ? usage.claudeAccounts : undefined;
   const claudeAccount = claudeAccounts
-    ?.filter(hasFreshClaudeUsage)
+    ?.filter(claudeAccounts.some(hasFreshClaudeUsage) ? hasFreshClaudeUsage : hasClaudeUsage)
     .reduce<ClaudeAccountSubscriptionUsage | undefined>(
       (picked, candidate) =>
         !picked || Math.max(...getClaudePercentages(candidate)) > Math.max(...getClaudePercentages(picked))
@@ -143,7 +147,8 @@ const WebConversationUsageIndicator: React.FC = () => {
       undefined
     );
   const claudeUsage = claudeAccounts ? claudeAccount : usage.claude;
-  const claudeVisible = hasFreshClaudeUsage(claudeUsage);
+  const claudeVisible = hasClaudeUsage(claudeUsage);
+  const claudeDelayed = claudeVisible && !isFresh(claudeUsage?.updatedAt ?? null);
   const codexVisible = Boolean(usage.codex.state === 'ready' && isFresh(usage.codex.updatedAt) && usage.codex.weekly);
   if (!claudeVisible && !codexVisible) return null;
 
@@ -171,6 +176,9 @@ const WebConversationUsageIndicator: React.FC = () => {
 
   const renderClaudeWindows = (accountUsage: ClaudeSubscriptionUsage) => (
     <>
+      {!isFresh(accountUsage.updatedAt) ? (
+        <span className='text-11px text-t-tertiary'>{t('common.claudeUsage.refreshDelayed')}</span>
+      ) : null}
       {accountUsage.session ? (
         <UsageWindow
           label={sessionLabel}
@@ -202,7 +210,7 @@ const WebConversationUsageIndicator: React.FC = () => {
                 <div className='flex'>
                   <ClaudeAccountBadge account={account} variant='tag' />
                 </div>
-                {hasFreshClaudeUsage(account) ? (
+                {hasClaudeUsage(account) ? (
                   renderClaudeWindows(account)
                 ) : (
                   <span className='text-11px text-t-tertiary'>{t('common.claudeUsage.noData')}</span>
@@ -251,6 +259,7 @@ const WebConversationUsageIndicator: React.FC = () => {
               <span className='text-12px font-600 leading-none'>
                 {claudePercentages.map((percent) => `${Math.round(percent)}%`).join(' · ')}
               </span>
+              {claudeDelayed ? <span className='text-11px'>{t('common.claudeUsage.refreshDelayed')}</span> : null}
             </Button>
           </Popover>
         ) : null}
@@ -287,6 +296,7 @@ const WebConversationUsageIndicator: React.FC = () => {
           >
             <Dashboard theme='outline' size={14} fill='currentColor' />
             <span className='text-12px font-600 leading-none'>{Math.round(highestPercent)}%</span>
+            {claudeDelayed ? <span className='text-11px'>{t('common.claudeUsage.refreshDelayed')}</span> : null}
           </Button>
         </Popover>
       </div>

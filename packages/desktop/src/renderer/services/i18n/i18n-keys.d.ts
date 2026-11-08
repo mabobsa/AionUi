@@ -269,6 +269,7 @@ export type I18nKey =
   | 'common.claudeUsage.noData'
   | 'common.claudeUsage.ok'
   | 'common.claudeUsage.reached'
+  | 'common.claudeUsage.refreshDelayed'
   | 'common.claudeUsage.resets'
   | 'common.claudeUsage.session'
   | 'common.claudeUsage.title'

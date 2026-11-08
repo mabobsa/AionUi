@@ -204,6 +204,7 @@
   "selectedSkills": "Selected skills",
   "aiAssistant": "AI Assistant",
   "claudeUsage": {
+    "refreshDelayed": "Refresh delayed",
     "title": "Claude Usage",
     "codexTitle": "Codex Usage",
     "session": "5-hour limit",

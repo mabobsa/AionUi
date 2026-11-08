@@ -204,6 +204,7 @@
   "selectedSkills": "已选技能",
   "aiAssistant": "AI 助手",
   "claudeUsage": {
+    "refreshDelayed": "刷新延迟",
     "title": "Claude 用量",
     "codexTitle": "Codex 用量",
     "session": "5小时限额",

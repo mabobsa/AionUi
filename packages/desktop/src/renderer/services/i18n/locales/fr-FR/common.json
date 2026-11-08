@@ -197,6 +197,7 @@
   "optional": "(optionnel)",
   "clear": "Effacer",
   "claudeUsage": {
+    "refreshDelayed": "Actualisation retardée",
     "title": "Utilisation de Claude",
     "codexTitle": "Utilisation de Codex",
     "session": "Limite de 5 heures",

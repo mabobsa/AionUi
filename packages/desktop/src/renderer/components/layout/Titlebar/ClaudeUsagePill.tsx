@@ -113,13 +113,15 @@ const hasFreshUsage = (state: ClaudeRateLimitState): boolean =>
 
 /**
  * Index of the account shown in the pill: the account whose fresh usage is
- * highest across the session and weekly windows. Ties keep the account order.
+ * highest across the session and weekly windows. If every reading is stale,
+ * keep the last known usage visible. Ties keep the account order.
  */
 export const pickClaudeUsageAccountIndex = (states: readonly ClaudeRateLimitState[]): number => {
   let picked = 0;
   let pickedUsage = -1;
+  const hasFreshAccount = states.some(hasFreshUsage);
   states.forEach((state, index) => {
-    if (!hasFreshUsage(state)) return;
+    if (!(state.session || state.weekly) || (hasFreshAccount && !hasFreshUsage(state))) return;
     const usage = Math.max(windowUsage(state.session), windowUsage(state.weekly));
     if (usage > pickedUsage) {
       picked = index;
@@ -143,13 +145,13 @@ const ClaudeUsagePill: React.FC = () => {
   // Re-render when the oldest displayed snapshot goes stale.
   const staleAnchor = accountStates.reduce(
     (oldest, state) => (hasFreshUsage(state) ? Math.min(oldest, state.updatedAt) : oldest),
-    updatedAt
+    Infinity
   );
   const [, refreshFreshness] = React.useReducer((version: number) => version + 1, 0);
 
   useEffect(() => {
     const delayMs = staleAnchor + SUBSCRIPTION_USAGE_STALE_AFTER_MS - Date.now();
-    if (staleAnchor <= 0 || delayMs <= 0) return;
+    if (!Number.isFinite(staleAnchor) || delayMs <= 0) return;
     const timer = window.setTimeout(refreshFreshness, delayMs);
     return () => window.clearTimeout(timer);
   }, [staleAnchor]);
@@ -192,7 +194,8 @@ const ClaudeUsagePill: React.FC = () => {
     };
   }, [hasAccounts, location.pathname]);
 
-  if ((!session && !weekly) || !isSubscriptionUsageFresh(updatedAt)) return null;
+  if (!session && !weekly) return null;
+  const delayed = !isSubscriptionUsageFresh(updatedAt);
 
   const statusText = (status: ClaudeRateLimitInfo['status']): string =>
     status === 'rejected'
@@ -255,6 +258,9 @@ const ClaudeUsagePill: React.FC = () => {
 
   const renderWindows = (state: ClaudeRateLimitState) => (
     <>
+      {!hasFreshUsage(state) ? (
+        <span className='text-11px text-t-tertiary'>{t('common.claudeUsage.refreshDelayed')}</span>
+      ) : null}
       {state.session
         ? renderRow(t('common.claudeUsage.session', { defaultValue: '5-hour limit' }), state.session, false)
         : null}
@@ -275,7 +281,7 @@ const ClaudeUsagePill: React.FC = () => {
               <div className='flex'>
                 <ClaudeAccountBadge account={candidate} variant='tag' />
               </div>
-              {hasFreshUsage(accountStates[index]) ? (
+              {accountStates[index].session || accountStates[index].weekly ? (
                 renderWindows(accountStates[index])
               ) : (
                 <span className='text-11px text-t-tertiary'>{t('common.claudeUsage.noData')}</span>
@@ -295,6 +301,7 @@ const ClaudeUsagePill: React.FC = () => {
         <Dashboard theme='outline' size={14} fill='currentColor' />
         {account ? <ClaudeAccountBadge account={account} variant='mark' /> : null}
         <span className='text-12px font-600 leading-none'>{pillText}</span>
+        {delayed ? <span className='text-11px'>{t('common.claudeUsage.refreshDelayed')}</span> : null}
       </div>
     </Popover>
   );

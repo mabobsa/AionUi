@@ -207,6 +207,7 @@
   "selectedSkills": "Вибрані навички",
   "aiAssistant": "ШІ-асистент",
   "claudeUsage": {
+    "refreshDelayed": "Оновлення затримується",
     "title": "Використання Claude",
     "codexTitle": "Використання Codex",
     "session": "5-годинний ліміт",

@@ -43,6 +43,7 @@ const getProbe = (accountId: string, env?: NodeJS.ProcessEnv): ClaudeUsageProbe 
   let probe = probes.get(accountId);
   if (!probe) {
     probe = new ClaudeUsageProbe({
+      accountId,
       ...(env ? { env } : {}),
       workingDirectory: probeWorkingDirectory,
       onFinished: () => sweepProbeTranscripts(env),

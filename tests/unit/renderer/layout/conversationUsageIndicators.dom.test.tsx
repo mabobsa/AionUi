@@ -207,7 +207,7 @@ describe('ConversationUsageIndicator', () => {
     expect(screen.getByLabelText('Codex Usage')).toHaveClass(styles.limit);
   });
 
-  it('hides Claude and Codex usage when their snapshots become five minutes old', async () => {
+  it('keeps stale Claude usage with a delay label and restores freshness on the next reading', async () => {
     vi.useFakeTimers();
     try {
       const updatedAt = Date.now();
@@ -229,8 +229,16 @@ describe('ConversationUsageIndicator', () => {
 
       await act(async () => vi.advanceTimersByTimeAsync(5 * 60_000));
 
-      expect(screen.queryByLabelText('Claude Usage')).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Claude Usage')).toHaveTextContent('common.claudeUsage.refreshDelayed');
       expect(screen.queryByLabelText('Codex Usage')).not.toBeInTheDocument();
+      await act(async () => {
+        fixtures.claudeListener?.({
+          session: { utilization: 32, utilizationUnit: 'percent', rateLimitType: 'five_hour' },
+          updatedAt: Date.now(),
+        });
+      });
+      expect(screen.getByLabelText('Claude Usage')).toHaveTextContent('32%');
+      expect(screen.getByLabelText('Claude Usage')).not.toHaveTextContent('common.claudeUsage.refreshDelayed');
     } finally {
       vi.useRealTimers();
     }
@@ -380,12 +388,48 @@ describe('ConversationUsageIndicator', () => {
     render(<ConversationUsageIndicator />);
 
     expect(await screen.findByLabelText('Claude Usage')).toHaveTextContent('4% · 18%');
-    expect(mobileDetails().getByText('common.claudeUsage.noData')).toBeInTheDocument();
+    expect(mobileDetails().getByText('common.claudeUsage.refreshDelayed')).toBeInTheDocument();
     expect(
       mobileDetails()
         .getAllByRole('progressbar')
         .map((bar) => bar.getAttribute('aria-valuenow'))
-    ).toEqual(['4', '18']);
+    ).toEqual(['4', '18', '99', '100']);
+  });
+
+  it('keeps stale usage in WebUI and mobile when every account is delayed', async () => {
+    fixtures.electronDesktop = false;
+    fixtures.webUsageInvoke.mockResolvedValue(
+      webSnapshot([
+        { ...webAccount('default', 1, 'Team', 4, 18), updatedAt: new Date(Date.now() - 300_000).toISOString() },
+        { ...webAccount('max', 2, 'Max', 22, 44), updatedAt: new Date(Date.now() - 300_000).toISOString() },
+      ])
+    );
+    render(<ConversationUsageIndicator />);
+    expect(await screen.findByLabelText('Claude Usage')).toHaveTextContent(
+      '22% · 44%common.claudeUsage.refreshDelayed'
+    );
+    expect(screen.getByRole('button', { name: 'Claude Usage / Codex Usage' })).toHaveTextContent(
+      '44%common.claudeUsage.refreshDelayed'
+    );
+  });
+
+  it('preserves the last WebUI reading during network errors and clears the delay after recovery', async () => {
+    vi.useFakeTimers();
+    fixtures.electronDesktop = false;
+    fixtures.webUsageInvoke
+      .mockResolvedValueOnce(webSnapshot([webAccount('default', 1, 'Team', 4, 18)]))
+      .mockRejectedValue(new Error('offline'));
+    try {
+      render(<ConversationUsageIndicator />);
+      await act(async () => vi.advanceTimersByTimeAsync(300_000));
+      expect(screen.getByLabelText('Claude Usage')).toHaveTextContent('4% · 18%common.claudeUsage.refreshDelayed');
+      fixtures.webUsageInvoke.mockResolvedValue(webSnapshot([webAccount('default', 1, 'Team', 5, 19)]));
+      await act(async () => vi.advanceTimersByTimeAsync(10_000));
+      expect(screen.getByLabelText('Claude Usage')).toHaveTextContent('5% · 19%');
+      expect(screen.getByLabelText('Claude Usage')).not.toHaveTextContent('common.claudeUsage.refreshDelayed');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('returns to a single-account display when the next snapshot removes extra accounts', async () => {

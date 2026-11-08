@@ -369,6 +369,68 @@ describe('SubscriptionUsagePublisher Claude accounts', () => {
     publisher.stop();
   });
 
+  it('refreshes the first account while a second account is stalled without overlapping probes', async () => {
+    vi.useFakeTimers();
+    const slow = deferred<ClaudeUsageSnapshot | null>();
+    const getClaudeUsage = vi.fn(async (_cwd: string, accountId?: string) =>
+      accountId === 'max' ? slow.promise : claudeUsage
+    );
+    const { publisher } = createPublisher({ accountsList: accounts, getClaudeUsage });
+    publisher.start();
+    await vi.advanceTimersByTimeAsync(240_000);
+    expect(getClaudeUsage.mock.calls.filter(([, id]) => !id)).toHaveLength(3);
+    expect(getClaudeUsage.mock.calls.filter(([, id]) => id === 'max')).toHaveLength(1);
+    publisher.stop();
+    slow.resolve(maxUsage);
+    await vi.advanceTimersByTimeAsync(240_000);
+    expect(getClaudeUsage).toHaveBeenCalledTimes(4);
+  });
+
+  it('retries a failed account after thirty seconds while preserving its last successful reading', async () => {
+    vi.useFakeTimers();
+    let attempts = 0;
+    const getClaudeUsage = vi.fn(async (_cwd: string, accountId?: string) => {
+      if (accountId !== 'max') return claudeUsage;
+      attempts += 1;
+      return attempts === 2 ? null : maxUsage;
+    });
+    const { publisher, capture } = createPublisher({ accountsList: accounts, getClaudeUsage });
+    publisher.start();
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(capture.snapshots.at(-1)?.claudeAccounts?.[1]).toMatchObject({
+      state: 'ready',
+      session: { usedPercent: 7 },
+      updatedAt: new Date(maxUsage.updatedAt).toISOString(),
+    });
+    await vi.advanceTimersByTimeAsync(29_999);
+    expect(attempts).toBe(2);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(attempts).toBe(3);
+    publisher.stop();
+  });
+
+  it('cancels removed account schedules and ignores completion after stop', async () => {
+    vi.useFakeTimers();
+    const list = [...accounts];
+    const slow = deferred<ClaudeUsageSnapshot | null>();
+    const onClaudeUsage = vi.fn();
+    const getClaudeUsage = vi.fn(async (_cwd: string, accountId?: string) =>
+      accountId === 'max' ? slow.promise : claudeUsage
+    );
+    const { publisher, capture } = createPublisher({ accountsList: list, getClaudeUsage, onClaudeUsage });
+    publisher.start();
+    await vi.advanceTimersByTimeAsync(0);
+    list.pop();
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(capture.snapshots.at(-1)?.claudeAccounts).toBeUndefined();
+    publisher.stop();
+    const writes = capture.snapshots.length;
+    slow.resolve(maxUsage);
+    await vi.advanceTimersByTimeAsync(240_000);
+    expect(onClaudeUsage.mock.calls.some(([usage]) => usage.accountId === 'max')).toBe(false);
+    expect(capture.snapshots).toHaveLength(writes);
+  });
+
   it('probes each account from its own conversation and keeps claude as the default account', async () => {
     vi.useFakeTimers();
     const getClaudeUsage = vi.fn(async (_cwd: string, accountId?: string) =>

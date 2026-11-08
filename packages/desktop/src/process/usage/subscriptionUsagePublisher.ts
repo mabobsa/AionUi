@@ -31,6 +31,7 @@ import { clearSubscriptionUsageSnapshot, writeSubscriptionUsageSnapshot } from '
 const DEFAULT_LOADING_RETRY_MS = 2_000;
 const DEFAULT_INITIAL_REFRESH_DELAY_MS = 2_000;
 const DEFAULT_REFRESH_INTERVAL_MS = 120_000;
+const CLAUDE_FAILURE_RETRY_MS = 30_000;
 const CONVERSATION_LOOKUP_LIMIT = 10_000;
 
 export type SubscriptionUsageConversation = {
@@ -61,6 +62,12 @@ type SubscriptionUsagePublisherOptions = {
   onProcessExit?: (cleanup: () => void) => void;
   refreshIntervalMs?: number;
   writeSnapshot?: (snapshot: SubscriptionUsageSnapshot) => string;
+};
+
+type RefreshJob = {
+  read: () => Promise<unknown>;
+  failureDelayMs: number;
+  timer?: ReturnType<typeof setTimeout>;
 };
 
 const defaultListConversations = async (): Promise<SubscriptionUsageConversation[]> => {
@@ -124,6 +131,7 @@ export class SubscriptionUsagePublisher {
   #started = false;
   #stopped = false;
   #timer: ReturnType<typeof setTimeout> | undefined;
+  #jobs = new Map<string, RefreshJob>();
 
   constructor(options: SubscriptionUsagePublisherOptions = {}) {
     this.#clearSnapshot =
@@ -158,6 +166,7 @@ export class SubscriptionUsagePublisher {
     this.#stopped = true;
     if (this.#timer) clearTimeout(this.#timer);
     this.#timer = undefined;
+    this.#reconcileJobs(new Map());
     this.#clearSnapshot(this.#lastPublishedContent);
   }
 
@@ -173,10 +182,11 @@ export class SubscriptionUsagePublisher {
     try {
       usage = await this.#getClaudeUsage(cwd);
     } catch {
-      this.#logWarn('[SubscriptionUsagePublisher] Claude usage refresh failed');
+      this.#logWarn('[SubscriptionUsagePublisher] Claude usage refresh failed accountId=default');
       usage = null;
     }
 
+    if (this.#stopped) return usage;
     if (usage) {
       this.#recordClaude(usage);
     } else {
@@ -190,10 +200,11 @@ export class SubscriptionUsagePublisher {
     try {
       usage = await this.#getClaudeUsage(cwd, accountId);
     } catch {
-      this.#logWarn('[SubscriptionUsagePublisher] Claude account usage refresh failed');
+      this.#logWarn(`[SubscriptionUsagePublisher] Claude account usage refresh failed accountId=${accountId}`);
       usage = null;
     }
 
+    if (this.#stopped) return usage;
     const current = this.#claudeAccounts.get(accountId);
     const normalized = usage ? normalizeClaudeSubscriptionUsage(usage, this.#now().getTime()) : null;
     if (!usage || !normalized) {
@@ -225,6 +236,7 @@ export class SubscriptionUsagePublisher {
       usage = null;
     }
 
+    if (this.#stopped) return usage;
     if (usage) {
       this.#recordCodex(usage);
     } else {
@@ -332,7 +344,45 @@ export class SubscriptionUsagePublisher {
     try {
       this.#accounts = await this.#getClaudeAccounts();
     } catch {
-      this.#accounts = [];
+      // A transient settings read failure must not remove known accounts.
+      this.#logWarn('[SubscriptionUsagePublisher] Unable to refresh Claude accounts');
+    }
+  }
+
+  // Each provider/account owns its next refresh. A slow PTY must not hold
+  // the other accounts (or Codex) behind a shared Promise.all barrier.
+  #reconcileJobs(requested: Map<string, RefreshJob>): void {
+    for (const [key, job] of this.#jobs) {
+      if (requested.has(key)) continue;
+      if (job.timer) clearTimeout(job.timer);
+      this.#jobs.delete(key);
+    }
+    if (this.#stopped) return;
+    for (const [key, job] of requested) {
+      const existing = this.#jobs.get(key);
+      if (existing) existing.read = job.read;
+      else {
+        this.#jobs.set(key, job);
+        void this.#runJob(key, job);
+      }
+    }
+  }
+
+  async #runJob(key: string, job: RefreshJob): Promise<void> {
+    if (this.#stopped || this.#jobs.get(key) !== job) return;
+    let delay = this.#loadingRetryMs;
+    try {
+      if (this.#isRefreshReady()) {
+        delay = job.failureDelayMs;
+        if (await job.read()) delay = this.#refreshIntervalMs;
+      }
+    } catch {
+      this.#logWarn(`[SubscriptionUsagePublisher] Usage refresh failed provider=${key}`);
+    } finally {
+      if (!this.#stopped && this.#jobs.get(key) === job) {
+        job.timer = setTimeout(() => void this.#runJob(key, job), delay);
+        job.timer.unref?.();
+      }
     }
   }
 
@@ -349,6 +399,7 @@ export class SubscriptionUsagePublisher {
   async #refresh(): Promise<void> {
     if (this.#stopped || this.#refreshInFlight) return;
     this.#refreshInFlight = true;
+    let nextDelay = this.#loadingRetryMs;
 
     try {
       if (!this.#isRefreshReady()) return;
@@ -357,6 +408,8 @@ export class SubscriptionUsagePublisher {
       const conversations = (await this.#listConversations())
         .filter((conversation) => conversation.type === 'acp' && !conversation.isHealthCheck)
         .toSorted((left, right) => right.modifiedAt - left.modifiedAt);
+      if (this.#stopped) return;
+      nextDelay = this.#refreshIntervalMs;
       const activeConversation = conversations.find((conversation) => conversation.id === this.#activeConversationId);
       const remainingConversations = conversations.filter((conversation) => conversation !== activeConversation);
       const claudeConversations = remainingConversations.filter((conversation) => conversation.backend === 'claude');
@@ -372,17 +425,23 @@ export class SubscriptionUsagePublisher {
       });
 
       if (conversations.length === 0) {
+        this.#reconcileJobs(new Map());
         this.#markClaudeUnavailable();
         this.#markCodexUnavailable();
         return;
       }
 
       this.#markCodexLoading();
-      const refreshes: Promise<unknown>[] = [this.readCodexUsage()];
+      const jobs = new Map<string, RefreshJob>([
+        ['codex', { read: () => this.readCodexUsage(), failureDelayMs: this.#refreshIntervalMs }],
+      ]);
       const workspace = workspaceConversation?.workspace?.trim();
       if (workspace) {
         this.#markClaudeLoading();
-        refreshes.push(this.readClaudeUsage(workspace));
+        jobs.set('claude:default', {
+          read: () => this.readClaudeUsage(workspace),
+          failureDelayMs: CLAUDE_FAILURE_RETRY_MS,
+        });
       } else {
         this.#markClaudeUnavailable();
       }
@@ -393,15 +452,19 @@ export class SubscriptionUsagePublisher {
           .filter((conversation) => conversation.claudeAccountId === account.id)
           .map((conversation) => conversation.workspace?.trim())
           .find((candidate): candidate is string => Boolean(candidate && this.#isDirectory(candidate)));
-        if (accountWorkspace) refreshes.push(this.readClaudeUsage(accountWorkspace, account.id));
+        if (accountWorkspace)
+          jobs.set(`claude:${account.id}`, {
+            read: () => this.readClaudeUsage(accountWorkspace, account.id),
+            failureDelayMs: CLAUDE_FAILURE_RETRY_MS,
+          });
       }
-      await Promise.all(refreshes);
+      this.#reconcileJobs(jobs);
+      this.#publish();
     } catch {
       this.#logWarn('[SubscriptionUsagePublisher] Unable to resolve an ACP usage context');
     } finally {
       this.#refreshInFlight = false;
-      const hasLoadingProvider = this.#claude.state === 'loading' || this.#codex.state === 'loading';
-      this.#schedule(hasLoadingProvider ? this.#loadingRetryMs : this.#refreshIntervalMs);
+      this.#schedule(nextDelay);
     }
   }
 }

@@ -204,6 +204,7 @@
   "selectedSkills": "مهارت‌های انتخاب‌شده",
   "aiAssistant": "دستیار هوش مصنوعی",
   "claudeUsage": {
+    "refreshDelayed": "تأخیر در به‌روزرسانی",
     "title": "مصرف Claude",
     "codexTitle": "مصرف Codex",
     "session": "محدودیت ۵ ساعته",

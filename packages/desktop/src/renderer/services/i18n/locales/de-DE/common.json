@@ -204,6 +204,7 @@
   "selectedSkills": "Ausgewählte Skills",
   "aiAssistant": "KI-Assistent",
   "claudeUsage": {
+    "refreshDelayed": "Aktualisierung verzögert",
     "title": "Claude-Nutzung",
     "codexTitle": "Codex-Nutzung",
     "session": "5-Stunden-Limit",
