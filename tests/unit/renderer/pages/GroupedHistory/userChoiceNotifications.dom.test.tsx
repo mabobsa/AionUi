@@ -44,6 +44,7 @@ vi.mock('react-router-dom', () => ({ useNavigate: () => state.navigate }));
 vi.mock('@/renderer/hooks/context/UserChoiceNotifications/MobilePushSync', () => ({ default: () => null }));
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
+    i18n: { language: 'ko-KR' },
     t: (key: string, params?: { count?: number }) => (params?.count === undefined ? key : `${key}:${params.count}`),
   }),
 }));

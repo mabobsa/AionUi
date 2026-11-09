@@ -64,6 +64,7 @@ export default function UserChoiceNotificationButton() {
   }
   return (
     <Popover
+      className={styles.popup}
       trigger='click'
       position='br'
       style={{ maxWidth: window.innerWidth - 24 }}

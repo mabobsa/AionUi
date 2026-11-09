@@ -9,6 +9,14 @@
   color: var(--warning);
 }
 
+/* Arco mounts the popup before assigning its inline coordinates on the next
+   animation frame. Keep it measurable but invisible until both axes are ready,
+   including on reopen when Arco clears the previous coordinates. */
+.popup:not([style*='top:']),
+.popup:not([style*='left:']) {
+  visibility: hidden;
+}
+
 .panel {
   width: min(360px, calc(100vw - 40px));
   max-height: 60vh;
