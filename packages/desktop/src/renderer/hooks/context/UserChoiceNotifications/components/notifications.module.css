@@ -23,9 +23,12 @@
 }
 
 .item {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  /* Inner inset of the open button; the dismiss button reuses it to sit on the time line. */
+  --notice-inset: 8px;
+  /* 1.5x the Arco small button height (28px); the time line matches it. */
+  --notice-dismiss-height: 42px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   border-bottom: 1px solid var(--border-base);
   padding-bottom: 8px;
 }
@@ -37,10 +40,11 @@
 }
 
 .open:global(.arco-btn-text) {
+  grid-area: 1 / 1 / 2 / 3;
   width: 100%;
   height: auto;
   min-height: 48px;
-  padding: 8px;
+  padding: var(--notice-inset);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -66,6 +70,25 @@
   overflow-wrap: anywhere;
   line-height: 1.5;
   color: var(--text-secondary);
+}
+
+/* Last line of the open button; as tall as the dismiss button that sits on it. */
+.time {
+  display: flex;
+  align-items: center;
+  min-height: var(--notice-dismiss-height);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Overlays the bottom-right of the open button, on the time line. The bottom
+   margin matches the open button's padding plus Arco's 1px transparent border. */
+.dismiss:global(.arco-btn) {
+  grid-area: 1 / 2 / 2 / 3;
+  align-self: end;
+  margin-bottom: calc(var(--notice-inset) + 1px);
+  /* Hover/click area 1.5x taller than the small button; width unchanged. */
+  height: var(--notice-dismiss-height);
 }
 
 .empty {
