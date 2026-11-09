@@ -130,6 +130,8 @@
     "shortTitle": "검색",
     "description": "메시지 내용이나 대화 ID로 검색하세요. 결과를 클릭하면 해당 대화 또는 메시지로 이동합니다.",
     "placeholder": "메시지 내용 또는 대화 ID...",
+    "matchAll": "And 검색",
+    "matchAllTooltip": "공백으로 구분한 단어가 모두 들어간 메시지를 찾습니다",
     "idle": "키워드 또는 대화 ID를 입력하세요",
     "empty": "일치하는 대화나 메시지가 없습니다",
     "loadingMore": "더 불러오는 중...",

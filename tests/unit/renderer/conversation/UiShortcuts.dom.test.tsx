@@ -280,6 +280,68 @@ describe('global conversation ID search', () => {
     expect(screen.getByText('Last hit')).toBeInTheDocument();
   });
 
+  const openAndSearch = (keyword: string) => {
+    const view = render(<ConversationSearchPopover />);
+    fireEvent.click(screen.getByRole('button', { name: 'conversation.historySearch.tooltip' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'conversation.historySearch.matchAll' }));
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: keyword } });
+    return view;
+  };
+
+  it('requires every space-separated term when AND search is checked', async () => {
+    serviceMocks.searchMessages.mockResolvedValue({
+      items: [{ ...searchMessage('both', 'All terms hit'), preview_text: 'AAAA BBBB CCCC' }],
+      has_more: false,
+    });
+    const { container } = openAndSearch('AAAA CCCC');
+    expect(await screen.findByText('All terms hit')).toBeInTheDocument();
+    expect(serviceMocks.searchMessages).toHaveBeenCalledWith({
+      keyword: 'AAAA CCCC',
+      cursor: undefined,
+      page_size: 20,
+      match_all: true,
+    });
+    expect(Array.from(container.querySelectorAll('mark'), (mark) => mark.textContent)).toEqual(['AAAA', 'CCCC']);
+    expect(localStorage.getItem('conversation.historySearch.matchAll')).toBe('true');
+  });
+
+  it('keeps a single AND term and an unchecked phrase as ordinary keyword searches', async () => {
+    openAndSearch('needle');
+    await waitFor(() =>
+      expect(serviceMocks.searchMessages).toHaveBeenCalledWith({ keyword: 'needle', cursor: undefined, page_size: 20 })
+    );
+    fireEvent.click(screen.getByRole('checkbox', { name: 'conversation.historySearch.matchAll' }));
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'AAAA CCCC' } });
+    await waitFor(() =>
+      expect(serviceMocks.searchMessages).toHaveBeenLastCalledWith({
+        keyword: 'AAAA CCCC',
+        cursor: undefined,
+        page_size: 20,
+      })
+    );
+    expect(localStorage.getItem('conversation.historySearch.matchAll')).toBe('false');
+  });
+
+  it('restores the AND search choice and reruns the open search when it changes', async () => {
+    localStorage.setItem('conversation.historySearch.matchAll', 'true');
+    render(<ConversationSearchPopover />);
+    fireEvent.click(screen.getByRole('button', { name: 'conversation.historySearch.tooltip' }));
+    const checkbox = screen.getByRole('checkbox', { name: 'conversation.historySearch.matchAll' });
+    expect(checkbox).toBeChecked();
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'AAAA CCCC' } });
+    await waitFor(() =>
+      expect(serviceMocks.searchMessages).toHaveBeenLastCalledWith(expect.objectContaining({ match_all: true }))
+    );
+    fireEvent.click(checkbox);
+    await waitFor(() =>
+      expect(serviceMocks.searchMessages).toHaveBeenLastCalledWith({
+        keyword: 'AAAA CCCC',
+        cursor: undefined,
+        page_size: 20,
+      })
+    );
+  });
+
   it('shows the same parent/folder project label as the sidebar for an active ID result', async () => {
     serviceMocks.getConversation.mockResolvedValue({
       ...idConversation,

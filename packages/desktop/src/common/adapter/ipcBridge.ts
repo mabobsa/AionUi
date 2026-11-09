@@ -1560,9 +1560,9 @@ export const database = {
     fromApiPaginatedConversations
   ),
   searchConversationMessages: withResponseMap(
-    httpGet<ApiMessageSearchResponse, { keyword: string; cursor?: string; page_size?: number }>(
+    httpGet<ApiMessageSearchResponse, { keyword: string; cursor?: string; page_size?: number; match_all?: boolean }>(
       (p) =>
-        `/api/messages/search?keyword=${encodeURIComponent(p.keyword)}&page_size=${p.page_size ?? 20}${p.cursor ? `&cursor=${encodeURIComponent(p.cursor)}` : ''}`
+        `/api/messages/search?keyword=${encodeURIComponent(p.keyword)}&page_size=${p.page_size ?? 20}${p.cursor ? `&cursor=${encodeURIComponent(p.cursor)}` : ''}${p.match_all ? '&match_all=true' : ''}`
     ),
     fromApiSearchResult
   ),

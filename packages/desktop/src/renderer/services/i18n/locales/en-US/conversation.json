@@ -130,6 +130,8 @@
     "shortTitle": "Search",
     "description": "Search message content or enter a conversation ID. Click a result to open the conversation or matched message.",
     "placeholder": "Message content or conversation ID...",
+    "matchAll": "AND search",
+    "matchAllTooltip": "Find messages that contain every space-separated word",
     "idle": "Enter a keyword or conversation ID",
     "empty": "No matching conversations or messages found",
     "loadingMore": "Loading more...",

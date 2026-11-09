@@ -130,6 +130,8 @@
     "shortTitle": "Pesquisar",
     "description": "Pesquise o conteúdo das mensagens ou digite um ID de conversa. Clique no resultado para abrir a conversa ou a mensagem encontrada.",
     "placeholder": "Conteúdo da mensagem ou ID da conversa...",
+    "matchAll": "Pesquisa AND",
+    "matchAllTooltip": "Encontra mensagens que contêm todas as palavras separadas por espaço",
     "idle": "Digite uma palavra-chave ou ID de conversa",
     "empty": "Nenhuma conversa ou mensagem correspondente encontrada",
     "loadingMore": "Carregando mais...",

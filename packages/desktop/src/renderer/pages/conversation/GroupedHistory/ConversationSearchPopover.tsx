@@ -19,7 +19,7 @@ import { ConversationClaudeAccountBadge } from '@/renderer/pages/conversation/pl
 import { blockMobileInputFocus, blurActiveElement } from '@/renderer/utils/ui/focus';
 import { isPrimaryApplicationShortcut } from '@/renderer/utils/ui/keyboardShortcuts';
 import { getParentAndCurrentDir } from '@/renderer/utils/workspace/projectPathLabel';
-import { Button, Empty, Spin, Typography } from '@arco-design/web-react';
+import { Button, Checkbox, Empty, Spin, Tooltip, Typography } from '@arco-design/web-react';
 import { Close, MessageOne, Robot, Search } from '@icon-park/react';
 import classNames from 'classnames';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -33,6 +33,7 @@ import './ConversationSearchPopover.css';
 const PAGE_SIZE = 20;
 const MAX_RECENT_SEARCHES = 8;
 const RECENT_SEARCH_STORAGE_KEY = 'conversation.historySearch.recentKeywords';
+const MATCH_ALL_STORAGE_KEY = 'conversation.historySearch.matchAll';
 const SNIPPET_MAX_LENGTH = 110;
 const SNIPPET_PREFIX_CONTEXT_LENGTH = 34;
 const SNIPPET_SUFFIX_CONTEXT_LENGTH = 58;
@@ -41,25 +42,48 @@ type ConversationSearchResult = Omit<IMessageSearchItem, 'message_id' | 'message
 
 const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-const buildSnippet = (text: string, keyword: string, maxLength = SNIPPET_MAX_LENGTH): string => {
+/** Whitespace-separated AND terms without case-insensitive repeats. */
+const splitSearchTerms = (keyword: string): string[] => {
+  const terms: string[] = [];
+  for (const term of keyword.trim().split(/\s+/)) {
+    if (term && !terms.some((existing) => existing.toLowerCase() === term.toLowerCase())) terms.push(term);
+  }
+  return terms;
+};
+
+const readStoredMatchAll = (): boolean => {
+  try {
+    return localStorage.getItem(MATCH_ALL_STORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+};
+
+const buildSnippet = (text: string, terms: string[], maxLength = SNIPPET_MAX_LENGTH): string => {
   const normalized = text.replace(/\s+/g, ' ').trim();
   if (!normalized) return '';
-  if (!keyword.trim()) {
-    return normalized.length > maxLength ? `${normalized.slice(0, maxLength).trimEnd()}...` : normalized;
-  }
 
+  // Center the snippet on the earliest term so AND results show a match.
   const lowerText = normalized.toLowerCase();
-  const lowerKeyword = keyword.trim().toLowerCase();
-  const matchIndex = lowerText.indexOf(lowerKeyword);
+  let matchIndex = -1;
+  let matchLength = 0;
+  for (const term of terms) {
+    const lowerTerm = term.trim().toLowerCase();
+    const index = lowerTerm ? lowerText.indexOf(lowerTerm) : -1;
+    if (index !== -1 && (matchIndex === -1 || index < matchIndex)) {
+      matchIndex = index;
+      matchLength = lowerTerm.length;
+    }
+  }
   if (matchIndex === -1) {
     return normalized.length > maxLength ? `${normalized.slice(0, maxLength).trimEnd()}...` : normalized;
   }
 
   let start = Math.max(0, matchIndex - SNIPPET_PREFIX_CONTEXT_LENGTH);
-  let end = Math.min(normalized.length, matchIndex + lowerKeyword.length + SNIPPET_SUFFIX_CONTEXT_LENGTH);
+  let end = Math.min(normalized.length, matchIndex + matchLength + SNIPPET_SUFFIX_CONTEXT_LENGTH);
 
   if (end - start > maxLength) {
-    const centeredStart = Math.max(0, matchIndex - Math.floor((maxLength - lowerKeyword.length) / 2));
+    const centeredStart = Math.max(0, matchIndex - Math.floor((maxLength - matchLength) / 2));
     start = Math.min(centeredStart, Math.max(0, normalized.length - maxLength));
     end = Math.min(normalized.length, start + maxLength);
   }
@@ -68,17 +92,20 @@ const buildSnippet = (text: string, keyword: string, maxLength = SNIPPET_MAX_LEN
   return `${start > 0 ? '...' : ''}${snippet}${end < normalized.length ? '...' : ''}`;
 };
 
-const renderHighlightedText = (text: string, keyword: string) => {
-  if (!keyword.trim()) {
+const renderHighlightedText = (text: string, terms: string[]) => {
+  const activeTerms = terms.map((term) => term.trim()).filter(Boolean);
+  if (activeTerms.length === 0) {
     return text;
   }
 
-  const pattern = new RegExp(`(${escapeRegExp(keyword.trim())})`, 'ig');
+  // Try longer terms first so a shorter prefix does not split a longer match.
+  const alternatives = activeTerms.toSorted((a, b) => b.length - a.length).map(escapeRegExp);
+  const pattern = new RegExp(`(${alternatives.join('|')})`, 'ig');
   const parts = text.split(pattern);
-  const lowerKeyword = keyword.trim().toLowerCase();
+  const lowerTerms = new Set(activeTerms.map((term) => term.toLowerCase()));
 
   return parts.map((part, index) => {
-    if (part.toLowerCase() !== lowerKeyword) {
+    if (!lowerTerms.has(part.toLowerCase())) {
       return <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>;
     }
 
@@ -166,6 +193,23 @@ const ConversationSearchPopover: React.FC<ConversationSearchPopoverProps> = ({
   const [loadingMore, setLoadingMore] = useState(false);
   const [searchFailed, setSearchFailed] = useState(false);
   const [recentKeywords, setRecentKeywords] = useState<string[]>([]);
+  const [matchAll, setMatchAll] = useState(readStoredMatchAll);
+  const searchTerms = useMemo(
+    () => (matchAll ? splitSearchTerms(debouncedKeyword) : [debouncedKeyword].filter(Boolean)),
+    [debouncedKeyword, matchAll]
+  );
+  // A keyword without spaces is an ordinary search; keep that request unchanged.
+  // The backend drops repeated terms, so only spacing decides the AND request.
+  const matchAllTerms = matchAll && /\s/.test(debouncedKeyword);
+
+  const handleMatchAllChange = useCallback((checked: boolean) => {
+    setMatchAll(checked);
+    try {
+      localStorage.setItem(MATCH_ALL_STORAGE_KEY, String(checked));
+    } catch {
+      // Ignore storage write errors in private mode / restricted environments.
+    }
+  }, []);
 
   useEffect(() => {
     try {
@@ -245,6 +289,7 @@ const ConversationSearchPopover: React.FC<ConversationSearchPopoverProps> = ({
             keyword: debouncedKeyword,
             cursor,
             page_size: remaining,
+            ...(matchAllTerms ? { match_all: true } : {}),
           });
           if (!isCurrent()) return;
 
@@ -279,7 +324,7 @@ const ConversationSearchPopover: React.FC<ConversationSearchPopoverProps> = ({
         }
       }
     },
-    [debouncedKeyword, visible]
+    [debouncedKeyword, matchAllTerms, visible]
   );
 
   useEffect(() => {
@@ -495,7 +540,7 @@ const ConversationSearchPopover: React.FC<ConversationSearchPopoverProps> = ({
       >
         <div className='conversation-search-modal__results flex flex-col'>
           {results.map((item) => {
-            const snippet = buildSnippet(item.preview_text, debouncedKeyword);
+            const snippet = buildSnippet(item.preview_text, searchTerms);
             const active = activeConversationIds.has(item.conversation.id);
             const extra = item.conversation.extra;
             const workspace = extra?.workspace;
@@ -551,7 +596,7 @@ const ConversationSearchPopover: React.FC<ConversationSearchPopoverProps> = ({
                   </div>
                 ) : null}
                 <div className='conversation-search-modal__snippet text-13px leading-22px text-t-primary/92 break-words'>
-                  {renderHighlightedText(snippet, debouncedKeyword)}
+                  {renderHighlightedText(snippet, searchTerms)}
                 </div>
               </Button>
             );
@@ -586,6 +631,7 @@ const ConversationSearchPopover: React.FC<ConversationSearchPopoverProps> = ({
     hasMore,
     runSearch,
     searchFailed,
+    searchTerms,
     recentKeywords,
     t,
     i18n.language,
@@ -693,15 +739,20 @@ const ConversationSearchPopover: React.FC<ConversationSearchPopoverProps> = ({
             </button>
           </div>
 
-          <div className='mb-14px conversation-search-modal__input-wrap'>
+          <div className='mb-14px conversation-search-modal__input-wrap flex items-center gap-12px'>
             <AionSearchInput
-              className='w-full'
+              className='flex-1 min-w-0'
               autoFocus={visible}
               value={keyword}
               placeholder={t('conversation.historySearch.placeholder')}
               onChange={setKeyword}
               onClear={handleClearKeyword}
             />
+            <Tooltip content={t('conversation.historySearch.matchAllTooltip')}>
+              <Checkbox className='shrink-0 whitespace-nowrap' checked={matchAll} onChange={handleMatchAllChange}>
+                {t('conversation.historySearch.matchAll')}
+              </Checkbox>
+            </Tooltip>
           </div>
 
           <div className='flex-1 min-h-0'>{resultContent}</div>

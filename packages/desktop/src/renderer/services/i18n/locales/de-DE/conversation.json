@@ -130,6 +130,8 @@
     "shortTitle": "Suche",
     "description": "Nach Nachrichteninhalten suchen oder eine Unterhaltungs-ID eingeben. Ein Klick auf ein Ergebnis öffnet die Unterhaltung oder die passende Nachricht.",
     "placeholder": "Nachrichteninhalt oder Unterhaltungs-ID...",
+    "matchAll": "AND-Suche",
+    "matchAllTooltip": "Findet Nachrichten, die alle durch Leerzeichen getrennten Wörter enthalten",
     "idle": "Suchbegriff oder Unterhaltungs-ID eingeben",
     "empty": "Keine passenden Unterhaltungen oder Nachrichten gefunden",
     "loadingMore": "Weitere werden geladen...",

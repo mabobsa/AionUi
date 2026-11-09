@@ -807,6 +807,8 @@ export type I18nKey =
   | 'conversation.historySearch.locationArchived'
   | 'conversation.historySearch.locationChats'
   | 'conversation.historySearch.locationProject'
+  | 'conversation.historySearch.matchAll'
+  | 'conversation.historySearch.matchAllTooltip'
   | 'conversation.historySearch.placeholder'
   | 'conversation.historySearch.shortTitle'
   | 'conversation.historySearch.title'

@@ -130,6 +130,8 @@
     "shortTitle": "Ara",
     "description": "Mesaj içeriğini arayın veya bir sohbet kimliği girin. Sohbeti ya da eşleşen mesajı açmak için sonuca tıklayın.",
     "placeholder": "Mesaj içeriği veya sohbet kimliği...",
+    "matchAll": "AND araması",
+    "matchAllTooltip": "Boşlukla ayrılmış tüm kelimeleri içeren mesajları bulur",
     "idle": "Anahtar kelime veya sohbet kimliği girin",
     "empty": "Eşleşen sohbet veya mesaj bulunamadı",
     "loadingMore": "Daha fazla yükleniyor...",

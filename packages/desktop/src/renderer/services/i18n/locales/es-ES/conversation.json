@@ -130,6 +130,8 @@
     "shortTitle": "Buscar",
     "description": "Busca en el contenido de los mensajes o introduce un ID de conversación. Haz clic en un resultado para abrir la conversación o el mensaje encontrado.",
     "placeholder": "Contenido del mensaje o ID de conversación...",
+    "matchAll": "Búsqueda AND",
+    "matchAllTooltip": "Busca mensajes que contengan todas las palabras separadas por espacios",
     "idle": "Introduce una palabra clave o un ID de conversación",
     "empty": "No se encontraron conversaciones ni mensajes coincidentes",
     "loadingMore": "Cargando más...",

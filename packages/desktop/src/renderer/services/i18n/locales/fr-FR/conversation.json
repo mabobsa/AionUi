@@ -130,6 +130,8 @@
     "shortTitle": "Rechercher",
     "description": "Recherchez dans le contenu des messages ou saisissez un ID de conversation. Cliquez sur un résultat pour ouvrir la conversation ou le message correspondant.",
     "placeholder": "Contenu du message ou ID de conversation...",
+    "matchAll": "Recherche AND",
+    "matchAllTooltip": "Trouve les messages contenant tous les mots séparés par des espaces",
     "idle": "Saisissez un mot-clé ou un ID de conversation",
     "empty": "Aucune conversation ni aucun message correspondant",
     "loadingMore": "Chargement de plus...",

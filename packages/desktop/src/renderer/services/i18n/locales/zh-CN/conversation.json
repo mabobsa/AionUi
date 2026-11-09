@@ -130,6 +130,8 @@
     "shortTitle": "搜索",
     "description": "搜索消息内容或输入会话 ID。点击结果可打开对应会话或消息。",
     "placeholder": "消息内容或会话 ID...",
+    "matchAll": "AND 搜索",
+    "matchAllTooltip": "查找同时包含所有以空格分隔的词的消息",
     "idle": "输入关键词或会话 ID",
     "empty": "未找到匹配的会话或消息",
     "loadingMore": "正在加载更多...",

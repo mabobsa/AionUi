@@ -130,6 +130,8 @@
     "shortTitle": "搜尋",
     "description": "搜尋訊息內容或輸入對話 ID。點擊結果可開啟對應對話或訊息。",
     "placeholder": "訊息內容或對話 ID...",
+    "matchAll": "AND 搜尋",
+    "matchAllTooltip": "尋找同時包含所有以空格分隔字詞的訊息",
     "idle": "輸入關鍵字或對話 ID",
     "empty": "找不到相符的對話或訊息",
     "loadingMore": "載入更多...",
