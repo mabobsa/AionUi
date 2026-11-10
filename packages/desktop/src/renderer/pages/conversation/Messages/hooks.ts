@@ -22,8 +22,8 @@ import {
   DEFAULT_MESSAGE_PAGE_LIMIT,
   loadConversationAnchorWindow,
   loadConversationMessagePage,
-  loadLatestConversationMessages,
 } from '@/renderer/utils/chat/messagePagination';
+import { loadResumedConversationMessages, subscribeConversationResume } from '../runtime/conversationResume';
 
 const [useMessageList, MessageListProvider, useUpdateMessageList] = createContext([] as TMessage[]);
 const [useMessageListLoading, MessageListLoadingProvider, useUpdateMessageListLoading] = createContext(false);
@@ -825,7 +825,11 @@ function mergeLoadedPageWithCurrent(conversationId: string, messages: TMessage[]
   // the same retry run reach this point as separate entries (a persisted tip has
   // no msg_id, so neither merge key matches), and only a key-based fold sees
   // that they are one card.
-  return foldSupersededTips(liveOnly.length ? [...mergedMessages, ...liveOnly] : mergedMessages);
+  const combined = liveOnly.length ? [...mergedMessages, ...liveOnly] : mergedMessages;
+  // A resume refresh can overlap the live tail while retaining older loaded pages.
+  // Keep those older rows before the recovered messages, not after the new tail.
+  combined.sort((a, b) => (a.created_at ?? 0) - (b.created_at ?? 0));
+  return foldSupersededTips(combined);
 }
 
 export function prependHistoryMessages(currentList: TMessage[], messages: TMessage[]): TMessage[] {
@@ -952,6 +956,10 @@ export const useMessageLstCache = (key: string) => {
   const list = useMessageList();
   const setLoading = useUpdateMessageListLoading();
   const setPagination = useUpdateMessagePaginationState();
+  const requestRevision = useRef(0);
+  const activeKey = useRef(key);
+  activeKey.current = key;
+  const savedTail = useRef<{ key: string; message: TMessage | null } | undefined>(undefined);
   // Mirrors the current list into a ref so the turnCompleted handler below
   // can inspect it synchronously without re-subscribing to the WS event on
   // every list change (useState's functional updater runs asynchronously,
@@ -961,21 +969,25 @@ export const useMessageLstCache = (key: string) => {
     listRef.current = list;
   }, [list]);
   const loadMessages = useCallback(async (): Promise<TMessage[]> => {
-    const result = await loadLatestConversationMessages(key, {
-      limit: DEFAULT_MESSAGE_PAGE_LIMIT,
-      contentMode: 'compact',
-    });
+    const revision = ++requestRevision.current;
+    const isCurrent = () => revision === requestRevision.current && activeKey.current === key;
+    const previousTail = savedTail.current?.key === key ? savedTail.current.message : undefined;
+    const result = await loadResumedConversationMessages(key, previousTail, isCurrent);
+    if (!isCurrent()) return [];
     const messages = result?.items?.map(normalizeDbMessage);
     if (messages && Array.isArray(messages)) {
+      const tail = messages.at(-1);
+      // null means the previous snapshot was empty, so recovery must bridge all
+      // the way back to the start (a new chat can receive > one page while away).
+      savedTail.current = { key, message: tail ?? null };
       update((currentList) => mergeLoadedPageWithCurrent(key, messages, currentList));
-      setPagination({
-        oldestCursor: result.oldest_cursor ?? undefined,
+      setPagination((current) => ({
+        ...current,
+        oldestCursor: (previousTail && current.oldestCursor) || result.oldest_cursor || undefined,
         newestCursor: result.newest_cursor ?? undefined,
-        hasMoreBefore: result.has_more_before,
+        hasMoreBefore: previousTail ? current.hasMoreBefore && result.has_more_before : result.has_more_before,
         hasMoreAfter: result.has_more_after,
-        isLoadingBefore: false,
-        isLoadingAnchor: false,
-      });
+      }));
       return messages;
     }
     return [];
@@ -997,8 +1009,16 @@ export const useMessageLstCache = (key: string) => {
       });
     return () => {
       cancelled = true;
+      requestRevision.current++;
     };
   }, [key, loadMessages, setLoading, setPagination]);
+
+  useEffect(() => {
+    if (!key) return;
+    // Mobile backgrounding can drop stream frames even without a socket close.
+    // Read persisted messages on return without remounting the chat/send box.
+    return subscribeConversationResume(loadMessages);
+  }, [key, loadMessages]);
 
   useEffect(() => {
     if (!key) {

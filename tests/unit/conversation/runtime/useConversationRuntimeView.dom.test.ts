@@ -117,4 +117,22 @@ describe('conversation stop state synchronization', () => {
     });
     expect(result.current.cancelTurnId).toBe('background-1');
   });
+
+  it('recovers a missed completion on mobile visibility return without a window focus event', async () => {
+    getConversation.mockResolvedValue({ runtime: { ...runtime(1, 'turn-1'), state: 'running', is_processing: true } });
+    const { result } = renderHook(() => useConversationRuntimeView('conv-1'));
+    await waitFor(() => expect(result.current.isProcessing).toBe(true));
+    const visible = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+    getConversation.mockResolvedValue({ runtime: runtime(2, null) });
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    expect(result.current.isProcessing).toBe(true);
+    visible.mockReturnValue('visible');
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    expect(result.current.isProcessing).toBe(false);
+    visible.mockRestore();
+  });
 });

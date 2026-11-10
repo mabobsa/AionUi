@@ -119,12 +119,17 @@ export const useConversationRuntimeView = (conversation_id: string): UseConversa
         });
     };
     refresh();
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
     window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
     const disposeReconnect = ipcBridge.realtime?.reconnected?.on(refresh);
 
     return () => {
       cancelled = true;
       window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
       disposeReconnect?.();
     };
   }, [conversation_id]);
