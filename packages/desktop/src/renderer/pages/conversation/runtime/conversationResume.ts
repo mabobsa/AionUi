@@ -62,6 +62,7 @@ export function subscribeConversationResume(refresh: () => Promise<unknown>): ()
   let queued = false;
   let retries = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let wasHidden = document.visibilityState === 'hidden';
 
   const schedule = (delay = 150) => {
     if (disposed || document.visibilityState === 'hidden') return;
@@ -100,16 +101,30 @@ export function subscribeConversationResume(refresh: () => Promise<unknown>): ()
   const onPageShow = (event: PageTransitionEvent) => {
     if (event.persisted) resume();
   };
-  document.addEventListener('visibilitychange', resume);
-  window.addEventListener('focus', resume);
+  const resumeFromBackground = () => {
+    if (!wasHidden || document.visibilityState === 'hidden') return;
+    wasHidden = false;
+    resume();
+  };
+  const onVisibilityChange = () => {
+    if (document.visibilityState === 'hidden') {
+      wasHidden = true;
+    } else {
+      resumeFromBackground();
+    }
+  };
+  document.addEventListener('visibilitychange', onVisibilityChange);
+  // Desktop window focus alone is not a suspension. Keep focus only as a
+  // fallback for browsers that deliver it before the visible-state event.
+  window.addEventListener('focus', resumeFromBackground);
   window.addEventListener('online', resume);
   window.addEventListener('pageshow', onPageShow);
   const unsubscribe = ipcBridge.realtime?.reconnected?.on(resume);
   return () => {
     disposed = true;
     if (timer) clearTimeout(timer);
-    document.removeEventListener('visibilitychange', resume);
-    window.removeEventListener('focus', resume);
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+    window.removeEventListener('focus', resumeFromBackground);
     window.removeEventListener('online', resume);
     window.removeEventListener('pageshow', onPageShow);
     unsubscribe?.();

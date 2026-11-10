@@ -844,12 +844,39 @@ describe('conversation recovery after browser suspension', () => {
 
   it('coalesces visibility, focus, online and reconnect signals into one fetch', async () => {
     await mount();
+    changeVisibility('hidden');
     changeVisibility('visible');
     window.dispatchEvent(new Event('focus'));
     window.dispatchEvent(new Event('online'));
     reconnect();
     await advance();
     expect(invoke).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not reload messages when a visible desktop window only regains focus', async () => {
+    const { result } = await mount();
+    const before = result.current.messages;
+    window.dispatchEvent(new Event('focus'));
+    await advance();
+    changeVisibility('visible');
+    window.dispatchEvent(new Event('focus'));
+    await advance();
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(result.current.messages).toBe(before);
+  });
+
+  it('uses focus as a fallback only after the document was hidden', async () => {
+    const { result } = await mount();
+    changeVisibility('hidden');
+    invoke.mockResolvedValue(page([message(2, 'recovered answer')]));
+    visibility = 'visible';
+    window.dispatchEvent(new Event('focus'));
+    await advance();
+    changeVisibility('visible');
+    window.dispatchEvent(new Event('focus'));
+    await advance();
+    expect(invoke).toHaveBeenCalledTimes(2);
+    expect((result.current.messages.at(-1) as IMessageText).content.content).toBe('recovered answer');
   });
 
   it('refreshes on a restored back-forward cache page without a visibility event', async () => {

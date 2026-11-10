@@ -341,6 +341,80 @@ describe('MessageList streaming scroll behavior', () => {
     expect(scroller.scrollTo).not.toHaveBeenCalled();
   });
 
+  it.each([false, true])(
+    'recovers missed user messages while preserving reading or bottom-follow mode (%s)',
+    async (following) => {
+      loadLatest.mockResolvedValue(messagePage([createTextMessage('answer')]));
+      render(<Conversation />);
+      await act(async () => {
+        await Promise.resolve();
+      });
+      const scroller = screen.getByTestId('message-list-scroller') as HTMLDivElement;
+      setScrollableMetrics(scroller);
+      act(() => vi.runAllTimers());
+      if (!following) {
+        fireEvent.wheel(scroller, { deltaY: -400 });
+        scroller.scrollTop = 200;
+        fireEvent.scroll(scroller);
+      }
+      loadLatest.mockResolvedValue(
+        messagePage([
+          createTextMessage('answer'),
+          { ...createTextMessage('sent while away'), id: 'user-2', msg_id: 'user-2', position: 'right', created_at: 2 },
+        ])
+      );
+      scroller.scrollHeight = 1200;
+      // Connectivity restoration also hydrates history without a visibility transition.
+      window.dispatchEvent(new Event('online'));
+      await act(async () => {
+        await vi.runAllTimersAsync();
+      });
+      act(() => vi.runAllTimers());
+      expect(screen.getByText('sent while away')).toBeInTheDocument();
+      expect(scroller.scrollTop).toBe(following ? 800 : 200);
+    }
+  );
+
+  it.each([false, true])(
+    'retains the visible message across recovery above it, unless an explicit jump owns scrolling (%s)',
+    async (locked) => {
+      const first = createTextMessage('short answer');
+      const second = { ...first, id: 'second', msg_id: 'second', created_at: 2, content: { content: 'reading here' } };
+      loadLatest.mockResolvedValue(messagePage([first, second]));
+      render(<Conversation />);
+      await act(async () => {
+        await Promise.resolve();
+      });
+      const { scroller } = trackTargetScroll();
+      act(() => vi.runAllTimers());
+      fireEvent.wheel(scroller, { deltaY: -400 });
+      scroller.scrollTop = 200;
+      fireEvent.scroll(scroller);
+      const firstRow = document.getElementById('message-message-1')!;
+      firstRow.getBoundingClientRect = () => new DOMRect(0, -1000, 400, 10);
+      const secondRow = document.getElementById('message-second')!;
+      secondRow.getBoundingClientRect = () =>
+        new DOMRect(0, (firstRow.textContent?.includes('expanded') ? 540 : 240) - scroller.scrollTop, 400, 80);
+      if (locked) {
+        locationState.state.targetMessageId = 'second';
+      }
+      loadLatest.mockResolvedValue(
+        messagePage([
+          { ...first, content: { content: 'expanded answer' } },
+          { ...second, id: 'saved-second' },
+        ])
+      );
+      window.dispatchEvent(new Event('online'));
+      await act(async () => {
+        await vi.runAllTimersAsync();
+      });
+      act(() => vi.runAllTimers());
+      expect(document.getElementById('message-saved-second')).toBe(secondRow);
+      // Explicit target navigation owns its own positioning; recovery must not fight it.
+      expect(scroller.scrollTop).toBe(locked ? 380 : 500);
+    }
+  );
+
   it('keeps the notification target in view on the first visit after delayed history loads', async () => {
     const latest = deferredPage();
     loadLatest.mockReturnValue(latest.promise);

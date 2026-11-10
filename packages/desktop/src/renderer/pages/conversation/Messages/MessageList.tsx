@@ -13,6 +13,8 @@ import {
   useMessageTargetScroll,
 } from '@/renderer/pages/conversation/hooks/useMessageTargetScroll';
 import { useConversationRuntimeView } from '@/renderer/pages/conversation/runtime/useConversationRuntimeView';
+import { MessageRecoveryBoundary } from '@/renderer/pages/conversation/runtime/MessageRecoveryBoundary';
+import { getMessageRenderKey } from '@/renderer/pages/conversation/runtime/messageRecovery';
 import { getChatSurfaceWidthClass } from '@/renderer/pages/conversation/utils/chatSurfaceWidth';
 import { iconColors } from '@/renderer/styles/colors';
 import { CHAT_MESSAGE_JUMP_EVENT, type ChatMessageJumpDetail } from '@/renderer/utils/chat/chatMinimapEvents';
@@ -57,10 +59,18 @@ import SelectionReplyButton from './components/SelectionReplyButton';
 
 type IMessageVO =
   | TMessage
-  | { type: 'file_summary'; id: string; diffs: FileChangeInfo[]; sourceMessageIds: string[]; created_at: number }
+  | {
+      type: 'file_summary';
+      id: string;
+      renderKey: string;
+      diffs: FileChangeInfo[];
+      sourceMessageIds: string[];
+      created_at: number;
+    }
   | {
       type: 'tool_summary';
       id: string;
+      renderKey: string;
       messages: Array<IMessageToolGroup | IMessageAcpToolCall | IMessageToolCall>;
       sourceMessageIds: string[];
       created_at: number;
@@ -143,6 +153,12 @@ const matchesTargetMessage = (item: IProcessedItem, targetMessageId?: string): b
 const getProcessedItemAnchorId = (item: IProcessedItem): string => {
   const sourceIds = getProcessedItemSourceMessageIds(item);
   return sourceIds[0] || ('id' in item ? item.id : uuid());
+};
+
+const getProcessedItemRenderKey = (item: IProcessedItem): string => {
+  if ('renderKey' in item) return item.renderKey;
+  if (item.type === 'artifact') return `artifact:${item.id}`;
+  return getMessageRenderKey(item);
 };
 
 const getProcessedItemCreatedAt = (item: IProcessedItem): number => {
@@ -251,6 +267,7 @@ const MessageItem: React.FC<{
         data-testid={`message-${message.type}-${message.position}`}
         data-message-type={message.type}
         data-message-position={message.position}
+        data-message-render-key={getMessageRenderKey(message)}
         className={classNames(
           `${rowWidthClass} min-w-0 flex items-start message-item [&>div]:max-w-full px-8px m-t-10px`,
           message.type,
@@ -397,19 +414,20 @@ const MessageList: React.FC<{ className?: string; emptySlot?: React.ReactNode }>
     let toolList: Array<IMessageToolGroup | IMessageAcpToolCall | IMessageToolCall> = [];
     let toolSourceMessageIds: string[] = [];
 
-    const pushFileDiffChanges = (changes: FileChangeInfo, sourceMessageId: string, created_at: number) => {
+    const pushFileDiffChanges = (changes: FileChangeInfo, source: TMessage) => {
       if (!diffsChanges.length) {
         diffsSourceMessageIds = [];
         result.push({
           type: 'file_summary',
-          id: `summary-${sourceMessageId}`,
+          id: `summary-${source.id}`,
+          renderKey: `file-summary:${getMessageRenderKey(source)}`,
           diffs: diffsChanges,
           sourceMessageIds: diffsSourceMessageIds,
-          created_at,
+          created_at: source.created_at ?? 0,
         });
       }
       diffsChanges.push(changes);
-      diffsSourceMessageIds.push(sourceMessageId);
+      diffsSourceMessageIds.push(source.id);
       toolList = [];
       toolSourceMessageIds = [];
     };
@@ -419,6 +437,7 @@ const MessageList: React.FC<{ className?: string; emptySlot?: React.ReactNode }>
         result.push({
           type: 'tool_summary',
           id: `tool-summary-${message.id}`,
+          renderKey: `tool-summary:${getMessageRenderKey(message)}`,
           messages: toolList,
           sourceMessageIds: toolSourceMessageIds,
           created_at: message.created_at ?? 0,
@@ -451,11 +470,7 @@ const MessageList: React.FC<{ className?: string; emptySlot?: React.ReactNode }>
         );
         if (writeFileResults.length > 0 && writeFileResults.length === message.content.length) {
           writeFileResults.forEach((writeFileResult) => {
-            pushFileDiffChanges(
-              parseDiff(writeFileResult.file_diff, writeFileResult.file_name),
-              message.id,
-              message.created_at ?? 0
-            );
+            pushFileDiffChanges(parseDiff(writeFileResult.file_diff, writeFileResult.file_name), message);
           });
           continue;
         }
@@ -740,8 +755,9 @@ const MessageList: React.FC<{ className?: string; emptySlot?: React.ReactNode }>
     if ('type' in item && item.type === 'artifact') {
       return (
         <div
-          key={item.id}
+          key={getProcessedItemRenderKey(item)}
           id={`message-${getProcessedItemAnchorId(item)}`}
+          data-message-render-key={getProcessedItemRenderKey(item)}
           data-conversation-artifact-kind={item.artifact.kind}
           data-testid={`conversation-artifact-${item.artifact.kind}`}
           className={`${rowWidthClass} min-w-0 message-item px-8px m-t-10px`}
@@ -758,8 +774,9 @@ const MessageList: React.FC<{ className?: string; emptySlot?: React.ReactNode }>
     if ('type' in item && ['file_summary', 'tool_summary'].includes(item.type)) {
       return (
         <div
-          key={item.id}
+          key={getProcessedItemRenderKey(item)}
           id={`message-${getProcessedItemAnchorId(item)}`}
+          data-message-render-key={getProcessedItemRenderKey(item)}
           className={`${rowWidthClass} min-w-0 message-item px-8px m-t-10px ${item.type}`}
           style={highlighted ? highlightStyle : undefined}
         >
@@ -774,7 +791,7 @@ const MessageList: React.FC<{ className?: string; emptySlot?: React.ReactNode }>
     return (
       <MessageItem
         message={message}
-        key={message.id}
+        key={getMessageRenderKey(message)}
         highlighted={highlighted}
         rowWidthClass={rowWidthClass}
         showCopyRow={showCopyRow}
@@ -820,9 +837,11 @@ const MessageList: React.FC<{ className?: string; emptySlot?: React.ReactNode }>
               }}
             >
               <div className='h-10px' />
-              {processedList.map((item, index) => (
-                <React.Fragment key={getProcessedItemAnchorId(item) || index}>{renderItem(index, item)}</React.Fragment>
-              ))}
+              <MessageRecoveryBoundary messages={list} scrollerRef={scrollerElementRef} isScrollLocked={isScrollLocked}>
+                {processedList.map((item, index) => (
+                  <React.Fragment key={getProcessedItemRenderKey(item)}>{renderItem(index, item)}</React.Fragment>
+                ))}
+              </MessageRecoveryBoundary>
               <div className='h-20px' />
             </div>
           </div>

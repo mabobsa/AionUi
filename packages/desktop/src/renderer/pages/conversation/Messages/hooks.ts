@@ -24,6 +24,7 @@ import {
   loadConversationMessagePage,
 } from '@/renderer/utils/chat/messagePagination';
 import { loadResumedConversationMessages, subscribeConversationResume } from '../runtime/conversationResume';
+import { markRecoveredMessageList } from '../runtime/messageRecovery';
 
 const [useMessageList, MessageListProvider, useUpdateMessageList] = createContext([] as TMessage[]);
 const [useMessageListLoading, MessageListLoadingProvider, useUpdateMessageListLoading] = createContext(false);
@@ -980,7 +981,7 @@ export const useMessageLstCache = (key: string) => {
       // null means the previous snapshot was empty, so recovery must bridge all
       // the way back to the start (a new chat can receive > one page while away).
       savedTail.current = { key, message: tail ?? null };
-      update((currentList) => mergeLoadedPageWithCurrent(key, messages, currentList));
+      update((currentList) => markRecoveredMessageList(mergeLoadedPageWithCurrent(key, messages, currentList)));
       setPagination((current) => ({
         ...current,
         oldestCursor: (previousTail && current.oldestCursor) || result.oldest_cursor || undefined,

@@ -15,6 +15,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { TMessage } from '@/common/chat/chatLib';
+import { isRecoveredMessageList } from '../runtime/messageRecovery';
 
 const PROGRAMMATIC_SCROLL_GUARD_MS = 150;
 const AT_BOTTOM_THRESHOLD_PX = 100;
@@ -243,7 +244,7 @@ export function useAutoScroll({
       return;
     }
 
-    if (lastMessage?.position !== 'right') {
+    if (lastMessage?.position !== 'right' || isRecoveredMessageList(messages)) {
       scheduleAutoFollow();
       return;
     }

@@ -17,6 +17,7 @@ import {
 } from '@/renderer/pages/conversation/Messages/hooks';
 import MessageList from '@/renderer/pages/conversation/Messages/MessageList';
 import { useFillMessageViewport } from '@/renderer/pages/conversation/hooks/useFillMessageViewport';
+import { markRecoveredMessageList } from '@/renderer/pages/conversation/runtime/messageRecovery';
 
 const { parseDiffMock, useTeamPermissionMock } = vi.hoisted(() => ({
   parseDiffMock: vi.fn(),
@@ -276,6 +277,29 @@ describe('MessageList', () => {
     });
     useTeamPermissionMock.mockReturnValue(null);
   });
+
+  it.each(['text', 'thinking', 'tool'] as const)(
+    'keeps the %s component mounted when recovery assigns a saved message id',
+    (kind) => {
+      const live: TMessage =
+        kind === 'tool'
+          ? createAcpToolCall()
+          : kind === 'thinking'
+            ? { ...createTextMessage(), type: 'thinking', content: { content: 'thought', status: 'done' } }
+            : createTextMessage();
+      const testId = kind === 'tool' ? 'tool-summary' : `message-${kind}-left`;
+      render(
+        <Wrapper messages={[live]}>
+          <MessageList />
+          <ReplaceMessagesButton messages={markRecoveredMessageList([{ ...live, id: 'saved-row' }])} />
+        </Wrapper>
+      );
+      const row = screen.getByTestId(testId);
+      fireEvent.click(screen.getByText('replace messages'));
+      expect(screen.getByTestId(testId)).toBe(row);
+      expect(document.getElementById('message-saved-row')).toBeInTheDocument();
+    }
+  );
 
   it('never renders a plan as a stream row (it belongs to ConversationPlanBar)', () => {
     // A plan is a replaceable snapshot pinned above the send box, not a message.
