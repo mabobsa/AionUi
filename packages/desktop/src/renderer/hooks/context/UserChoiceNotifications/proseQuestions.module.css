@@ -15,6 +15,77 @@
   color: var(--warning);
 }
 
+.noticeHeader {
+  display: flex;
+  min-height: 26px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin: 0 0 8px;
+  color: var(--primary);
+}
+
+.question > .noticeHeader {
+  color: var(--warning);
+}
+
+.noticeTitle {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.noticeStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.noticeStatus svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Explicit button styling also applies inside the Markdown shadow root. */
+.dismiss:global(.arco-btn) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-inline-start: auto;
+  padding: 2px 8px;
+  min-height: 26px;
+  height: auto;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.dismiss:global(.arco-btn):hover {
+  background: var(--color-fill-2);
+}
+
+.dismiss:global(.arco-btn):focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.question:has(> .noticeHeader[data-choice-notice-state='dismissed']),
+.structuredQuestion:has(> .noticeHeader[data-choice-notice-state='dismissed']) {
+  border-color: var(--color-border-2);
+  background: var(--color-fill-1);
+}
+
+.noticeHeader[data-choice-notice-state='dismissed'],
+.noticeHeader[data-choice-notice-state='checking'] {
+  color: var(--text-secondary);
+}
+
 .question > p:nth-child(2) {
   margin-top: 0;
 }

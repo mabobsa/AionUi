@@ -20,6 +20,7 @@ import {
 // 2026-08-04: same style family, and long text must wrap instead of clipping).
 import styles from './components/MessagePermission/PermissionRequestPanel.module.css';
 import own from './MessageQuestion.module.css';
+import { QuestionNoticeHeader } from '@/renderer/hooks/context/UserChoiceNotifications/components/QuestionNotice';
 
 const OTHER_VALUE = '__aionui_other__';
 
@@ -128,7 +129,17 @@ const MessageQuestion: React.FC<MessageQuestionProps> = React.memo(({ message })
               data-choice-marker-index={qi}
               data-notification-highlight={highlightedQuestion === qi ? 'true' : undefined}
             >
-              {q.header ? <div className={own.header}>{q.header}</div> : null}
+              <QuestionNoticeHeader
+                markerIndex={qi}
+                label={q.header ?? t('messages.userQuestion.prose')}
+                recoveryPreview={content.persisted ? q.question : undefined}
+                identity={{
+                  conversationId: message.conversation_id,
+                  messageId: message.id,
+                  streamMessageId: message.msg_id,
+                  createdAt: message.created_at,
+                }}
+              />
               <div className={own.question}>{q.question}</div>
               {multi ? (
                 <Checkbox.Group

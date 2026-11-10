@@ -75,7 +75,7 @@ export const remarkChoiceQuestions =
               children: [
                 {
                   type: 'paragraph',
-                  data: { hProperties: { className: styles.label } },
+                  data: { hProperties: { className: styles.label, 'data-choice-label-index': index } },
                   children: [{ type: 'text', value: label }],
                 },
               ],

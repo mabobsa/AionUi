@@ -70,6 +70,10 @@ import { MARKDOWN_REMARK_PLUGINS } from '@/renderer/components/Markdown/markdown
 import ProjectGroupHeader from '@/renderer/pages/conversation/GroupedHistory/components/ProjectGroupHeader';
 import ConversationLeadingStatus from '@/renderer/pages/conversation/GroupedHistory/components/ConversationLeadingStatus';
 import MessageQuestion from '@/renderer/pages/conversation/Messages/MessageQuestion';
+import {
+  QuestionNoticeProvider,
+  QuestionNoticeParagraph,
+} from '@/renderer/hooks/context/UserChoiceNotifications/components/QuestionNotice';
 
 const frame = (
   conversationId = 'conversation-a',
@@ -181,11 +185,14 @@ describe('native question notifications', () => {
     expect(screen.getByTestId('message-question-decline')).toBeEnabled();
   });
 
-  it('dismisses only the right-clicked native question through the caption-bar dismissal channel', async () => {
+  it('dismisses only the selected native question through its inline button', async () => {
     const store = nativeSetup();
     state.dismissChoiceNotice.mockImplementation(async () => store.getSnapshot());
-    fireEvent.contextMenu(within(screen.getByTestId('message-question-item-1')).getByText('대상 기능'));
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'conversation.userChoiceNotifications.dismiss' }));
+    fireEvent.click(
+      within(screen.getByTestId('message-question-item-1')).getByRole('button', {
+        name: 'conversation.userChoiceNotifications.dismiss',
+      })
+    );
 
     await waitFor(() =>
       expect(state.dismissChoiceNotice).toHaveBeenCalledWith(
@@ -340,24 +347,12 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('question box context menu', () => {
-  const ShadowQuestion = () => (
-    <div
-      data-testid='shadow-question'
-      ref={(node) => {
-        if (node && !node.shadowRoot) {
-          node.attachShadow({ mode: 'open' }).innerHTML =
-            '<section data-choice-marker-index="1"><span>그림자 DOM 질문</span></section>';
-        }
-      }}
-    />
-  );
+describe('question notification status and inline dismissal', () => {
   const contextSetup = ({
-    conversationId = 'conversation-a',
     messageId = 'stored-row',
     streamMessageId = 'message-a',
     withNotice = true,
-    shadow = false,
+    onParse = () => {},
   } = {}) => {
     const text = `일반 설명\n\n${USER_CHOICE_MARKER}\n첫 질문?\n\n${USER_CHOICE_MARKER}\n둘째 질문?\n`;
     const store = createChoiceNoticeStore();
@@ -366,136 +361,108 @@ describe('question box context menu', () => {
     render(
       <UserChoiceNotificationsProvider store={store}>
         <UserChoiceNotificationButton />
-        <div
-          data-choice-conversation-id={conversationId}
-          data-choice-message-id={messageId}
-          data-choice-stream-message-id={streamMessageId}
-        >
-          {shadow && <ShadowQuestion />}
+        <QuestionNoticeProvider conversationId='conversation-a' messageId={messageId} streamMessageId={streamMessageId}>
           <ReactMarkdown
-            remarkPlugins={[[remarkChoiceQuestions, { label: '답변 요청', fallback: '질문 수신 중', complete: true }]]}
+            components={{ p: QuestionNoticeParagraph }}
+            remarkPlugins={[
+              [remarkChoiceQuestions, { label: '답변 요청', fallback: '질문 수신 중', complete: true }],
+              () => () => {
+                onParse();
+              },
+            ]}
           >
             {text}
           </ReactMarkdown>
-        </div>
+        </QuestionNoticeProvider>
       </UserChoiceNotificationsProvider>
     );
     return store;
   };
-  const menuItem = () => screen.findByRole('menuitem', { name: 'conversation.userChoiceNotifications.dismiss' });
-
-  it('finds the question inside a Markdown shadow root and its message identity outside it', async () => {
-    const store = contextSetup({ shadow: true });
-    const text = screen.getByTestId('shadow-question').shadowRoot!.querySelector('span')!;
-    fireEvent.contextMenu(text, { composed: true });
-    fireEvent.click(await menuItem());
-
-    expect(store.getSnapshot().map((notice) => notice.markerIndex)).toEqual([0]);
-    await waitFor(() =>
-      expect(state.dismissChoiceNotice).toHaveBeenCalledWith(expect.objectContaining({ markerIndex: 1 }))
-    );
-  });
+  const box = (index: number) => screen.getAllByRole('group', { name: '답변 요청' })[index];
+  const dismissButton = (index: number) =>
+    within(box(index)).getByRole('button', { name: 'conversation.userChoiceNotifications.dismiss' });
+  const status = (index: number) =>
+    box(index).querySelector('[data-choice-notice-state]')?.getAttribute('data-choice-notice-state');
 
   it.each([
     { messageId: 'stored-row', streamMessageId: 'message-a' },
     { messageId: 'message-a', streamMessageId: 'another-stream' },
-  ])('matches persisted or streaming message identities and dismisses only that marker: %j', async (identity) => {
+  ])('dismisses only the matching marker through its visible button: %j', async (identity) => {
     const store = contextSetup(identity);
     act(() => store.consume(frame('conversation-b', 'message-a', '다른 대화의 질문?')));
-    fireEvent.contextMenu(screen.getByText('둘째 질문?'), { clientX: 200, clientY: 120 });
-    fireEvent.click(await menuItem());
-
-    await waitFor(() => expect(state.dismissChoiceNotice).toHaveBeenCalledTimes(1));
+    fireEvent.click(dismissButton(1));
+    await waitFor(() =>
+      expect(state.dismissChoiceNotice).toHaveBeenCalledWith(
+        expect.objectContaining({ conversationId: 'conversation-a', markerIndex: 1 })
+      )
+    );
+    expect([status(0), status(1)]).toEqual(['active', 'dismissed']);
     expect(store.getSnapshot().map(({ conversationId, markerIndex }) => [conversationId, markerIndex])).toEqual([
       ['conversation-a', 0],
       ['conversation-b', 0],
     ]);
-    expect(state.navigate).not.toHaveBeenCalled();
   });
 
-  it.each([
-    { withNotice: false },
-    { conversationId: 'conversation-b' },
-    { messageId: 'different-row', streamMessageId: 'different-stream' },
-  ])('preserves the normal context menu when this box has no matching notification: %j', (identity) => {
-    contextSetup(identity);
-    expect(fireEvent.contextMenu(screen.getByText('첫 질문?'))).toBe(true);
-    expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
-    expect(state.dismissChoiceNotice).not.toHaveBeenCalled();
+  it('keeps unknown history in checking state instead of claiming it was dismissed', () => {
+    contextSetup({ withNotice: false });
+    expect(status(0)).toBe('checking');
+    expect(within(box(0)).queryByRole('button')).not.toBeInTheDocument();
+    expect(box(0)).toHaveTextContent('conversation.userChoiceNotifications.statusChecking');
   });
 
-  it('does not offer dismissal outside question boxes even when the message has pending notices', () => {
-    contextSetup();
-    expect(fireEvent.contextMenu(screen.getByText('일반 설명'))).toBe(true);
-    expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
+  it('updates only the status controls without reparsing the message Markdown', () => {
+    const onParse = vi.fn();
+    const store = contextSetup({ onParse });
+    onParse.mockClear();
+    fireEvent.click(dismissButton(0));
+    act(() => store.consume(frame('conversation-b', 'message-b')));
+    expect(status(0)).toBe('dismissed');
+    expect(onParse).not.toHaveBeenCalled();
   });
 
-  it('updates the caption count after both boxes are dismissed and does not reopen a dismissed box menu', async () => {
-    contextSetup();
-    fireEvent.contextMenu(screen.getByText('둘째 질문?'));
-    fireEvent.click(await menuItem());
-    fireEvent.contextMenu(screen.getByText('첫 질문?'));
-    fireEvent.click(await menuItem());
-
-    expect(screen.getByRole('button', { name: 'conversation.userChoiceNotifications.label:0' })).toBeInTheDocument();
-    expect(fireEvent.contextMenu(screen.getByText('첫 질문?'))).toBe(true);
-    expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
+  it('shows a confirmed historical dismissal without restoring its button', () => {
+    const store = contextSetup({ withNotice: false });
+    act(() => store.settleUpsert(JSON.stringify(['conversation-a', 'message-a', 0]), []));
+    expect(status(0)).toBe('dismissed');
+    expect(status(1)).toBe('checking');
+    expect(within(box(0)).queryByRole('button')).not.toBeInTheDocument();
   });
 
-  it('closes an open menu when the notification is dismissed on another device', async () => {
+  it('updates the box immediately when another device dismisses its notification', () => {
     const store = contextSetup();
-    fireEvent.contextMenu(screen.getByText('첫 질문?'));
-    await menuItem();
+    act(() => store.replaceAll(store.getSnapshot()));
     act(() => store.replaceAll([]));
-
-    expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
+    expect([status(0), status(1)]).toEqual(['dismissed', 'dismissed']);
+    expect(within(box(0)).queryByRole('button')).not.toBeInTheDocument();
     expect(state.dismissChoiceNotice).not.toHaveBeenCalled();
   });
 
-  it.each(['escape', 'outside', 'scroll'] as const)(
-    'closes on %s without dismissing the notification',
-    async (action) => {
-      const store = contextSetup();
-      fireEvent.contextMenu(screen.getByText('첫 질문?'));
-      await menuItem();
-      if (action === 'escape') fireEvent.keyDown(document, { key: 'Escape' });
-      else if (action === 'outside') fireEvent.mouseDown(document.body);
-      else {
-        const box = screen.getByText('첫 질문?').closest('section')!;
-        vi.spyOn(box, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 20, 300, 100));
-        fireEvent.scroll(document);
-      }
-
-      await waitFor(() => expect(screen.queryByRole('menuitem')).not.toBeInTheDocument());
-      expect(store.getSnapshot()).toHaveLength(2);
-      expect(state.dismissChoiceNotice).not.toHaveBeenCalled();
-    }
-  );
-
-  it('keeps the menu usable when a delayed scroll event does not move the question', async () => {
+  it('reflects caption-list dismissal in the corresponding body box', async () => {
     contextSetup();
-    fireEvent.contextMenu(screen.getByText('첫 질문?'));
-    const item = await menuItem();
-    fireEvent.scroll(document);
-
-    expect(item).toBeInTheDocument();
-    fireEvent.click(item);
-    await waitFor(() => expect(state.dismissChoiceNotice).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole('button', { name: 'conversation.userChoiceNotifications.label:1' }));
+    const item = (await screen.findByRole('button', { name: /Conversation A.*둘째 질문/ })).parentElement!;
+    fireEvent.click(within(item).getByRole('button', { name: 'conversation.userChoiceNotifications.dismiss' }));
+    expect([status(0), status(1)]).toEqual(['active', 'dismissed']);
   });
 
-  it('restores the notice when dismissal synchronization fails instead of losing it locally', async () => {
+  it('preserves the normal context menu even on an active question', () => {
+    const store = contextSetup();
+    expect(fireEvent.contextMenu(screen.getByText('첫 질문?'))).toBe(true);
+    expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
+    expect(store.getSnapshot()).toHaveLength(2);
+  });
+
+  it('restores the active label and button when dismissal synchronization fails', async () => {
     const store = contextSetup();
     state.dismissChoiceNotice.mockRejectedValue(new Error('Offline'));
     vi.spyOn(console, 'warn').mockImplementation(() => {});
-    fireEvent.contextMenu(screen.getByText('첫 질문?'));
-    const item = await menuItem();
     vi.useFakeTimers();
-    fireEvent.click(item);
+    fireEvent.click(dismissButton(0));
+    expect(status(0)).toBe('dismissed');
     await act(async () => vi.advanceTimersByTimeAsync(7000));
-
-    expect(state.dismissChoiceNotice).toHaveBeenCalledTimes(3);
+    expect(status(0)).toBe('active');
+    expect(dismissButton(0)).toBeEnabled();
     expect(store.getSnapshot()).toHaveLength(2);
-    expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
   });
 });
 

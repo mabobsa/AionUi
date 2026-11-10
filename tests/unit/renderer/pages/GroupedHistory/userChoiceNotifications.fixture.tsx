@@ -158,7 +158,7 @@ function Fixture() {
             },
           }}
           showCopyRow={false}
-          isStreaming={!trailingMarker}
+          isStreaming={!trailingMarker && !structuredQuestion}
         />
       </div>
       <div className='w-260px flex flex-col gap-8px mt-16px'>

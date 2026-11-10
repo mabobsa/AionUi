@@ -1,5 +1,8 @@
 {
   "userChoiceNotifications": {
+    "statusActive": "通知已開啟",
+    "statusDismissed": "通知已解除",
+    "statusChecking": "正在確認狀態",
     "title": "需要使用者確認",
     "label": "需要您確認的對話：{{count}}",
     "empty": "沒有需要您確認的通知。",

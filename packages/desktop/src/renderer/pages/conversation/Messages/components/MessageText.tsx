@@ -7,6 +7,11 @@
 import type { IMessageText } from '@/common/chat/chatLib';
 import { parseFileMarker, resolveMessageFilePath } from './fileMarker';
 import SessionMentionAction from './SessionMentionAction';
+import {
+  QuestionNoticeHeader,
+  QuestionNoticeProvider,
+} from '@/renderer/hooks/context/UserChoiceNotifications/components/QuestionNotice';
+import questionNoticeStyles from '@/renderer/hooks/context/UserChoiceNotifications/proseQuestions.module.css';
 import { parseConversationSourceBlock, parseSessionsBlock } from './sessionMarkers';
 import { useConversationContextSafe } from '@/renderer/hooks/context/ConversationContext';
 import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
@@ -331,7 +336,12 @@ const MessageText: React.FC<{
   const teammateColor = useTeammateColor(isTeammateMessage ? senderConversationId : undefined);
 
   return (
-    <>
+    <QuestionNoticeProvider
+      conversationId={message.conversation_id}
+      messageId={message.id}
+      streamMessageId={message.msg_id}
+      createdAt={message.created_at}
+    >
       <div className={classNames('min-w-0 flex flex-col group', isUserMessage ? 'items-end' : 'items-start')}>
         {cronMeta && <MessageCronBadge meta={cronMeta} />}
         {isTeammateMessage && displaySenderName && (
@@ -431,6 +441,7 @@ const MessageText: React.FC<{
             'bg-3 p-6px md:p-8px': isTeammateMessage,
             'w-full': !(isUserMessage || cronMeta || isTeammateMessage),
             'box-border bg-primary-light-1 border border-primary-3 rounded-8px p-12px': Boolean(userQuestion),
+            [questionNoticeStyles.structuredQuestion]: Boolean(userQuestion),
             [notificationHighlightStyles.question]: Boolean(userQuestion) && highlightedQuestionIndex === 0,
           })}
           style={{
@@ -444,7 +455,7 @@ const MessageText: React.FC<{
                 : undefined),
           }}
         >
-          {userQuestionLabel && <div className='mb-8px text-13px font-semibold text-primary'>{userQuestionLabel}</div>}
+          {userQuestionLabel && <QuestionNoticeHeader markerIndex={0} label={userQuestionLabel} />}
           {/* JSON 内容使用折叠组件 Use CollapsibleContent for JSON content */}
           {shouldRenderPlainText ? (
             <div className='whitespace-pre-wrap [overflow-wrap:anywhere]' data-testid='message-text-content'>
@@ -540,7 +551,7 @@ const MessageText: React.FC<{
           closable={false}
         />
       )}
-    </>
+    </QuestionNoticeProvider>
   );
 };
 

@@ -1,5 +1,8 @@
 {
   "userChoiceNotifications": {
+    "statusActive": "Notification active",
+    "statusDismissed": "Notification dismissed",
+    "statusChecking": "Checking status",
     "title": "User attention needed",
     "label": "Conversations needing attention: {{count}}",
     "empty": "No notifications need your attention.",

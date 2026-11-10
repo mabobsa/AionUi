@@ -4,6 +4,7 @@ import { normalizeTextMessageContent } from '@/common/chat/chatLib';
 import { ChoiceSignalParser, USER_CHOICE_MARKER } from './protocol';
 
 export type ChoiceNotice = IChoiceNotice;
+export type ChoiceNoticeStatus = 'active' | 'dismissed' | 'checking';
 
 type SyncHandlers = {
   upsert: (notice: ChoiceNotice) => void;
@@ -38,6 +39,7 @@ export const createChoiceNoticeStore = () => {
   const staged = new Map<string, ChoiceNotice>();
   const recovered = new Set<string>();
   const seenOnServer = new Set<string>();
+  const checkedOnServer = new Set<string>();
   const listeners = new Set<() => void>();
   const parsers = new Map<
     string,
@@ -117,8 +119,28 @@ export const createChoiceNoticeStore = () => {
     publish();
   };
 
+  const recoverNotice = (notice: ChoiceNotice) => {
+    if (
+      !syncHandlers ||
+      recovered.has(notice.key) ||
+      suppressed.has(notice.key) ||
+      pending.some((item) => item.key === notice.key)
+    )
+      return;
+    recovered.add(notice.key);
+    // Registration consults durable tombstones; it must not revive dismissed history locally.
+    syncHandlers.upsert({ ...notice, preview: normalizedPreview(notice.preview).slice(0, 320) });
+  };
+
   return {
     getSnapshot: () => pending,
+    getStatus: (keys: readonly string[]): ChoiceNoticeStatus => {
+      if (pending.some((notice) => keys.includes(notice.key))) return 'active';
+      if (keys.some((key) => suppressed.has(key) || seenOnServer.has(key) || checkedOnServer.has(key)))
+        return 'dismissed';
+      return 'checking';
+    },
+    recoverNotice,
     subscribe: (listener: () => void) => {
       listeners.add(listener);
       return () => {
@@ -136,6 +158,9 @@ export const createChoiceNoticeStore = () => {
       notices: ChoiceNotice[],
       { preview, authoritative = true }: { preview?: string; authoritative?: boolean } = {}
     ) => {
+      // A successful registration checks this marker even if a newer WS
+      // snapshot wins. Presence in that latest snapshot still takes priority.
+      checkedOnServer.add(key);
       const notice = staged.get(key);
       // An older request must not acknowledge a newer streamed preview for the same marker.
       if (notice && (preview === undefined || notice.preview === preview)) {
@@ -145,24 +170,27 @@ export const createChoiceNoticeStore = () => {
       replaceFromServer(notices);
     },
     recoverCompleted: (message: IMessageText, text: string) => {
-      if (
-        message.position !== 'left' ||
-        message.hidden ||
-        message.content.teammateMessage ||
-        message.content.user_choice
-      )
+      if (message.position !== 'left' || message.hidden || message.content.teammateMessage) return;
+      if (message.content.user_choice) {
+        const messageId = message.msg_id || message.id;
+        recoverNotice({
+          key: choiceNoticeKey(message.conversation_id, messageId, 0),
+          conversationId: message.conversation_id,
+          messageId,
+          markerIndex: 0,
+          preview: message.content.user_choice.title,
+          createdAt: message.created_at ?? 0,
+        });
         return;
+      }
       if (!text.includes(USER_CHOICE_MARKER)) return;
       const messageId = message.msg_id || message.id;
       const parser = new ChoiceSignalParser();
       parser.feed(text);
       for (const signal of parser.finish()) {
         const key = choiceNoticeKey(message.conversation_id, messageId, signal.index);
-        if (!syncHandlers || recovered.has(key) || suppressed.has(key) || pending.some((item) => item.key === key))
-          continue;
-        recovered.add(key);
         // History discovery must consult durable tombstones before displaying a notice.
-        syncHandlers.upsert({
+        recoverNotice({
           key,
           conversationId: message.conversation_id,
           messageId,

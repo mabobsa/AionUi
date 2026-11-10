@@ -1,5 +1,8 @@
 {
   "userChoiceNotifications": {
+    "statusActive": "알림 켜짐",
+    "statusDismissed": "알림 해제됨",
+    "statusChecking": "상태 확인 중",
     "title": "사용자 확인 필요",
     "label": "확인이 필요한 대화 {{count}}개",
     "empty": "확인이 필요한 알림이 없습니다.",

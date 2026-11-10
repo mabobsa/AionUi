@@ -1,5 +1,8 @@
 {
   "userChoiceNotifications": {
+    "statusActive": "Benachrichtigung aktiv",
+    "statusDismissed": "Benachrichtigung verworfen",
+    "statusChecking": "Status wird geprüft",
     "title": "Benutzeraufmerksamkeit erforderlich",
     "label": "Gespräche, die Aufmerksamkeit benötigen: {{count}}",
     "empty": "Keine Benachrichtigungen benötigen Ihre Aufmerksamkeit.",

@@ -1,5 +1,8 @@
 {
   "userChoiceNotifications": {
+    "statusActive": "اعلان فعال است",
+    "statusDismissed": "اعلان بسته شده است",
+    "statusChecking": "در حال بررسی وضعیت",
     "title": "بررسی کاربر لازم است",
     "label": "گفتگوهای نیازمند بررسی شما: {{count}}",
     "empty": "اعلانی نیازمند بررسی شما نیست.",

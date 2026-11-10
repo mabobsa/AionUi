@@ -108,6 +108,44 @@ describe('explicit prose question signal', () => {
 });
 
 describe('prose notification lifecycle', () => {
+  it('does not label unknown history dismissed just because the pending list is empty', () => {
+    const store = createChoiceNoticeStore();
+    store.replaceAll([]);
+    expect(store.getStatus(['unknown'])).toBe('checking');
+    store.settleUpsert('checked', []);
+    expect(store.getStatus(['checked'])).toBe('dismissed');
+  });
+
+  it('uses the latest snapshot after a registration acknowledgement races a remote event', () => {
+    const store = createChoiceNoticeStore();
+    store.consume(frame(question));
+    const notice = store.getSnapshot()[0];
+    store.settleUpsert(notice.key, [notice], { authoritative: false });
+    expect(store.getStatus([notice.key])).toBe('active');
+    store.settleUpsert(notice.key, [], { authoritative: false });
+    expect(store.getStatus([notice.key])).toBe('dismissed');
+  });
+
+  it('checks structured blue history through durable server state instead of inferring dismissal', () => {
+    const store = createChoiceNoticeStore();
+    const upsert = vi.fn();
+    store.setSyncHandlers({ upsert, dismiss: vi.fn() });
+    const message = {
+      id: 'row-a',
+      msg_id: 'blue-a',
+      conversation_id: 'conversation-a',
+      type: 'text' as const,
+      position: 'left' as const,
+      content: { content: '진행할까요?', user_choice: { title: '진행 확인' } },
+    };
+    const key = JSON.stringify(['conversation-a', 'blue-a', 0]);
+    store.recoverCompleted(message, message.content.content);
+    expect(store.getStatus([key])).toBe('checking');
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({ key, preview: '진행 확인' }));
+    store.settleUpsert(key, []);
+    expect(store.getStatus([key])).toBe('dismissed');
+  });
+
   it('does not infer a permanent dismissal from an out-of-order server snapshot', () => {
     const store = createChoiceNoticeStore();
     store.consume(frame(question));

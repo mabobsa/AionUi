@@ -1,5 +1,8 @@
 {
   "userChoiceNotifications": {
+    "statusActive": "Notificación activa",
+    "statusDismissed": "Notificación descartada",
+    "statusChecking": "Comprobando estado",
     "title": "Requiere tu atención",
     "label": "Conversaciones que requieren atención: {{count}}",
     "empty": "No hay notificaciones que requieran tu atención.",

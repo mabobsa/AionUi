@@ -1,11 +1,10 @@
 import { ipcBridge } from '@/common';
 import { LayoutContext, type LayoutContextValue } from '../LayoutContext';
 import React, { createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react';
-import { createChoiceNoticeStore, type ChoiceNotice, type ChoiceNoticeStore } from './store';
+import { choiceNoticeKey, createChoiceNoticeStore, type ChoiceNotice, type ChoiceNoticeStore } from './store';
 import { NotificationHighlightProvider } from './NotificationHighlight';
 import type { IMessageText } from '@/common/chat/chatLib';
 import MobilePushSync from './MobilePushSync';
-import QuestionContextMenu from './components/QuestionContextMenu';
 
 const emptyStore = createChoiceNoticeStore();
 const ChoiceContext = createContext<ChoiceNoticeStore>(emptyStore);
@@ -160,7 +159,6 @@ export function UserChoiceNotificationsProvider({
       <ChoiceContext.Provider value={store}>
         {children}
         <MobilePushSync />
-        <QuestionContextMenu store={store} />
       </ChoiceContext.Provider>
     </NotificationHighlightProvider>
   );
@@ -171,6 +169,23 @@ export function useUserChoiceNotifications() {
   const store = useContext(ChoiceContext);
   const notices = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
   return { notices, dismiss: store.dismiss };
+}
+
+/** Subscribe only to this question's status, not to unrelated notification previews. */
+export function useQuestionNotice(conversationId: string, messageId: string, index: number, streamMessageId?: string) {
+  const store = useContext(ChoiceContext);
+  const keys = [choiceNoticeKey(conversationId, messageId, index)];
+  if (streamMessageId) keys.push(choiceNoticeKey(conversationId, streamMessageId, index));
+  const status = useSyncExternalStore(
+    store.subscribe,
+    () => store.getStatus(keys),
+    () => 'checking' as const
+  );
+  const dismiss = () => {
+    const notice = store.getSnapshot().find((item) => keys.includes(item.key));
+    if (notice) store.dismiss(notice.key);
+  };
+  return { status, dismiss, recoverNotice: store.recoverNotice };
 }
 
 /** Recover completed history without optimistically reviving dismissed notices. */

@@ -116,26 +116,50 @@ try {
     assert.equal(await page.getByTestId('fixture-pending').textContent(), '2');
     const questionBox = page.getByTestId('fixture-message').locator('[data-choice-marker-index="0"]');
     await questionBox.click({ button: 'right' });
-    const dismissMenu = page.getByRole('menuitem', { name: '알림 해제' });
-    await dismissMenu.waitFor();
+    assert.equal(await page.getByRole('menuitem', { name: '알림 해제' }).count(), 0);
+    const inlineDismiss = questionBox.getByRole('button', { name: '알림 해제' });
+    await inlineDismiss.waitFor();
+    await questionBox.getByText('알림 켜짐').waitFor();
+    const activeColors = await questionBox.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { background: style.backgroundColor, border: style.borderColor, text: style.color };
+    });
     assert.equal(await page.getByTestId('fixture-pending').textContent(), '2');
-    const menuBounds = await dismissMenu.boundingBox();
+    const menuBounds = await inlineDismiss.boundingBox();
     assert.ok(menuBounds && menuBounds.x >= 0 && menuBounds.x + menuBounds.width <= width);
-    await page.screenshot({ path: path.join(output, `${name}-context-menu.png`), animations: 'disabled' });
-    await dismissMenu.click();
+    await page.screenshot({ path: path.join(output, `${name}-active.png`), animations: 'disabled' });
+    await inlineDismiss.click();
     await page.waitForFunction(() => document.querySelector('[data-testid="fixture-pending"]')?.textContent === '1');
     assert.equal(await page.getByTestId('fixture-pending').textContent(), '1');
     await questionBox.click({ button: 'right' });
-    assert.equal(await dismissMenu.count(), 0);
+    assert.equal(await inlineDismiss.count(), 0);
+    await questionBox.getByText('알림 해제됨').waitFor();
+    if (!trailingMarker && !structuredQuestion) {
+      const untouchedBox = page.getByTestId('fixture-message').locator('[data-choice-marker-index="1"]');
+      assert.equal(await untouchedBox.count(), 1, 'dismissing one notification must retain other question boxes');
+      assert.ok(await untouchedBox.isVisible(), 'other question content must stay visible');
+    }
+    const dismissedColors = await questionBox.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { background: style.backgroundColor, border: style.borderColor, text: style.color };
+    });
+    assert.notEqual(activeColors.background, dismissedColors.background);
+    assert.notEqual(activeColors.border, dismissedColors.border);
+    assert.equal(activeColors.text, dismissedColors.text);
+    await page.screenshot({ path: path.join(output, `${name}-dismissed.png`), animations: 'disabled' });
     await page.reload();
     await page.getByRole('button', { name: '확인이 필요한 대화 1개' }).waitFor();
     assert.equal(await page.getByTestId('fixture-pending').textContent(), '1');
     assert.equal(await page.getByTestId('fixture-failures').textContent(), '0');
+    if (trailingMarker || structuredQuestion)
+      await page.getByTestId('fixture-message').getByText('알림 해제됨').waitFor();
     await page.getByRole('button', { name: '확인이 필요한 대화 1개' }).click();
     await page.getByRole('button', { name: '알림 해제' }).click();
     await page.getByText('확인이 필요한 알림이 없습니다.', { exact: true }).waitFor();
     assert.deepEqual(errors, []);
-    console.log(`${name}: mixed questions/errors, popup/sheet, context-menu dismissal, reload and empty text passed`);
+    console.log(
+      `${name}: mixed questions/errors, popup/sheet, inline dismissal, status persistence and empty text passed`
+    );
     await context.close();
   }
   console.log(`Screenshots: ${output}`);

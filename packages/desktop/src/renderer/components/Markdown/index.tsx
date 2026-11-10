@@ -28,6 +28,7 @@ import { resolveLocalFileLinkPath, resolveLocalFileLinkReference } from './markd
 import type { LocalFileLinkReference } from './markdownUtils';
 import { remarkChoiceQuestions } from '@/renderer/hooks/context/UserChoiceNotifications/remarkChoiceQuestions';
 import proseQuestionStyles from '@/renderer/hooks/context/UserChoiceNotifications/proseQuestions.module.css?inline';
+import { QuestionNoticeParagraph } from '@/renderer/hooks/context/UserChoiceNotifications/components/QuestionNotice';
 
 export { selectionToMarkdown } from './selectionMarkdown';
 
@@ -103,6 +104,7 @@ const MarkdownView: React.FC<MarkdownViewProps> = React.memo(
     // unmounts/remounts all custom components → hooks & DOM state are lost.
     const components = useMemo(
       () => ({
+        p: QuestionNoticeParagraph,
         span: ({ node: _node, className: cn, children: ch, ...rest }: Record<string, unknown>) => (
           <span {...(rest as React.HTMLAttributes<HTMLSpanElement>)} className={cn as string}>
             {ch as React.ReactNode}
