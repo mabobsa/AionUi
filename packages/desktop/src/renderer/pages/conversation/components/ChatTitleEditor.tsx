@@ -131,7 +131,9 @@ const ChatTitleEditor: React.FC<ChatTitleEditorProps> = ({
               titleClassName
             )}
           >
-            <MindNProgressTitle disabled={Boolean(titleClassName)}>{displayTitle}</MindNProgressTitle>
+            <MindNProgressTitle conversationId={conversation_id} active disabled={Boolean(titleClassName)}>
+              {displayTitle}
+            </MindNProgressTitle>
           </span>
         </div>
       )}

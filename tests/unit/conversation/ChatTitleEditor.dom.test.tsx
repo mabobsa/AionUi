@@ -87,6 +87,7 @@ describe('ChatTitleEditor with a named conversation', () => {
   it('highlights a title that differs from its linked source', () => {
     renderEditor({ title: 'Old title', titleClassName: '!text-warning-6' });
 
-    expect(screen.getByText('Old title')).toHaveClass('!text-warning-6');
+    // The live MnP role label is nested inside the title's inherited warning color.
+    expect(screen.getByText('Old title').closest('.text-16px')).toHaveClass('!text-warning-6');
   });
 });

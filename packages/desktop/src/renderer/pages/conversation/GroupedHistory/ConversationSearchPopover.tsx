@@ -575,7 +575,7 @@ const ConversationSearchPopover: React.FC<ConversationSearchPopoverProps> = ({
                         <ConversationClaudeAccountBadge conversation={item.conversation} />
                       </span>
                       <div className='conversation-search-modal__result-title text-15px font-600 text-t-primary truncate'>
-                        <MindNProgressTitle>
+                        <MindNProgressTitle conversationId={item.conversation.id}>
                           {item.conversation.name || t('conversation.historySearch.untitled')}
                         </MindNProgressTitle>
                       </div>

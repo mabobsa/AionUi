@@ -6,6 +6,8 @@ import { refreshConversationCache } from '@/renderer/pages/conversation/utils/co
 import { emitter } from '@/renderer/utils/emitter';
 import { Message } from '@arco-design/web-react';
 import React from 'react';
+import MindNProgressTitle from '@/renderer/pages/conversation/GroupedHistory/components/MindNProgressTitle';
+import { createLinkStore } from '@/renderer/components/chat/SendBox/MindNProgressConversationLink/store';
 import MindNProgressConversationLink, {
   getMindNProgressSelectionError,
   mindNProgressConversationApi,
@@ -36,7 +38,20 @@ vi.mock('@/renderer/utils/emitter', () => ({
 }));
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({
+    t: (key: string) =>
+      (
+        ({
+          'messages.mindnprogress.roleCoordinator': '그룹 총괄',
+          'messages.mindnprogress.roleRoot': '상위',
+          'messages.mindnprogress.roleAuxiliary': '보조',
+          'messages.mindnprogress.rolePrimaryTooltip': '이 카드의 담당 대화',
+          'messages.mindnprogress.roleAuxiliaryTooltip': '이 카드의 보조 대화',
+          'messages.mindnprogress.roleNoPrimaryTooltip': '이 카드의 보조 대화 · 현재 담당 대화 없음',
+          'messages.mindnprogress.roleUnknownTooltip': '담당·보조 정보 미확인',
+        }) as Record<string, string>
+      )[key] ?? key,
+  }),
 }));
 
 function deferred<T>(): {
@@ -383,5 +398,292 @@ describe('MindNProgressConversationLink', () => {
       body: { success: false, code, error: `message-${status}` },
     });
     expect(getMindNProgressSelectionError(error, 'fallback')).toBe(`message-${status}`);
+  });
+});
+
+function roleResponse(
+  id: string,
+  primary: string | null,
+  cardRole: 'document-root' | 'group-coordinator' | 'card' = 'document-root'
+) {
+  const response = linkResponse(id);
+  Object.assign(response.target!, {
+    cardRole,
+    conversationRole: primary === id ? 'primary' : 'auxiliary',
+    primaryConversationId: primary,
+  });
+  return response;
+}
+
+describe('MindNProgress live conversation roles', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it.each([
+    ['document-root', 'primary', '[상위] 제목'],
+    ['document-root', 'other', '[상위·보조] 제목'],
+    ['group-coordinator', 'primary', '[그룹 총괄] 제목'],
+    ['group-coordinator', 'other', '[그룹 총괄·보조] 제목'],
+    ['card', 'primary', '제목'],
+    ['card', 'other', '[보조] 제목'],
+  ] as const)('renders %s with the current primary %s', async (cardRole, primary, title) => {
+    const api = { lookup: vi.fn().mockResolvedValue(roleResponse('primary', primary, cardRole)), select: vi.fn() };
+    const { container } = render(
+      <MindNProgressTitle conversationId='primary' active api={api}>
+        [상위] 제목
+      </MindNProgressTitle>
+    );
+    await waitFor(() => expect(container.textContent).toBe(title));
+    expect(container.querySelector('[data-mnp-conversation-role]')).toHaveAttribute(
+      'data-mnp-conversation-role',
+      primary === 'primary' ? 'primary' : 'auxiliary'
+    );
+  });
+
+  it('keeps a workflow title and adds an auxiliary label without renaming it', async () => {
+    const api = { lookup: vi.fn().mockResolvedValue(roleResponse('a', 'b')), select: vi.fn() };
+    const { container } = render(
+      <MindNProgressTitle conversationId='a' active api={api}>
+        [지식정리] 사용자 제목
+      </MindNProgressTitle>
+    );
+    await waitFor(() => expect(container.textContent).toBe('[보조] [지식정리] 사용자 제목'));
+  });
+
+  it('does not assume an older server assigned a primary conversation', async () => {
+    const api = { lookup: vi.fn().mockResolvedValue(linkResponse('a')), select: vi.fn() };
+    render(
+      <MindNProgressTitle conversationId='a' active api={api}>
+        [상위] 제목
+      </MindNProgressTitle>
+    );
+    await waitFor(() => expect(api.lookup).toHaveBeenCalledTimes(1));
+    expect(screen.getByTitle('담당·보조 정보 미확인')).toHaveTextContent('[상위] 제목');
+  });
+
+  it('shows an unassigned primary distinctly from an unknown role', async () => {
+    const api = { lookup: vi.fn().mockResolvedValue(roleResponse('a', null)), select: vi.fn() };
+    render(
+      <MindNProgressTitle conversationId='a' active api={api}>
+        제목
+      </MindNProgressTitle>
+    );
+    expect(await screen.findByTitle('이 카드의 보조 대화 · 현재 담당 대화 없음')).toHaveTextContent('[상위·보조] 제목');
+  });
+
+  it('does not fetch off-screen rows and deduplicates visible duplicates', async () => {
+    const observers: IntersectionObserverCallback[] = [];
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(callback: IntersectionObserverCallback) {
+          observers.push(callback);
+        }
+        observe() {}
+        disconnect() {}
+      }
+    );
+    const api = { lookup: vi.fn().mockResolvedValue(roleResponse('a', 'b')), select: vi.fn() };
+    const { rerender } = render(
+      <>
+        <MindNProgressTitle conversationId='a' api={api}>
+          목록
+        </MindNProgressTitle>
+        <MindNProgressTitle conversationId='a' api={api}>
+          검색
+        </MindNProgressTitle>
+      </>
+    );
+    expect(api.lookup).not.toHaveBeenCalled();
+    act(() =>
+      observers.forEach((callback) =>
+        callback([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver)
+      )
+    );
+    expect(await screen.findAllByTitle('이 카드의 보조 대화')).toHaveLength(2);
+    await waitFor(() => expect(api.lookup).toHaveBeenCalledTimes(1));
+    rerender(
+      <>
+        <MindNProgressTitle conversationId='a' api={api}>
+          변경된 제목
+        </MindNProgressTitle>
+        <MindNProgressTitle conversationId='a' api={api}>
+          검색
+        </MindNProgressTitle>
+      </>
+    );
+    expect(api.lookup).toHaveBeenCalledTimes(1);
+  });
+
+  it('never saves the dynamic auxiliary role during title synchronization', () => {
+    expect(buildMindNProgressConversationTitle(roleResponse('a', 'b').target!, '제목')).toBe('[상위] Document: Card');
+  });
+});
+
+describe('MindNProgress shared lookup lifecycle', () => {
+  const disposals: (() => void)[] = [];
+  const flush = async () => {
+    for (let index = 0; index < 12; index++) await Promise.resolve();
+  };
+  const watch = (store: ReturnType<typeof createLinkStore>, id: string) =>
+    disposals.push(store.subscribe(id, () => {}));
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-10T00:00:00Z'));
+  });
+  afterEach(() => {
+    disposals.splice(0).forEach((dispose) => dispose());
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it('limits concurrent discovery and reuses fresh cached results', async () => {
+    const waiting = deferred<MindNProgressConversationLinkResponse>();
+    const api = { lookup: vi.fn(() => waiting.promise), select: vi.fn() };
+    const store = createLinkStore(api);
+    for (let index = 0; index < 10; index++) {
+      const id = String(index);
+      watch(store, id);
+      store.request(id);
+    }
+    await flush();
+    expect(api.lookup).toHaveBeenCalledTimes(4);
+    store.request('0', true);
+    expect(api.lookup).toHaveBeenCalledTimes(4);
+    // No unresolved real IO; the isolated deferred promises are discarded with this store.
+  });
+
+  it('rechecks roles on foreground resume and deduplicates simultaneous lifecycle events', async () => {
+    let primary = 'a';
+    const api = { lookup: vi.fn((id: string) => Promise.resolve(roleResponse(id, primary))), select: vi.fn() };
+    const store = createLinkStore(api);
+    watch(store, 'a');
+    store.request('a');
+    await flush();
+    primary = 'b';
+    await vi.advanceTimersByTimeAsync(2000);
+    window.dispatchEvent(new Event('focus'));
+    window.dispatchEvent(new Event('pageshow'));
+    document.dispatchEvent(new Event('visibilitychange'));
+    await vi.advanceTimersByTimeAsync(120);
+    await flush();
+    expect(store.snapshot('a')).toMatchObject({
+      status: 'linked',
+      link: { target: { conversationRole: 'auxiliary', primaryConversationId: 'b' } },
+    });
+    expect(api.lookup).toHaveBeenCalledTimes(2);
+  });
+
+  it('invalidates the former primary and ignores its older in-flight response', async () => {
+    let primary = 'a';
+    const oldReading = deferred<MindNProgressConversationLinkResponse>();
+    const api = { lookup: vi.fn((id: string) => Promise.resolve(roleResponse(id, primary))), select: vi.fn() };
+    const store = createLinkStore(api);
+    watch(store, 'a');
+    watch(store, 'b');
+    store.request('a');
+    store.request('b');
+    await flush();
+    await vi.advanceTimersByTimeAsync(2000);
+    api.lookup.mockImplementationOnce(() => oldReading.promise);
+    store.request('a', true);
+    await flush();
+    primary = 'b';
+    store.request('b', true);
+    await flush();
+    expect(store.snapshot('a')).toMatchObject({ status: 'linked', link: { target: { conversationRole: undefined } } });
+    oldReading.resolve(roleResponse('a', 'a'));
+    await flush();
+    expect(store.snapshot('a')).toMatchObject({
+      status: 'linked',
+      link: { target: { conversationRole: 'auxiliary', primaryConversationId: 'b' } },
+    });
+    expect(store.snapshot('b')).toMatchObject({ status: 'linked', link: { target: { conversationRole: 'primary' } } });
+  });
+
+  it('keeps a newer selection response when an older lookup completes later', async () => {
+    const api = { lookup: vi.fn().mockResolvedValue(roleResponse('a', 'a')), select: vi.fn() };
+    const store = createLinkStore(api);
+    watch(store, 'a');
+    store.request('a');
+    await flush();
+    const oldReading = deferred<MindNProgressConversationLinkResponse>();
+    api.lookup.mockReturnValueOnce(oldReading.promise);
+    await vi.advanceTimersByTimeAsync(2000);
+    store.request('a', true);
+    await flush();
+    store.acceptSelection('a', roleResponse('a', null).target!);
+    oldReading.resolve(roleResponse('a', 'a'));
+    await flush();
+    expect(store.snapshot('a')).toMatchObject({
+      status: 'linked',
+      link: { target: { conversationRole: 'auxiliary', primaryConversationId: null } },
+    });
+  });
+
+  it('clears a role after lookup failure and recovers on the next foreground event', async () => {
+    const api = { lookup: vi.fn().mockResolvedValue(roleResponse('a', 'a')), select: vi.fn() };
+    const store = createLinkStore(api);
+    watch(store, 'a');
+    store.request('a');
+    await flush();
+    api.lookup.mockRejectedValueOnce(new Error('offline'));
+    await vi.advanceTimersByTimeAsync(2000);
+    store.request('a', true);
+    await flush();
+    expect(store.snapshot('a').status).toBe('error');
+    await vi.advanceTimersByTimeAsync(2000);
+    window.dispatchEvent(new Event('online'));
+    await vi.advanceTimersByTimeAsync(120);
+    await flush();
+    expect(store.snapshot('a').status).toBe('linked');
+  });
+
+  it('rejects mismatched conversation identities instead of showing another role', async () => {
+    const api = { lookup: vi.fn().mockResolvedValue(roleResponse('different', 'different')), select: vi.fn() };
+    const store = createLinkStore(api);
+    watch(store, 'a');
+    store.request('a');
+    await flush();
+    expect(store.snapshot('a')).toMatchObject({
+      status: 'error',
+      error: new Error('MindNProgress conversation identity mismatch'),
+    });
+  });
+
+  it('refreshes visible roles periodically but pauses background polling', async () => {
+    const api = { lookup: vi.fn().mockResolvedValue(roleResponse('a', 'a')), select: vi.fn() };
+    const store = createLinkStore(api);
+    watch(store, 'a');
+    store.request('a');
+    await flush();
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(api.lookup).toHaveBeenCalledTimes(1);
+    visibility.mockReturnValue('visible');
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(api.lookup).toHaveBeenCalledTimes(2);
+    visibility.mockRestore();
+  });
+
+  it('rechecks when selecting a conversation again without waiting for the list cache to expire', async () => {
+    const api = { lookup: vi.fn().mockResolvedValue(roleResponse('a', 'a')), select: vi.fn() };
+    const store = createLinkStore(api);
+    watch(store, 'a');
+    store.request('a');
+    await flush();
+    await vi.advanceTimersByTimeAsync(2000);
+    store.request('a');
+    await flush();
+    expect(api.lookup).toHaveBeenCalledTimes(1);
+    api.lookup.mockResolvedValue(roleResponse('a', 'b'));
+    store.request('a', true);
+    await flush();
+    expect(store.snapshot('a')).toMatchObject({
+      status: 'linked',
+      link: { target: { conversationRole: 'auxiliary' } },
+    });
   });
 });

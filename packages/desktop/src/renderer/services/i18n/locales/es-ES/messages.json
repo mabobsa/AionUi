@@ -18,7 +18,14 @@
     "selectionFailed": "No se pudo seleccionar la tarjeta vinculada de MindNProgress.",
     "titleSyncTooltip": "Sincronizar con el título de MindNProgress: {{title}}",
     "titleSyncSuccess": "El título de la conversación se sincronizó con MindNProgress.",
-    "titleSyncFailed": "No se pudo sincronizar el título de la conversación con MindNProgress."
+    "titleSyncFailed": "No se pudo sincronizar el título de la conversación con MindNProgress.",
+    "roleCoordinator": "Coordinación de grupo",
+    "roleRoot": "Superior",
+    "roleAuxiliary": "Auxiliar",
+    "rolePrimaryTooltip": "Conversación principal de esta tarjeta",
+    "roleAuxiliaryTooltip": "Conversación auxiliar de esta tarjeta",
+    "roleNoPrimaryTooltip": "Conversación auxiliar de esta tarjeta · Sin principal asignada",
+    "roleUnknownTooltip": "Rol principal/auxiliar sin confirmar"
   },
   "imageGenerationModelDetected": "Modelo de imagen detectado, la herramienta de imagen se activó automáticamente. Modelo predeterminado: {{platform}}:{{model}}",
   "auto_handling_permissions": "Gestionando automáticamente solicitud de permiso: {{request}}",

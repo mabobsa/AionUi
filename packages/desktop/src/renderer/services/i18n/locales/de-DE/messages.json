@@ -18,7 +18,14 @@
     "selectionFailed": "Die verknüpfte MindNProgress-Karte konnte nicht ausgewählt werden.",
     "titleSyncTooltip": "Mit dem MindNProgress-Titel synchronisieren: {{title}}",
     "titleSyncSuccess": "Der Unterhaltungstitel wurde mit MindNProgress synchronisiert.",
-    "titleSyncFailed": "Der Unterhaltungstitel konnte nicht mit MindNProgress synchronisiert werden."
+    "titleSyncFailed": "Der Unterhaltungstitel konnte nicht mit MindNProgress synchronisiert werden.",
+    "roleCoordinator": "Gruppenkoordination",
+    "roleRoot": "Übergeordnet",
+    "roleAuxiliary": "Zusätzlich",
+    "rolePrimaryTooltip": "Hauptgespräch dieser Karte",
+    "roleAuxiliaryTooltip": "Zusätzliches Gespräch dieser Karte",
+    "roleNoPrimaryTooltip": "Zusätzliches Gespräch dieser Karte · Kein Hauptgespräch zugewiesen",
+    "roleUnknownTooltip": "Haupt-/Zusatzrolle nicht bestätigt"
   },
   "imageGenerationModelDetected": "Bildmodell erkannt, Bildtool wurde automatisch aktiviert. Standardmodell: {{platform}}:{{model}}",
   "auto_handling_permissions": "Berechtigungsanfrage wird automatisch bearbeitet: {{request}}",

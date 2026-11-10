@@ -19,7 +19,17 @@ const GROUP_COORDINATOR_DOCUMENT_SUFFIX = ' · 통합 관리';
 export function buildMindNProgressConversationTitle(target: MindNProgressTarget, currentTitle = ''): string {
   // MnP supplies persisted title data, independent of the UI language. Older
   // servers omit titlePrefix, so preserve their existing role prefix.
-  const rolePrefix = target.titlePrefix ?? currentTitle.match(MINDNPROGRESS_ROLE_TITLE_PREFIX)?.[0] ?? '';
+  // Responsibility is dynamic UI metadata, never part of the persisted name.
+  const rolePrefix =
+    (target.cardRole === 'group-coordinator'
+      ? '[그룹 총괄] '
+      : target.cardRole === 'document-root'
+        ? '[상위] '
+        : target.cardRole === 'card'
+          ? ''
+          : target.titlePrefix) ??
+    currentTitle.match(MINDNPROGRESS_ROLE_TITLE_PREFIX)?.[0] ??
+    '';
   const workflowPrefix = currentTitle.match(MINDNPROGRESS_WORKFLOW_TITLE_PREFIX)?.[0] ?? rolePrefix;
   const documentTitle = target.documentTitle.trim();
   const groupTitle = target.group?.title.trim() ?? '';

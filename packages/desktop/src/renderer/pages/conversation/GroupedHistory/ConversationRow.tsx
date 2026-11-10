@@ -336,7 +336,7 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
               ref={titleRef}
               className='conversation-title-text block overflow-hidden text-ellipsis whitespace-nowrap min-w-0'
             >
-              <MindNProgressTitle>{conversation.name}</MindNProgressTitle>
+              <MindNProgressTitle conversationId={conversation.id}>{conversation.name}</MindNProgressTitle>
             </span>
             {forkLineage && (
               <Tooltip

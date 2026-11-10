@@ -20,7 +20,14 @@
     "selectionFailed": "Не вдалося вибрати пов’язану картку MindNProgress.",
     "titleSyncTooltip": "Синхронізувати із заголовком MindNProgress: {{title}}",
     "titleSyncSuccess": "Заголовок розмови синхронізовано з MindNProgress.",
-    "titleSyncFailed": "Не вдалося синхронізувати заголовок розмови з MindNProgress."
+    "titleSyncFailed": "Не вдалося синхронізувати заголовок розмови з MindNProgress.",
+    "roleCoordinator": "Координатор групи",
+    "roleRoot": "Батьківська",
+    "roleAuxiliary": "Допоміжна",
+    "rolePrimaryTooltip": "Основний діалог цієї картки",
+    "roleAuxiliaryTooltip": "Допоміжний діалог цієї картки",
+    "roleNoPrimaryTooltip": "Допоміжний діалог цієї картки · Основний не призначено",
+    "roleUnknownTooltip": "Основну/допоміжну роль не підтверджено"
   },
   "imageGenerationModelDetected": "Виявлено модель зображень, інструмент зображень було автоматично ввімкнено. Модель за замовчуванням: {{platform}}:{{model}}",
   "auto_handling_permissions": "Автоматична обробка запиту на дозвіл: {{request}}",

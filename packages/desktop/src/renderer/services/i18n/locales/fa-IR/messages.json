@@ -18,7 +18,14 @@
     "selectionFailed": "کارت پیوندخوردهٔ MindNProgress انتخاب نشد.",
     "titleSyncTooltip": "همگام‌سازی با عنوان MindNProgress: {{title}}",
     "titleSyncSuccess": "عنوان گفتگو با MindNProgress همگام شد.",
-    "titleSyncFailed": "عنوان گفتگو با MindNProgress همگام نشد."
+    "titleSyncFailed": "عنوان گفتگو با MindNProgress همگام نشد.",
+    "roleCoordinator": "هماهنگ‌کننده گروه",
+    "roleRoot": "والد",
+    "roleAuxiliary": "کمکی",
+    "rolePrimaryTooltip": "گفتگوی اصلی این کارت",
+    "roleAuxiliaryTooltip": "گفتگوی کمکی این کارت",
+    "roleNoPrimaryTooltip": "گفتگوی کمکی این کارت · گفتگوی اصلی تعیین نشده",
+    "roleUnknownTooltip": "نقش اصلی یا کمکی تأیید نشده"
   },
   "imageGenerationModelDetected": "مدل تصویر شناسایی شد، ابزار تصویر به‌صورت خودکار فعال شد. مدل پیش‌فرض: {{platform}}:{{model}}",
   "auto_handling_permissions": "پردازش خودکار درخواست مجوز: {{request}}",
