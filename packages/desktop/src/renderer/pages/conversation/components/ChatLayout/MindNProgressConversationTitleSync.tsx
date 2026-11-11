@@ -9,7 +9,7 @@ import { refreshConversationCache } from '@/renderer/pages/conversation/utils/co
 import { emitter } from '@/renderer/utils/emitter';
 import { Button, Message, Tooltip } from '@arco-design/web-react';
 import { Refresh } from '@icon-park/react';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const MINDNPROGRESS_WORKFLOW_TITLE_PREFIX = /^\[(?:배치 제안|Dooray 승인|문서 정리|지식정리)\]\s*/;
@@ -56,43 +56,15 @@ export async function renameMindNProgressConversation(conversationId: string, ti
   return success;
 }
 
-const MindNProgressConversationTitleSync: React.FC<{
+const MindNProgressTitleSyncButton: React.FC<{
   conversationId: string;
-  currentTitle: string;
-  disabled?: boolean;
-  onMismatchChange?: (mismatch: boolean) => void;
-  api?: MindNProgressConversationApi;
-  renameConversation?: (conversationId: string, title: string) => Promise<boolean>;
-}> = ({
-  conversationId,
-  currentTitle,
-  disabled = false,
-  onMismatchChange,
-  api = mindNProgressConversationApi,
-  renameConversation = renameMindNProgressConversation,
-}) => {
+  expectedTitle: string;
+  disabled: boolean;
+  renameConversation: (conversationId: string, title: string) => Promise<boolean>;
+}> = ({ conversationId, expectedTitle, disabled, renameConversation }) => {
   const { t } = useTranslation();
-  const { state } = useMindNProgressConversationLink(conversationId, api);
   const [syncing, setSyncing] = useState(false);
   const syncPromiseRef = useRef<Promise<boolean> | null>(null);
-  const expectedTitle =
-    state.status === 'linked' && state.link.conversationId === conversationId && state.link.target
-      ? buildMindNProgressConversationTitle(state.link.target, currentTitle)
-      : '';
-  const mismatch = Boolean(expectedTitle && currentTitle !== expectedTitle);
-
-  useEffect(() => {
-    onMismatchChange?.(mismatch);
-  }, [mismatch, onMismatchChange]);
-
-  useEffect(
-    () => () => {
-      onMismatchChange?.(false);
-    },
-    [onMismatchChange]
-  );
-
-  if (!mismatch) return null;
 
   const label = t('messages.mindnprogress.titleSyncTooltip', { title: expectedTitle });
 
@@ -142,30 +114,49 @@ export function useMindNProgressConversationTitleSync({
   currentTitle,
   disabled,
   enabled,
+  api = mindNProgressConversationApi,
+  renameConversation = renameMindNProgressConversation,
 }: {
   conversationId?: string;
   currentTitle?: React.ReactNode;
   disabled: boolean;
   enabled: boolean;
+  api?: MindNProgressConversationApi;
+  renameConversation?: (conversationId: string, title: string) => Promise<boolean>;
 }): { leadingAction: React.ReactNode; titleClassName?: string } {
-  const [mismatch, setMismatch] = useState(false);
   const available = Boolean(enabled && conversationId && typeof currentTitle === 'string');
-
-  useEffect(() => {
-    setMismatch(false);
-  }, [available, conversationId]);
+  const { state } = useMindNProgressConversationLink(conversationId ?? '', api, { enabled: available });
+  const expectedTitle =
+    available && state.status === 'linked' && state.link.conversationId === conversationId && state.link.target
+      ? buildMindNProgressConversationTitle(state.link.target, currentTitle as string)
+      : '';
+  // Derive both indicators from the same snapshot. A cached lookup can already
+  // differ on mount; effect-based resets would erase that warning on selection.
+  const mismatch = Boolean(expectedTitle && currentTitle !== expectedTitle);
 
   return {
-    leadingAction: available ? (
-      <MindNProgressConversationTitleSync
+    leadingAction: mismatch ? (
+      <MindNProgressTitleSyncButton
+        key={conversationId}
         conversationId={conversationId!}
-        currentTitle={currentTitle as string}
+        expectedTitle={expectedTitle}
         disabled={disabled}
-        onMismatchChange={setMismatch}
+        renameConversation={renameConversation}
       />
     ) : undefined,
-    titleClassName: available && mismatch ? '!text-warning-6' : undefined,
+    titleClassName: mismatch ? '!text-warning-6' : undefined,
   };
 }
+
+const MindNProgressConversationTitleSync: React.FC<{
+  conversationId: string;
+  currentTitle: string;
+  disabled?: boolean;
+  api?: MindNProgressConversationApi;
+  renameConversation?: (conversationId: string, title: string) => Promise<boolean>;
+}> = ({ disabled = false, ...props }) => {
+  const { leadingAction } = useMindNProgressConversationTitleSync({ ...props, disabled, enabled: true });
+  return <>{leadingAction}</>;
+};
 
 export default MindNProgressConversationTitleSync;

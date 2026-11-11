@@ -7,7 +7,8 @@ import { emitter } from '@/renderer/utils/emitter';
 import { Message } from '@arco-design/web-react';
 import React from 'react';
 import MindNProgressTitle from '@/renderer/pages/conversation/GroupedHistory/components/MindNProgressTitle';
-import { createLinkStore } from '@/renderer/components/chat/SendBox/MindNProgressConversationLink/store';
+import { createLinkStore, getLinkStore } from '@/renderer/components/chat/SendBox/MindNProgressConversationLink/store';
+import ChatTitleEditor from '@/renderer/pages/conversation/components/ChatTitleEditor';
 import MindNProgressConversationLink, {
   getMindNProgressSelectionError,
   mindNProgressConversationApi,
@@ -19,6 +20,7 @@ import MindNProgressConversationLink, {
 import MindNProgressConversationTitleSync, {
   buildMindNProgressConversationTitle,
   renameMindNProgressConversation,
+  useMindNProgressConversationTitleSync,
 } from '@/renderer/pages/conversation/components/ChatLayout/MindNProgressConversationTitleSync';
 
 vi.mock('@/common', () => ({
@@ -36,6 +38,8 @@ vi.mock('@/renderer/pages/conversation/utils/conversationCache', () => ({
 vi.mock('@/renderer/utils/emitter', () => ({
   emitter: { emit: vi.fn() },
 }));
+
+vi.mock('@/renderer/pages/conversation/components/ConversationTitleMinimap', () => ({ default: () => null }));
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -250,31 +254,26 @@ describe('MindNProgressConversationLink', () => {
       select: vi.fn(),
     };
     const renameConversation = vi.fn().mockResolvedValue(true);
-    const onMismatchChange = vi.fn();
     const { rerender } = render(
       <MindNProgressConversationTitleSync
         api={api}
         conversationId='conversation-1'
         currentTitle='Old title'
-        onMismatchChange={onMismatchChange}
         renameConversation={renameConversation}
       />
     );
 
     expect(await screen.findByTestId('mindnprogress-title-sync')).toBeInTheDocument();
-    await waitFor(() => expect(onMismatchChange).toHaveBeenLastCalledWith(true));
 
     rerender(
       <MindNProgressConversationTitleSync
         api={api}
         conversationId='conversation-1'
         currentTitle='Document title: Card title'
-        onMismatchChange={onMismatchChange}
         renameConversation={renameConversation}
       />
     );
     await waitFor(() => expect(screen.queryByTestId('mindnprogress-title-sync')).not.toBeInTheDocument());
-    expect(onMismatchChange).toHaveBeenLastCalledWith(false);
   });
 
   it('syncs to the normalized MnP title and allows a retry after failure', async () => {
@@ -414,6 +413,153 @@ function roleResponse(
   });
   return response;
 }
+
+function TitleSyncHarness({
+  conversationId,
+  title = 'Old title',
+  enabled = true,
+}: {
+  conversationId: string;
+  title?: string;
+  enabled?: boolean;
+}) {
+  const sync = useMindNProgressConversationTitleSync({
+    conversationId,
+    currentTitle: title,
+    disabled: false,
+    enabled,
+  });
+  return (
+    <ChatTitleEditor
+      conversation_id={conversationId}
+      title={title}
+      editingTitle={false}
+      titleDraft={title}
+      setTitleDraft={() => {}}
+      setEditingTitle={() => {}}
+      renameLoading={false}
+      canRenameTitle
+      submitTitleRename={async () => {}}
+      titleAreaMaxWidth={400}
+      leadingAction={sync.leadingAction}
+      titleClassName={sync.titleClassName}
+    />
+  );
+}
+
+describe('MindNProgress title warning with shared cached links', () => {
+  const titleElement = () => screen.getByTestId('chat-title-editor-trigger').querySelector('.text-16px');
+  const warmCache = async (id: string) => {
+    const store = getLinkStore(mindNProgressConversationApi);
+    const unsubscribe = store.subscribe(id, () => {});
+    try {
+      await act(async () => store.request(id));
+      await waitFor(() => expect(store.snapshot(id).status).toBe('linked'));
+    } finally {
+      unsubscribe();
+    }
+  };
+
+  beforeEach(() => {
+    vi.spyOn(mindNProgressConversationApi, 'lookup').mockImplementation(async (id) => {
+      const response = roleResponse(id, id.endsWith('auxiliary') ? 'owner' : id, 'card');
+      response.target!.cardId = id;
+      return response;
+    });
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it.each(['primary', 'auxiliary'])('highlights a cached mismatched %s title on mount', async (role) => {
+    const id = `cached-title-${role}`;
+    await warmCache(id);
+    render(<TitleSyncHarness conversationId={id} />);
+
+    expect(await screen.findByTestId('mindnprogress-title-sync')).toBeInTheDocument();
+    expect(titleElement()).toHaveClass('!text-warning-6');
+  });
+
+  it('keeps the warning when switching between two mismatched conversations', async () => {
+    const { rerender } = render(<TitleSyncHarness conversationId='title-switch-first' />);
+    await screen.findByTestId('mindnprogress-title-sync');
+    expect(titleElement()).toHaveClass('!text-warning-6');
+
+    await warmCache('title-switch-second');
+    rerender(<TitleSyncHarness conversationId='title-switch-second' />);
+    expect(screen.getByTestId('mindnprogress-title-sync')).toBeInTheDocument();
+    expect(titleElement()).toHaveClass('!text-warning-6');
+  });
+
+  it('clears the warning on a matching cached title and restores it on return', async () => {
+    await warmCache('title-return-mismatch');
+    await warmCache('title-return-match');
+    const { rerender } = render(<TitleSyncHarness conversationId='title-return-mismatch' />);
+
+    rerender(<TitleSyncHarness conversationId='title-return-match' title='Document: Card' />);
+    expect(titleElement()).not.toHaveClass('!text-warning-6');
+    expect(screen.queryByTestId('mindnprogress-title-sync')).not.toBeInTheDocument();
+
+    rerender(<TitleSyncHarness conversationId='title-return-mismatch' />);
+    expect(titleElement()).toHaveClass('!text-warning-6');
+    expect(screen.getByTestId('mindnprogress-title-sync')).toBeInTheDocument();
+  });
+
+  it('updates the warning and action together when the saved conversation title changes', async () => {
+    await warmCache('title-saved-change');
+    const { rerender } = render(<TitleSyncHarness conversationId='title-saved-change' />);
+
+    rerender(<TitleSyncHarness conversationId='title-saved-change' title='Document: Card' />);
+    expect(titleElement()).not.toHaveClass('!text-warning-6');
+    expect(screen.queryByTestId('mindnprogress-title-sync')).not.toBeInTheDocument();
+
+    rerender(<TitleSyncHarness conversationId='title-saved-change' title='Another title' />);
+    expect(titleElement()).toHaveClass('!text-warning-6');
+    expect(screen.getByTestId('mindnprogress-title-sync')).toBeInTheDocument();
+  });
+
+  it('derives the warning from refreshed MnP titles without remounting', async () => {
+    const id = 'title-remote-change';
+    await warmCache(id);
+    render(<TitleSyncHarness conversationId={id} title='Document: Card' />);
+    expect(titleElement()).not.toHaveClass('!text-warning-6');
+
+    act(() =>
+      getLinkStore(mindNProgressConversationApi).acceptSelection(id, {
+        ...linkResponse(id).target!,
+        cardId: id,
+        cardTitle: 'Updated card',
+      })
+    );
+    expect(titleElement()).toHaveClass('!text-warning-6');
+    expect(screen.getByTestId('mindnprogress-title-sync')).toBeInTheDocument();
+  });
+
+  it('hides both indicators while synchronization is disabled and restores them when enabled', async () => {
+    await warmCache('title-enable-change');
+    const { rerender } = render(<TitleSyncHarness conversationId='title-enable-change' enabled={false} />);
+    expect(titleElement()).not.toHaveClass('!text-warning-6');
+    expect(screen.queryByTestId('mindnprogress-title-sync')).not.toBeInTheDocument();
+
+    rerender(<TitleSyncHarness conversationId='title-enable-change' />);
+    expect(titleElement()).toHaveClass('!text-warning-6');
+    expect(screen.getByTestId('mindnprogress-title-sync')).toBeInTheDocument();
+  });
+
+  it('does not keep the previous conversation warning while an unlinked lookup is pending', async () => {
+    const pending = deferred<MindNProgressConversationLinkResponse>();
+    const { rerender } = render(<TitleSyncHarness conversationId='title-before-unlinked' />);
+    await screen.findByTestId('mindnprogress-title-sync');
+    expect(titleElement()).toHaveClass('!text-warning-6');
+
+    vi.mocked(mindNProgressConversationApi.lookup).mockReturnValueOnce(pending.promise);
+    rerender(<TitleSyncHarness conversationId='title-unlinked' />);
+    expect(titleElement()).not.toHaveClass('!text-warning-6');
+    expect(screen.queryByTestId('mindnprogress-title-sync')).not.toBeInTheDocument();
+
+    await act(async () => pending.resolve(linkResponse('title-unlinked', false)));
+    expect(titleElement()).not.toHaveClass('!text-warning-6');
+    expect(screen.queryByTestId('mindnprogress-title-sync')).not.toBeInTheDocument();
+  });
+});
 
 describe('MindNProgress live conversation roles', () => {
   afterEach(() => {
