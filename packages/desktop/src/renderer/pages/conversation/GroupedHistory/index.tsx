@@ -11,7 +11,7 @@ import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
 import { useCronJobsMap } from '@/renderer/pages/cron';
 import { getParentAndCurrentDir } from '@/renderer/utils/workspace/projectPathLabel';
 import { Button, Dropdown, Empty, Input, Menu, Message, Modal, Tooltip } from '@arco-design/web-react';
-import { FolderClose, MoreOne, Plus, Pushpin, Right } from '@icon-park/react';
+import { FolderClose, LinkBreak, MoreOne, Plus, Pushpin, Right } from '@icon-park/react';
 import classNames from 'classnames';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -526,7 +526,12 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
                         {t(isProjectPinned ? 'conversation.history.unpinProject' : 'conversation.history.pinProject')}
                       </span>
                     </Menu.Item>
-                    <Menu.Item key='mnp-unlinked'>{t('conversation.mnpUnlinked.title')}</Menu.Item>
+                    <Menu.Item key='mnp-unlinked'>
+                      <span className='flex items-center gap-8px'>
+                        <LinkBreak theme='outline' size='14' />
+                        {t('conversation.mnpUnlinked.title')}
+                      </span>
+                    </Menu.Item>
                     <Menu.Item key='archive'>
                       <span className='flex items-center gap-8px'>
                         <FolderClose theme='outline' size='14' />
