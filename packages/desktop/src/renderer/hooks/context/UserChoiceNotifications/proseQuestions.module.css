@@ -75,8 +75,11 @@
   outline-offset: 2px;
 }
 
+/* Stay neutral until the server confirms an active notice; history is usually dismissed. */
 .question:has(> .noticeHeader[data-choice-notice-state='dismissed']),
-.structuredQuestion:has(> .noticeHeader[data-choice-notice-state='dismissed']) {
+.question:has(> .noticeHeader[data-choice-notice-state='checking']),
+.structuredQuestion:has(> .noticeHeader[data-choice-notice-state='dismissed']),
+.structuredQuestion:has(> .noticeHeader[data-choice-notice-state='checking']) {
   border-color: var(--color-border-2);
   background: var(--color-fill-1);
 }
