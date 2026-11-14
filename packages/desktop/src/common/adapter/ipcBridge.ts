@@ -277,6 +277,7 @@ type ApiChoiceNotice = {
   marker_index: number;
   preview: string;
   created_at: number;
+  restored_at?: number | null;
 };
 
 export type IChoiceNotice = {
@@ -286,7 +287,12 @@ export type IChoiceNotice = {
   markerIndex: number;
   preview: string;
   createdAt: number;
+  /** Set when the user turned a dismissed notice back on; such notices are not pushed to mobile. */
+  restoredAt?: number;
 };
+
+/** Address of one stored notice; the server keeps its preview and creation time. */
+export type IChoiceNoticeTarget = Pick<IChoiceNotice, 'conversationId' | 'messageId' | 'markerIndex'>;
 
 const fromApiChoiceNotice = (notice: ApiChoiceNotice): IChoiceNotice => ({
   key: notice.key,
@@ -295,6 +301,7 @@ const fromApiChoiceNotice = (notice: ApiChoiceNotice): IChoiceNotice => ({
   markerIndex: notice.marker_index,
   preview: notice.preview,
   createdAt: notice.created_at,
+  ...(typeof notice.restored_at === 'number' ? { restoredAt: notice.restored_at } : {}),
 });
 
 export const conversation = {
@@ -493,6 +500,14 @@ export const conversation = {
       marker_index: notice.markerIndex,
       preview: notice.preview,
       created_at: notice.createdAt,
+    })),
+    (list) => list.map(fromApiChoiceNotice)
+  ),
+  restoreChoiceNotice: withResponseMap(
+    httpPost<ApiChoiceNotice[], IChoiceNoticeTarget>('/api/choice-notifications/restore', (target) => ({
+      conversation_id: target.conversationId,
+      message_id: target.messageId,
+      marker_index: target.markerIndex,
     })),
     (list) => list.map(fromApiChoiceNotice)
   ),

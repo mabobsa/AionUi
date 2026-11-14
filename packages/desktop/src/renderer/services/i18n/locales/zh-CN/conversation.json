@@ -9,6 +9,9 @@
     "choiceRequired": "需要用户选择",
     "unreadFailure": "未读错误",
     "dismiss": "清除通知",
+    "restore": "重新开启通知",
+    "restoreUnavailable": "无法重新开启此通知。可能已有内容相同的较新通知处于开启状态。",
+    "restoreFailed": "未能重新开启通知，请重试。",
     "questionPending": "正在接收问题…"
   },
   "welcome": {

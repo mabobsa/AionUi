@@ -1,6 +1,6 @@
-import { Button } from '@arco-design/web-react';
+import { Button, Message } from '@arco-design/web-react';
 import { CloseRemind } from '@icon-park/react';
-import React, { createContext, useContext, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuestionNotice } from '..';
 import { choiceNoticeKey } from '../store';
@@ -34,12 +34,24 @@ export function QuestionNoticeHeader({
   const inheritedIdentity = useContext(MessageIdentityContext);
   const identity = suppliedIdentity ?? inheritedIdentity;
   const { t } = useTranslation();
-  const { status, dismiss, recoverNotice } = useQuestionNotice(
+  const { status, dismiss, restore, recoverNotice } = useQuestionNotice(
     identity?.conversationId ?? '',
     identity?.messageId ?? '',
     markerIndex,
     identity?.streamMessageId
   );
+  const [restoring, setRestoring] = useState(false);
+  const handleRestore = async () => {
+    setRestoring(true);
+    try {
+      if (!(await restore())) Message.info(t('conversation.userChoiceNotifications.restoreUnavailable'));
+    } catch (error) {
+      console.warn('[ChoiceNotifications] Could not restore a notification', error);
+      Message.error(t('conversation.userChoiceNotifications.restoreFailed'));
+    } finally {
+      setRestoring(false);
+    }
+  };
   useEffect(() => {
     if (!identity || recoveryPreview === undefined || status !== 'checking') return;
     const messageId = identity.streamMessageId || identity.messageId;
@@ -85,6 +97,20 @@ export function QuestionNoticeHeader({
               }}
             >
               {t('conversation.userChoiceNotifications.dismiss')}
+            </Button>
+          )}
+          {status === 'dismissed' && (
+            <Button
+              type='text'
+              size='mini'
+              className={styles.dismiss}
+              disabled={restoring}
+              onClick={(event) => {
+                event.stopPropagation();
+                void handleRestore();
+              }}
+            >
+              {t('conversation.userChoiceNotifications.restore')}
             </Button>
           )}
         </>

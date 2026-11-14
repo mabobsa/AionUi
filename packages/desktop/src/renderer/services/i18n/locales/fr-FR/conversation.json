@@ -9,6 +9,9 @@
     "choiceRequired": "Choix utilisateur requis",
     "unreadFailure": "Erreur non lue",
     "dismiss": "Fermer la notification",
+    "restore": "Réactiver la notification",
+    "restoreUnavailable": "Impossible de réactiver cette notification. Une notification plus récente au contenu identique est peut-être déjà active.",
+    "restoreFailed": "Impossible de réactiver la notification. Réessayez.",
     "questionPending": "Réception de la question…"
   },
   "welcome": {

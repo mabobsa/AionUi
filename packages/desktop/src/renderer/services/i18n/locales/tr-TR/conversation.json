@@ -9,6 +9,9 @@
     "choiceRequired": "Kullanıcı seçimi gerekli",
     "unreadFailure": "Okunmamış hata",
     "dismiss": "Bildirimi kaldır",
+    "restore": "Bildirimi yeniden aç",
+    "restoreUnavailable": "Bu bildirim yeniden açılamaz. Aynı içerikli daha yeni bir bildirim zaten etkin olabilir.",
+    "restoreFailed": "Bildirim yeniden açılamadı. Lütfen tekrar deneyin.",
     "questionPending": "Soru alınıyor…"
   },
   "welcome": {

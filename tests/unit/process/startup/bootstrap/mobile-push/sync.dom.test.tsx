@@ -66,6 +66,24 @@ describe('mobile push notice synchronization', () => {
     view.rerender(<MobilePushSync />);
     expect(state.sync).not.toHaveBeenCalled();
   });
+  it('keeps notices the user turned back on out of mobile push', async () => {
+    state.enabled = true;
+    const restored = {
+      key: 'restored',
+      kind: 'choice' as const,
+      conversationId: 'chat',
+      messageId: 'old',
+      markerIndex: 0,
+      createdAt: 300,
+      restoredAt: 400,
+    };
+    state.notices = [restored, ...state.notices];
+    render(<MobilePushSync />);
+    await waitFor(() => expect(state.sync).toHaveBeenCalled());
+    expect(state.sync).toHaveBeenLastCalledWith(
+      expect.objectContaining({ notices: [expect.objectContaining({ key: 'request' })] })
+    );
+  });
   it('does not access desktop push endpoints in WebUI', () => {
     state.desktop = false;
     render(<MobilePushSync />);

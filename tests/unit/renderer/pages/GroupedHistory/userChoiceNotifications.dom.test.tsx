@@ -16,6 +16,9 @@ const state = vi.hoisted(() => ({
   listChoiceNotices: vi.fn(),
   registerChoiceNotice: vi.fn(),
   dismissChoiceNotice: vi.fn(),
+  restoreChoiceNotice: vi.fn(),
+  messageInfo: vi.fn(),
+  messageError: vi.fn(),
   getConversation: vi.fn().mockResolvedValue({ name: 'Conversation A' }),
   lookupName: vi.fn(),
   failures: new Map<string, ConversationFailure>(),
@@ -36,10 +39,16 @@ vi.mock('@/common', () => ({
       listChoiceNotices: { invoke: state.listChoiceNotices },
       registerChoiceNotice: { invoke: state.registerChoiceNotice },
       dismissChoiceNotice: { invoke: state.dismissChoiceNotice },
+      restoreChoiceNotice: { invoke: state.restoreChoiceNotice },
       get: { invoke: state.getConversation },
     },
   },
 }));
+// The static Message API needs the legacy ReactDOM.render, which the test React build lacks.
+vi.mock('@arco-design/web-react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@arco-design/web-react')>();
+  return { ...actual, Message: { ...actual.Message, info: state.messageInfo, error: state.messageError } };
+});
 vi.mock('react-router-dom', () => ({ useNavigate: () => state.navigate }));
 vi.mock('@/renderer/hooks/context/UserChoiceNotifications/MobilePushSync', () => ({ default: () => null }));
 vi.mock('react-i18next', () => ({
@@ -106,6 +115,7 @@ beforeEach(() => {
   state.listChoiceNotices.mockResolvedValue([]);
   state.registerChoiceNotice.mockResolvedValue([]);
   state.dismissChoiceNotice.mockResolvedValue([]);
+  state.restoreChoiceNotice.mockResolvedValue([]);
   state.lookupName.mockReturnValue('Conversation A');
   state.getConversation.mockResolvedValue({ name: 'Conversation A' });
   state.failures = new Map();
@@ -347,6 +357,17 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+/** A server row the user turned back on. */
+const serverNotice = (messageId: string, markerIndex = 0) => ({
+  key: JSON.stringify(['conversation-a', messageId, markerIndex]),
+  conversationId: 'conversation-a',
+  messageId,
+  markerIndex,
+  preview: '첫 질문?',
+  createdAt: 1,
+  restoredAt: 500,
+});
+
 describe('question notification status and inline dismissal', () => {
   const contextSetup = ({
     messageId = 'stored-row',
@@ -420,12 +441,21 @@ describe('question notification status and inline dismissal', () => {
     expect(onParse).not.toHaveBeenCalled();
   });
 
+  const restoreButton = (index: number) =>
+    within(box(index)).queryByRole('button', { name: 'conversation.userChoiceNotifications.restore' });
+  const noDismissButton = (index: number) =>
+    expect(
+      within(box(index)).queryByRole('button', { name: 'conversation.userChoiceNotifications.dismiss' })
+    ).not.toBeInTheDocument();
+
   it('shows a confirmed historical dismissal without restoring its button', () => {
     const store = contextSetup({ withNotice: false });
     act(() => store.settleUpsert(JSON.stringify(['conversation-a', 'message-a', 0]), []));
     expect(status(0)).toBe('dismissed');
     expect(status(1)).toBe('checking');
-    expect(within(box(0)).queryByRole('button')).not.toBeInTheDocument();
+    noDismissButton(0);
+    expect(restoreButton(0)).toBeInTheDocument();
+    expect(restoreButton(1)).not.toBeInTheDocument();
   });
 
   it('updates the box immediately when another device dismisses its notification', () => {
@@ -433,8 +463,72 @@ describe('question notification status and inline dismissal', () => {
     act(() => store.replaceAll(store.getSnapshot()));
     act(() => store.replaceAll([]));
     expect([status(0), status(1)]).toEqual(['dismissed', 'dismissed']);
-    expect(within(box(0)).queryByRole('button')).not.toBeInTheDocument();
+    noDismissButton(0);
     expect(state.dismissChoiceNotice).not.toHaveBeenCalled();
+  });
+
+  it('turns a historical dismissal back on through the server', async () => {
+    const store = contextSetup({ withNotice: false });
+    act(() => store.settleUpsert(JSON.stringify(['conversation-a', 'message-a', 0]), []));
+    state.restoreChoiceNotice.mockResolvedValue([serverNotice('message-a')]);
+
+    fireEvent.click(restoreButton(0)!);
+
+    await waitFor(() => expect(status(0)).toBe('active'));
+    expect(state.restoreChoiceNotice).toHaveBeenCalledTimes(1);
+    expect(state.restoreChoiceNotice).toHaveBeenCalledWith({
+      conversationId: 'conversation-a',
+      messageId: 'message-a',
+      markerIndex: 0,
+    });
+    expect(store.getSnapshot()).toEqual([serverNotice('message-a')]);
+    expect(within(box(0)).getByRole('button', { name: 'conversation.userChoiceNotifications.dismiss' })).toBeVisible();
+  });
+
+  it('restores a notice dismissed on this device, falling back to the stored row id', async () => {
+    const store = contextSetup();
+    fireEvent.click(dismissButton(0));
+    await waitFor(() => expect(status(0)).toBe('dismissed'));
+    // The server stores this notice under the row id rather than the stream id.
+    state.restoreChoiceNotice.mockImplementation(async (target: { messageId: string }) =>
+      target.messageId === 'stored-row' ? [serverNotice('stored-row'), store.getSnapshot()[0]] : store.getSnapshot()
+    );
+
+    fireEvent.click(restoreButton(0)!);
+
+    await waitFor(() => expect(status(0)).toBe('active'));
+    expect(state.restoreChoiceNotice.mock.calls.map(([target]) => target.messageId)).toEqual([
+      'message-a',
+      'stored-row',
+    ]);
+  });
+
+  it('keeps the notice dismissed and explains when the server cannot restore it', async () => {
+    const store = contextSetup({ withNotice: false });
+    act(() => store.settleUpsert(JSON.stringify(['conversation-a', 'message-a', 0]), []));
+
+    fireEvent.click(restoreButton(0)!);
+
+    await waitFor(() =>
+      expect(state.messageInfo).toHaveBeenCalledWith('conversation.userChoiceNotifications.restoreUnavailable')
+    );
+    expect(status(0)).toBe('dismissed');
+    await waitFor(() => expect(restoreButton(0)).toBeEnabled());
+  });
+
+  it('reports a failed restore request without changing the notice', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const store = contextSetup({ withNotice: false });
+    act(() => store.settleUpsert(JSON.stringify(['conversation-a', 'message-a', 0]), []));
+    state.restoreChoiceNotice.mockRejectedValue(new Error('offline'));
+
+    fireEvent.click(restoreButton(0)!);
+
+    await waitFor(() =>
+      expect(state.messageError).toHaveBeenCalledWith('conversation.userChoiceNotifications.restoreFailed')
+    );
+    expect(state.messageInfo).not.toHaveBeenCalled();
+    expect(status(0)).toBe('dismissed');
   });
 
   it('reflects caption-list dismissal in the corresponding body box', async () => {

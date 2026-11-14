@@ -1,14 +1,17 @@
-import type { IChoiceNotice, IResponseMessage } from '@/common/adapter/ipcBridge';
+import type { IChoiceNotice, IChoiceNoticeTarget, IResponseMessage } from '@/common/adapter/ipcBridge';
 import type { IMessageText } from '@/common/chat/chatLib';
 import { normalizeTextMessageContent } from '@/common/chat/chatLib';
 import { ChoiceSignalParser, USER_CHOICE_MARKER } from './protocol';
 
 export type ChoiceNotice = IChoiceNotice;
+export type ChoiceNoticeTarget = IChoiceNoticeTarget;
 export type ChoiceNoticeStatus = 'active' | 'dismissed' | 'checking';
 
 type SyncHandlers = {
   upsert: (notice: ChoiceNotice) => void;
   dismiss: (notice: ChoiceNotice) => void;
+  /** `current` is false when a newer snapshot arrived while the request was in flight. */
+  restore?: (target: ChoiceNoticeTarget) => Promise<{ items: ChoiceNotice[]; current: boolean }>;
 };
 
 export const choiceNoticeKey = (conversationId: string, messageId: string, index: number): string =>
@@ -226,6 +229,25 @@ export const createChoiceNoticeStore = () => {
       suppressed.delete(key);
       if (!pending.some((item) => item.key === key)) pending = [...pending, notice];
       publish();
+    },
+    /** Ask the server to turn a dismissed notice back on; resolves whether it is active again. */
+    restore: async (target: ChoiceNoticeTarget): Promise<boolean> => {
+      const restoreOnServer = syncHandlers?.restore;
+      if (!restoreOnServer) return false;
+      const key = choiceNoticeKey(target.conversationId, target.messageId, target.markerIndex);
+      const { items, current } = await restoreOnServer(target);
+      const restored = items.some((item) => item.key === key);
+      // A local dismissal would otherwise keep hiding the server's restored row.
+      if (restored) suppressed.delete(key);
+      if (current) replaceFromServer(items);
+      if (restored) {
+        console.info('[ChoiceNotifications] Restored', {
+          conversationId: target.conversationId,
+          messageId: target.messageId,
+          markerIndex: target.markerIndex,
+        });
+      }
+      return restored;
     },
     consume: (message: IResponseMessage) => {
       if (message.type === 'finish' || message.type === 'error') {

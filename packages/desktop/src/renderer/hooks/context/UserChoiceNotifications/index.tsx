@@ -1,7 +1,13 @@
 import { ipcBridge } from '@/common';
 import { LayoutContext, type LayoutContextValue } from '../LayoutContext';
 import React, { createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react';
-import { choiceNoticeKey, createChoiceNoticeStore, type ChoiceNotice, type ChoiceNoticeStore } from './store';
+import {
+  choiceNoticeKey,
+  createChoiceNoticeStore,
+  type ChoiceNotice,
+  type ChoiceNoticeStore,
+  type ChoiceNoticeTarget,
+} from './store';
 import { NotificationHighlightProvider } from './NotificationHighlight';
 import type { IMessageText } from '@/common/chat/chatLib';
 import MobilePushSync from './MobilePushSync';
@@ -103,7 +109,15 @@ export function UserChoiceNotificationsProvider({
       if (attempt) timers.set(timerKey, setTimeout(send, 1000 * 2 ** attempt));
       else send();
     };
-    store.setSyncHandlers({ upsert: scheduleUpsert, dismiss: scheduleDismiss });
+    const restoreNotice = async (target: ChoiceNoticeTarget) => {
+      const version = snapshotVersion;
+      const items = await ipcBridge.conversation.restoreChoiceNotice.invoke(target);
+      const current = !disposed && version === snapshotVersion;
+      if (current) recordSnapshot(items);
+      else refresh();
+      return { items, current };
+    };
+    store.setSyncHandlers({ upsert: scheduleUpsert, dismiss: scheduleDismiss, restore: restoreNotice });
     const unsubscribeStream = ipcBridge.conversation?.responseStream?.on(store.consume);
     const unsubscribeChoiceNotices = ipcBridge.conversation?.choiceNoticesChanged?.on((event) => {
       recordSnapshot(event.items);
@@ -185,7 +199,16 @@ export function useQuestionNotice(conversationId: string, messageId: string, ind
     const notice = store.getSnapshot().find((item) => keys.includes(item.key));
     if (notice) store.dismiss(notice.key);
   };
-  return { status, dismiss, recoverNotice: store.recoverNotice };
+  const restore = async (): Promise<boolean> => {
+    // Streamed and recovered notices use the stream id; stored rows fall back to the row id.
+    for (const id of new Set([streamMessageId, messageId].filter((value): value is string => Boolean(value)))) {
+      // Try the next id only after the server rejected this one.
+      // eslint-disable-next-line no-await-in-loop
+      if (await store.restore({ conversationId, messageId: id, markerIndex: index })) return true;
+    }
+    return false;
+  };
+  return { status, dismiss, restore, recoverNotice: store.recoverNotice };
 }
 
 /** Recover completed history without optimistically reviving dismissed notices. */

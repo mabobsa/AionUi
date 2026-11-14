@@ -34,7 +34,15 @@ export default function MobilePushSync(): null {
       window.clearInterval(timer);
     };
   }, [desktop]);
-  const current = useMemo(() => [...notices].toSorted((a, b) => b.createdAt - a.createdAt).slice(0, 500), [notices]);
+  // A notice the user turned back on stays in the app but never reaches the phone again.
+  const current = useMemo(
+    () =>
+      notices
+        .filter((notice) => !(notice.kind === 'choice' && notice.restoredAt !== undefined))
+        .toSorted((a, b) => b.createdAt - a.createdAt)
+        .slice(0, 500),
+    [notices]
+  );
   useEffect(() => {
     if (!desktop || !enabled) return;
     void mobilePushBridge.sync

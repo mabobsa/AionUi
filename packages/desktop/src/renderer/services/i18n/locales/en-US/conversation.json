@@ -9,6 +9,9 @@
     "choiceRequired": "User choice needed",
     "unreadFailure": "Unread error",
     "dismiss": "Dismiss notification",
+    "restore": "Turn notification back on",
+    "restoreUnavailable": "This notification can't be turned back on. A newer identical question may already be active.",
+    "restoreFailed": "Couldn't turn the notification back on. Try again.",
     "questionPending": "Receiving the question…"
   },
   "welcome": {

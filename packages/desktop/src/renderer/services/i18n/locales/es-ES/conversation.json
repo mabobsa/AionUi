@@ -9,6 +9,9 @@
     "choiceRequired": "Se requiere una elección",
     "unreadFailure": "Error no leído",
     "dismiss": "Descartar notificación",
+    "restore": "Volver a activar la notificación",
+    "restoreUnavailable": "No se puede volver a activar esta notificación. Puede que ya haya una notificación más reciente con el mismo contenido activa.",
+    "restoreFailed": "No se pudo volver a activar la notificación. Inténtalo de nuevo.",
     "questionPending": "Recibiendo la pregunta…"
   },
   "welcome": {

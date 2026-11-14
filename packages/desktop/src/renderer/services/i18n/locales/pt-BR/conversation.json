@@ -9,6 +9,9 @@
     "choiceRequired": "Escolha do usuário necessária",
     "unreadFailure": "Erro não lido",
     "dismiss": "Dispensar notificação",
+    "restore": "Reativar notificação",
+    "restoreUnavailable": "Não é possível reativar esta notificação. Uma notificação mais recente com o mesmo conteúdo pode já estar ativa.",
+    "restoreFailed": "Não foi possível reativar a notificação. Tente novamente.",
     "questionPending": "Recebendo a pergunta…"
   },
   "welcome": {

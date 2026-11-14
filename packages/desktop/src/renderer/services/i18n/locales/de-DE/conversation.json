@@ -9,6 +9,9 @@
     "choiceRequired": "Benutzerauswahl erforderlich",
     "unreadFailure": "Ungelesener Fehler",
     "dismiss": "Benachrichtigung verwerfen",
+    "restore": "Benachrichtigung wieder aktivieren",
+    "restoreUnavailable": "Diese Benachrichtigung kann nicht wieder aktiviert werden. Möglicherweise ist bereits eine neuere Benachrichtigung mit demselben Inhalt aktiv.",
+    "restoreFailed": "Die Benachrichtigung konnte nicht wieder aktiviert werden. Bitte versuche es erneut.",
     "questionPending": "Frage wird empfangen…"
   },
   "welcome": {

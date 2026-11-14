@@ -9,6 +9,9 @@
     "choiceRequired": "ユーザーの選択が必要",
     "unreadFailure": "未確認のエラー",
     "dismiss": "通知を解除",
+    "restore": "通知を再度オンにする",
+    "restoreUnavailable": "この通知は再度オンにできません。同じ内容の新しい通知がすでにオンになっている可能性があります。",
+    "restoreFailed": "通知を再度オンにできませんでした。もう一度お試しください。",
     "questionPending": "質問を受信中…"
   },
   "welcome": {
