@@ -5,7 +5,7 @@
  */
 
 import type { TChatConversation } from '@/common/config/storage';
-import { getWorkspaceDisplayName } from '@/renderer/utils/workspace/workspace';
+import { getWorkspaceDisplayName, getWorkspaceGroupKey } from '@/renderer/utils/workspace/workspace';
 
 export type ConversationHistoryView = 'all' | 'bookmarks';
 
@@ -24,7 +24,8 @@ export const groupBookmarkedConversations = (
 
   conversations.forEach((conversation) => {
     const workspace = conversation.extra?.custom_workspace ? conversation.extra.workspace?.trim() : undefined;
-    const key = workspace ? `workspace:${workspace}` : 'without-project';
+    // Same normalized key as the timeline so one folder stays one bookmark group.
+    const key = workspace ? `workspace:${getWorkspaceGroupKey(workspace)}` : 'without-project';
     const existing = groups.get(key);
     if (existing) {
       existing.conversations.push(conversation);

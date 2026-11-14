@@ -66,6 +66,27 @@ export const getLastDirectoryName = (path: string): string => {
  * behaviour); it was the only implementation of this fold in the repo, so it is
  * kept here rather than rediscovered later.
  */
+/**
+ * Key for grouping conversations by project in the sidebar.
+ *
+ * The same Windows folder can be stored as `C:\repo`, `C:/repo`, `c:\repo\` and so on
+ * (for example when an external launcher passes a forward-slash path). Grouping by the
+ * raw string splits one project into several groups with the same display name, so
+ * Windows drive and UNC paths are folded to backslashes, without trailing separators and
+ * case-insensitively. POSIX paths stay case-sensitive; only trailing slashes are dropped.
+ * Display and actions keep using the original workspace string.
+ */
+export const getWorkspaceGroupKey = (workspace: string): string => {
+  const trimmed = workspace.trim();
+  if (/^(?:[A-Za-z]:[\\/]|[\\/]{2}[^\\/])/.test(trimmed)) {
+    const isUnc = /^[\\/]{2}/.test(trimmed);
+    let folded = trimmed.replace(/[\\/]+/g, '\\');
+    if (isUnc) folded = `\\${folded}`;
+    return (/^[A-Za-z]:\\$/.test(folded) ? folded : folded.replace(/\\+$/, '')).toLowerCase();
+  }
+  return trimmed.length > 1 ? trimmed.replace(/\/+$/, '') : trimmed;
+};
+
 export const normalizeWatchPath = (value: string): string => {
   const normalized = value.replaceAll('\\', '/');
 

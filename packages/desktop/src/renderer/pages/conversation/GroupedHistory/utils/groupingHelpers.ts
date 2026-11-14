@@ -6,7 +6,7 @@
 
 import type { TChatConversation } from '@/common/config/storage';
 import { getActivityTime } from '@/renderer/utils/chat/timeline';
-import { getWorkspaceDisplayName } from '@/renderer/utils/workspace/workspace';
+import { getWorkspaceDisplayName, getWorkspaceGroupKey } from '@/renderer/utils/workspace/workspace';
 import { getWorkspaceUpdateTime } from '@/renderer/utils/workspace/workspaceHistory';
 
 import type { GroupedHistoryResult, TimelineItem, TimelineSection } from '../types';
@@ -34,7 +34,9 @@ export const groupConversationsByWorkspace = (
   conversations: TChatConversation[],
   t: (key: string) => string
 ): TimelineSection[] => {
-  const allWorkspaceGroups = new Map<string, TChatConversation[]>();
+  // Group by a normalized key so one Windows folder stored with different separators or
+  // case stays a single project. Each group keeps the most used original spelling.
+  const allWorkspaceGroups = new Map<string, { conversations: TChatConversation[]; variants: Map<string, number> }>();
   const withoutWorkspaceConvs: TChatConversation[] = [];
 
   conversations.forEach((conv) => {
@@ -42,10 +44,14 @@ export const groupConversationsByWorkspace = (
     const custom_workspace = conv.extra?.custom_workspace;
 
     if (custom_workspace && workspace) {
-      if (!allWorkspaceGroups.has(workspace)) {
-        allWorkspaceGroups.set(workspace, []);
+      const key = getWorkspaceGroupKey(workspace);
+      let group = allWorkspaceGroups.get(key);
+      if (!group) {
+        group = { conversations: [], variants: new Map() };
+        allWorkspaceGroups.set(key, group);
       }
-      allWorkspaceGroups.get(workspace)!.push(conv);
+      group.conversations.push(conv);
+      group.variants.set(workspace, (group.variants.get(workspace) ?? 0) + 1);
     } else {
       withoutWorkspaceConvs.push(conv);
     }
@@ -53,10 +59,18 @@ export const groupConversationsByWorkspace = (
 
   const items: TimelineItem[] = [];
 
-  allWorkspaceGroups.forEach((convList, workspace) => {
+  allWorkspaceGroups.forEach(({ conversations: convList, variants }) => {
+    let workspace = '';
+    let workspaceCount = 0;
+    variants.forEach((count, variant) => {
+      if (count > workspaceCount) {
+        workspace = variant;
+        workspaceCount = count;
+      }
+    });
     const sortedConvs = [...convList].toSorted((a, b) => getActivityTime(b) - getActivityTime(a));
     const latestConversationTime = getActivityTime(sortedConvs[0]);
-    const updateTime = getWorkspaceUpdateTime(workspace);
+    const updateTime = Math.max(...[...variants.keys()].map((variant) => getWorkspaceUpdateTime(variant)));
     const time = Math.max(updateTime, latestConversationTime);
     items.push({
       type: 'workspace',
