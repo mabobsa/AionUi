@@ -155,7 +155,9 @@ const completeArcoLocale = (locale: ArcoLocaleInput): typeof enUS => ({
 
 // Every language AionUi ships that Arco publishes a locale for. Arco has no
 // uk-UA or fa-IR locale; those fall back to English component strings.
-const arcoLocales: Record<string, typeof enUS> = __AIONUI_WEB_ENTRY__
+// An already-running dev server may not have loaded the new build define yet.
+const IS_WEBUI_ENTRY = typeof __AIONUI_WEB_ENTRY__ !== 'undefined' && __AIONUI_WEB_ENTRY__;
+const arcoLocales: Record<string, typeof enUS> = IS_WEBUI_ENTRY
   ? { 'ko-KR': completeArcoLocale(koKR) }
   : {
       'zh-CN': zhCN,
@@ -497,7 +499,7 @@ const BackendStartupFailureDialog: React.FC<{ failure: BackendStartupFailureInfo
 
 void registerPwa();
 
-if (!__AIONUI_WEB_ENTRY__) {
+if (!IS_WEBUI_ENTRY) {
   const root = createRoot(document.getElementById('root')!);
   root.render(
     <BackendStartupGate
