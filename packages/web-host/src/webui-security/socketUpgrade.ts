@@ -16,7 +16,8 @@ export async function forwardUpgrade(client: Socket, bytes: Buffer, backendPort:
     const end = bytes.indexOf('\r\n\r\n');
     if (end < 0) return reject(400);
     const lines = bytes.subarray(0, end).toString('latin1').split('\r\n');
-    const match = /^GET (\S+) HTTP\/1\.1$/.exec(lines.shift() ?? '');
+    const requestLine = lines.shift() ?? '';
+    const match = /^GET (\S+) HTTP\/1\.1$/.exec(requestLine);
     if (!match) return reject(400);
     const headers: IncomingHttpHeaders = {};
     for (const line of lines) {
@@ -55,7 +56,19 @@ export async function forwardUpgrade(client: Socket, bytes: Buffer, backendPort:
       if (upgraded || !client.writableEnded) client.destroy();
     });
     client.once('close', () => upstream.destroy());
-    upstream.once('connect', () => upstream.write(bytes.subarray(0, end + 4)));
+    // The Local backend accepts only a loopback Host and the app's own origins.
+    // This gate already authorized the browser, so hand over as a local client.
+    const localHandshake = Buffer.from(
+      [
+        requestLine,
+        `Host: 127.0.0.1:${backendPort}`,
+        ...lines.filter((line) => !/^(?:host|origin):/i.test(line)),
+        '',
+        '',
+      ].join('\r\n'),
+      'latin1'
+    );
+    upstream.once('connect', () => upstream.write(localHandshake));
     const handshake = (chunk: Buffer): void => {
       response = Buffer.concat([response, chunk]);
       const headerEnd = response.indexOf('\r\n\r\n');

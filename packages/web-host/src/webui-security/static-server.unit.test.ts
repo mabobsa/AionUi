@@ -159,17 +159,27 @@ describe('static-server', () => {
     expect(r.status).toBe(502);
   });
 
-  it('/api/* reverse-proxies to backend', async () => {
+  it('/api/* reverse-proxies to backend as a local client', async () => {
     const backend = await startMockBackend((req, res) => {
       res.writeHead(200, { 'content-type': 'application/json' });
-      res.end(JSON.stringify({ path: req.url, method: req.method }));
+      res.end(
+        JSON.stringify({
+          path: req.url,
+          method: req.method,
+          host: req.headers.host,
+          origin: req.headers.origin ?? null,
+        })
+      );
     });
     stopBackend = backend.close;
     handle = await startStaticServer({ staticDir, backendPort: backend.port, port: 0 });
-    const r = await fetch(`${handle.localUrl}/api/anything`);
+    const r = await fetch(`${handle.localUrl}/api/anything`, { method: 'POST' });
     expect(r.status).toBe(200);
-    const json = (await r.json()) as { path: string };
+    const json = (await r.json()) as { path: string; host: string; origin: string | null };
     expect(json.path).toBe('/api/anything');
+    // The Local backend rejects browser origins; the gate already checked this one.
+    expect(json.host).toBe(`127.0.0.1:${backend.port}`);
+    expect(json.origin).toBeNull();
   });
 
   it('does not expose the internal external-launch issuer through WebUI', async () => {
@@ -293,7 +303,9 @@ describe('static-server', () => {
     const net = await import('node:net');
     const httpMod = await import('node:http');
     const backendServer = httpMod.createServer((_req, res) => res.writeHead(204).end());
+    let upgradeHeaders: Record<string, string | string[] | undefined> = {};
     backendServer.on('upgrade', (req, socket) => {
+      upgradeHeaders = req.headers;
       const wsKey = (req.headers['sec-websocket-key'] as string) || '';
       const accept = createHash('sha1')
         .update(wsKey + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11')
@@ -344,6 +356,10 @@ describe('static-server', () => {
       }, 3000).unref();
     });
     expect(status).toMatch(/HTTP\/1\.1 101/i);
+    // The handshake reaches the Local backend as a local client.
+    expect(upgradeHeaders.host).toBe(`127.0.0.1:${backendPort}`);
+    expect(upgradeHeaders.origin).toBeUndefined();
+    expect(upgradeHeaders['sec-websocket-key']).toBe('dGhlIHNhbXBsZSBub25jZQ==');
   });
 
   it('/api/stt/stream WebSocket upgrade is spliced to backend and 101 is relayed', async () => {
