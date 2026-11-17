@@ -112,9 +112,14 @@ function forwardHttpRequest(
   res: ServerResponse,
   target: HttpProxyTarget,
   path = req.url,
-  clientAddress?: string | null
+  clientAddress?: string | null,
+  { dropOrigin = false }: { dropOrigin?: boolean } = {}
 ): void {
   const headers = createProxyHeaders(req.headers, `${target.hostname}:${target.port}`, clientAddress);
+  // Fork: the Local backend refuses browser origins other than the app's own.
+  // The session gate already checked this request's Origin, so forward it as a
+  // local client.
+  if (dropOrigin) delete headers.origin;
   const options: http.RequestOptions = {
     hostname: target.hostname,
     port: target.port,
@@ -294,7 +299,7 @@ export async function startStaticServer(opts: StaticServerOptions): Promise<Stat
         const navigationClientAddress = pathname.startsWith(MINDNPROGRESS_NAVIGATION_API_PREFIX)
           ? clientAddress
           : undefined;
-        forwardHttpRequest(req, res, backendTarget, req.url, navigationClientAddress);
+        forwardHttpRequest(req, res, backendTarget, req.url, navigationClientAddress, { dropOrigin: true });
         return;
       }
 
