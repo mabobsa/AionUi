@@ -1,3 +1,6 @@
+declare const __AIONUI_WEB_ENTRY__: boolean;
+declare const __AIONUI_WEBUI_BUILD_ID__: string;
+
 declare module '*.svg' {
   const content: string;
   export default content;

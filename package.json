@@ -13,17 +13,17 @@
   ],
   "main": "./out/main/index.js",
   "scripts": {
-    "dev": "electron-vite dev --config packages/desktop/electron.vite.config.ts",
-    "start": "electron-vite dev --config packages/desktop/electron.vite.config.ts",
-    "start:multi": "cross-env AIONUI_MULTI_INSTANCE=1 electron-vite dev --config packages/desktop/electron.vite.config.ts",
-    "cli": "electron-vite dev --config packages/desktop/electron.vite.config.ts",
+    "dev": "bun run build:webui && electron-vite dev --config packages/desktop/electron.vite.config.ts",
+    "start": "bun run build:webui && electron-vite dev --config packages/desktop/electron.vite.config.ts",
+    "start:multi": "cross-env AIONUI_MULTI_INSTANCE=1 bun run dev",
+    "cli": "bun run build:webui && electron-vite dev --config packages/desktop/electron.vite.config.ts",
     "webui": "tsx scripts/webui.ts",
     "webui:remote": "tsx scripts/webui.ts --remote",
     "webui:prod": "cross-env NODE_ENV=production tsx scripts/webui.ts",
     "webui:prod:remote": "cross-env NODE_ENV=production tsx scripts/webui.ts --remote",
     "resetpass": "tsx scripts/resetpass.ts",
-    "package": "electron-vite build --config packages/desktop/electron.vite.config.ts",
-    "make": "electron-vite build --config packages/desktop/electron.vite.config.ts",
+    "package": "bun run build:webui && electron-vite build --config packages/desktop/electron.vite.config.ts",
+    "make": "bun run build:webui && electron-vite build --config packages/desktop/electron.vite.config.ts",
     "dist": "node scripts/build-with-builder.js",
     "dist:mac": "node scripts/build-with-builder.js auto --mac",
     "dist:win": "node scripts/build-with-builder.js auto --win",
@@ -72,7 +72,8 @@
     "test:smoke:installer:rstrtmgr-ui": "node scripts/smoke-installer-rstrtmgr-ui.js",
     "prepare": "husky",
     "postinstall": "node scripts/postinstall.js",
-    "test:bun": "bun test packages/desktop/src/process/services/database/drivers/*.bun.test.ts"
+    "test:bun": "bun test packages/desktop/src/process/services/database/drivers/*.bun.test.ts",
+    "build:webui": "bun packages/desktop/webui/build.ts"
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "^0.18.2",

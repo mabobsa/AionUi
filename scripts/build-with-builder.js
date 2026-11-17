@@ -711,6 +711,9 @@ try {
     fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n');
   }
 
+  // Prepare the separate browser entry even when desktop bundles can be reused.
+  execSync('bun run build:webui', { stdio: 'inherit' });
+
   // 2. Check if we can skip Vite build (incremental build)
   const skipViteBuild = shouldSkipViteBuild(skipVite, forceBuild);
 

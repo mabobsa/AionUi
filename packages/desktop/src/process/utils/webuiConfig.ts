@@ -13,6 +13,7 @@ import { httpRequest } from '@/common/adapter/httpBridge';
 import { startWebHost, type WebHostHandle } from '@aionui/web-host';
 import { handleMobilePushWebRequest } from '@process/startup/bootstrap/mobile-push';
 import { getDataPath } from './utils';
+import { resolveWebuiSnapshot } from '../../../webui/identity';
 
 const WEBUI_CONFIG_FILE = 'webui.config.json';
 const DESKTOP_WEBUI_ENABLED_KEY = 'webui.desktop.enabled';
@@ -173,6 +174,13 @@ export type DesktopWebUIHandle = {
   initialPassword?: string;
 };
 
+/** Select the verified optimized snapshot prepared before starting the app. */
+export function resolveWebUIFrontend(): { staticDir: string } {
+  const staticDir = resolveWebuiSnapshot(path.join(__dirname, '../webui'), __AIONUI_WEBUI_BUILD_ID__);
+  console.info(`[WebUI] Serving optimized Korean assets (build=${__AIONUI_WEBUI_BUILD_ID__.slice(0, 12)})`);
+  return { staticDir };
+}
+
 let currentHandle: (WebHostHandle & { allowRemote: boolean }) | null = null;
 // First-use plaintext password for the active handle. Set by webui.start IPC
 // handler before startDesktopWebUI() when the backend reports needs_setup=true,
@@ -245,11 +253,7 @@ export async function startDesktopWebUI(opts: { port?: number; allowRemote?: boo
       // path-with-spaces issues under Application Support.
       userDataPath: getDataPath(),
     },
-    // After bundling, this file is out/main/index.js — renderer assets live at ../renderer.
-    staticDir: path.join(__dirname, '../renderer'),
-    // electron-vite serves the renderer from memory in development, so out/renderer
-    // may not exist. Proxy WebUI browser assets to the active Vite server instead.
-    frontendUrl: !app.isPackaged ? process.env['ELECTRON_RENDERER_URL'] : undefined,
+    ...resolveWebUIFrontend(),
     port: preferredPort,
     allowRemote,
     // Must align with the desktop IPC path's backend dataDir (src/index.ts), otherwise

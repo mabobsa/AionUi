@@ -1,7 +1,7 @@
 /**
  * WebUI static server.
  *
- * Serves out/renderer/ as the SPA and reverse-proxies /api/*, /ws, /api/stt/stream,
+ * Serves the optimized WebUI snapshot and reverse-proxies /api/*, /ws, /api/stt/stream,
  * /login and /logout to aioncore. WebUI requests are gated by aionui-auth sessions;
  * /login and /logout are aionui-auth's top-level paths, the rest live under
  * /api/auth/*. /ws and /api/stt/stream are WebSocket/stream upgrades spliced at
@@ -14,6 +14,7 @@ import http, { type IncomingMessage, type Server, type ServerResponse } from 'no
 import { networkInterfaces } from 'node:os';
 import net, { type Socket } from 'node:net';
 import serveHandler from 'serve-handler';
+import { serveOptimizedAsset } from './static-server/assets';
 import type { WebHostRequestHandler } from './types';
 import { authorizeRequest, requestPath } from './webui-security/sessionGate';
 import { forwardUpgrade } from './webui-security/socketUpgrade';
@@ -304,9 +305,11 @@ export async function startStaticServer(opts: StaticServerOptions): Promise<Stat
       }
 
       // static files + SPA fallback
+      if (await serveOptimizedAsset(req, res, opts.staticDir)) return;
       await serveHandler(req, res, {
         public: opts.staticDir,
         rewrites: [{ source: '**', destination: '/index.html' }],
+        headers: [{ source: '**', headers: [{ key: 'Cache-Control', value: 'no-cache' }] }],
       });
     } catch {
       if (!res.headersSent) {

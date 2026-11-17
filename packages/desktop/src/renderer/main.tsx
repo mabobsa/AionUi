@@ -155,19 +155,21 @@ const completeArcoLocale = (locale: ArcoLocaleInput): typeof enUS => ({
 
 // Every language AionUi ships that Arco publishes a locale for. Arco has no
 // uk-UA or fa-IR locale; those fall back to English component strings.
-const arcoLocales: Record<string, typeof enUS> = {
-  'zh-CN': zhCN,
-  'zh-TW': zhTW,
-  'ja-JP': jaJP,
-  'ko-KR': completeArcoLocale(koKR),
-  'en-US': enUS,
-  'tr-TR': completeArcoLocale(trTR),
-  'ru-RU': completeArcoLocale(ruRU),
-  'pt-BR': completeArcoLocale(ptBR),
-  'de-DE': completeArcoLocale(deDE),
-  'es-ES': completeArcoLocale(esES),
-  'fr-FR': completeArcoLocale(frFR),
-};
+const arcoLocales: Record<string, typeof enUS> = __AIONUI_WEB_ENTRY__
+  ? { 'ko-KR': completeArcoLocale(koKR) }
+  : {
+      'zh-CN': zhCN,
+      'zh-TW': zhTW,
+      'ja-JP': jaJP,
+      'ko-KR': completeArcoLocale(koKR),
+      'en-US': enUS,
+      'tr-TR': completeArcoLocale(trTR),
+      'ru-RU': completeArcoLocale(ruRU),
+      'pt-BR': completeArcoLocale(ptBR),
+      'de-DE': completeArcoLocale(deDE),
+      'es-ES': completeArcoLocale(esES),
+      'fr-FR': completeArcoLocale(frFR),
+    };
 
 const INSTALLATION_INTEGRITY_FAILURES = new Set<RuntimeFailureKind>([
   'bundled_resource_missing',
@@ -302,7 +304,7 @@ const AppProviders: React.FC<PropsWithChildren> = ({ children }) =>
     SWRConfig,
     { value: SWR_DEFAULTS },
     React.createElement(
-      AuthProvider,
+      React.Fragment,
       null,
       React.createElement(
         ThemeProvider,
@@ -369,6 +371,13 @@ const Main = () => {
 };
 
 const App = HOC.Wrapper(Config)(Main);
+
+/** Shared authenticated shell, also loaded lazily by the optimized WebUI entry. */
+export const AuthenticatedApplication: React.FC = () => (
+  <AppProviders>
+    <App />
+  </AppProviders>
+);
 
 const BackendStartupFailureDialog: React.FC<{ failure: BackendStartupFailureInfo }> = ({ failure }) => {
   const { t } = useTranslation();
@@ -488,23 +497,25 @@ const BackendStartupFailureDialog: React.FC<{ failure: BackendStartupFailureInfo
 
 void registerPwa();
 
-const root = createRoot(document.getElementById('root')!);
-root.render(
-  <BackendStartupGate
-    renderStarting={() => (
-      <Config>
-        <BackendStartingView />
-      </Config>
-    )}
-    renderFailure={(failure) => (
-      <Config>
-        <BackendStartupFailureDialog failure={failure} />
-      </Config>
-    )}
-    renderApp={() => (
-      <AppProviders>
-        <App />
-      </AppProviders>
-    )}
-  />
-);
+if (!__AIONUI_WEB_ENTRY__) {
+  const root = createRoot(document.getElementById('root')!);
+  root.render(
+    <BackendStartupGate
+      renderStarting={() => (
+        <Config>
+          <BackendStartingView />
+        </Config>
+      )}
+      renderFailure={(failure) => (
+        <Config>
+          <BackendStartupFailureDialog failure={failure} />
+        </Config>
+      )}
+      renderApp={() => (
+        <AuthProvider>
+          <AuthenticatedApplication />
+        </AuthProvider>
+      )}
+    />
+  );
+}

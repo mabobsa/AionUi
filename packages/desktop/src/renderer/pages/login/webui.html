@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ko-KR" data-theme="light" data-color-scheme="default">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="application-name" content="AionUi" />
+    <meta name="theme-color" content="#4E5969" />
+    <link rel="icon" type="image/png" href="/pwa/icon-192.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>AionUi</title>
+    <style>
+      html,
+      body,
+      #root {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+    </style>
+    <script>
+      try {
+        const theme = localStorage.getItem('__aionui_theme');
+        if (theme) document.documentElement.setAttribute('data-theme', theme);
+      } catch {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./webuiEntry.tsx"></script>
+  </body>
+</html>

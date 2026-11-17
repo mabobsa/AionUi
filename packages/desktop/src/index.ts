@@ -64,6 +64,7 @@ import {
   resolveRemoteAccess,
   resolveWebUIPort,
   restoreDesktopWebUIFromPreferences,
+  resolveWebUIFrontend,
 } from './process/utils/webuiConfig';
 import {
   createOrUpdateTray,
@@ -961,8 +962,7 @@ const handleAppReady = async (): Promise<void> => {
           // reads the same file.
           userDataPath: getDataPath(),
         },
-        staticDir: path.join(__dirname, '../renderer'),
-        frontendUrl: !app.isPackaged ? process.env['ELECTRON_RENDERER_URL'] : undefined,
+        ...resolveWebUIFrontend(),
         port: resolvedPort,
         allowRemote,
         dataDir: getDataPath(),

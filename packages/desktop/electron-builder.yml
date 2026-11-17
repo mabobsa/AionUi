@@ -21,6 +21,7 @@ files:
   - out/main/**/*
   - out/preload/**/*
   - out/renderer/**/*
+  - out/webui/**/*
   # Static resources — use explicit directory inclusion to prevent resource loss
   - public/**/*
   - package.json
