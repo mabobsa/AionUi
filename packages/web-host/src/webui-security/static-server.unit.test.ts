@@ -4,7 +4,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import type { AddressInfo } from 'node:net';
-import { startStaticServer, type StaticServerHandle } from './static-server.js';
+import { startStaticServer, type StaticServerHandle } from '../static-server.js';
 
 async function mkRendererFixture(): Promise<string> {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ws-static-'));
@@ -17,7 +17,13 @@ async function mkRendererFixture(): Promise<string> {
 async function startMockBackend(
   handler: (req: http.IncomingMessage, res: http.ServerResponse) => void
 ): Promise<{ port: number; close: () => Promise<void> }> {
-  const server = http.createServer(handler);
+  const server = http.createServer((req, res) => {
+    if (req.url === '/api/auth/webui-session') {
+      res.writeHead(204).end();
+      return;
+    }
+    handler(req, res);
+  });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', () => resolve()));
   const port = (server.address() as AddressInfo).port;
   return {
@@ -29,6 +35,13 @@ async function startMockBackend(
       }),
   };
 }
+
+// Transport regression fixtures represent an authenticated same-origin browser.
+const fetch = (url: string, init?: RequestInit) =>
+  globalThis.fetch(url, {
+    ...init,
+    headers: { Origin: new URL(url).origin, Connection: 'close', ...init?.headers },
+  });
 
 describe('static-server', () => {
   let handle: StaticServerHandle | null = null;
@@ -172,8 +185,8 @@ describe('static-server', () => {
       method: 'POST',
     });
 
-    expect(r.status).toBe(404);
-    expect(await r.json()).toEqual({ error: 'NOT_FOUND' });
+    expect(r.status).toBe(403);
+    expect(await r.json()).toEqual({ error: 'FORBIDDEN' });
     expect(backendRequests).toBe(0);
   });
 
@@ -191,8 +204,8 @@ describe('static-server', () => {
     });
     const status = await fetch(`${handle.localUrl}/api/internal/external-conversation-dispatches/operation-1`);
 
-    expect(issue.status).toBe(404);
-    expect(status.status).toBe(404);
+    expect(issue.status).toBe(403);
+    expect(status.status).toBe(403);
     expect(backendRequests).toBe(0);
   });
 
@@ -279,7 +292,7 @@ describe('static-server', () => {
     const { createHash } = await import('node:crypto');
     const net = await import('node:net');
     const httpMod = await import('node:http');
-    const backendServer = httpMod.createServer();
+    const backendServer = httpMod.createServer((_req, res) => res.writeHead(204).end());
     backendServer.on('upgrade', (req, socket) => {
       const wsKey = (req.headers['sec-websocket-key'] as string) || '';
       const accept = createHash('sha1')
@@ -306,6 +319,7 @@ describe('static-server', () => {
         sock.write(
           'GET /ws HTTP/1.1\r\n' +
             `Host: 127.0.0.1:${publicPort}\r\n` +
+            `Origin: http://127.0.0.1:${publicPort}\r\n` +
             'Upgrade: websocket\r\n' +
             'Connection: Upgrade\r\n' +
             'Sec-WebSocket-Version: 13\r\n' +
@@ -337,7 +351,7 @@ describe('static-server', () => {
     const { createHash } = await import('node:crypto');
     const net = await import('node:net');
     const httpMod = await import('node:http');
-    const backendServer = httpMod.createServer();
+    const backendServer = httpMod.createServer((_req, res) => res.writeHead(204).end());
     backendServer.on('upgrade', (req, socket) => {
       const wsKey = (req.headers['sec-websocket-key'] as string) || '';
       const accept = createHash('sha1')
@@ -362,6 +376,7 @@ describe('static-server', () => {
         sock.write(
           'GET /api/stt/stream HTTP/1.1\r\n' +
             `Host: 127.0.0.1:${publicPort}\r\n` +
+            `Origin: http://127.0.0.1:${publicPort}\r\n` +
             'Upgrade: websocket\r\n' +
             'Connection: Upgrade\r\n' +
             'Sec-WebSocket-Version: 13\r\n' +
@@ -392,7 +407,7 @@ describe('static-server', () => {
     const { createHash } = await import('node:crypto');
     const net = await import('node:net');
     const httpMod = await import('node:http');
-    const backendServer = httpMod.createServer();
+    const backendServer = httpMod.createServer((_req, res) => res.writeHead(204).end());
     backendServer.on('upgrade', (req, socket) => {
       const wsKey = (req.headers['sec-websocket-key'] as string) || '';
       const accept = createHash('sha1')
@@ -417,6 +432,7 @@ describe('static-server', () => {
         sock.write(
           'GET /api/stt/stream?lang=en&model=default HTTP/1.1\r\n' +
             `Host: 127.0.0.1:${publicPort}\r\n` +
+            `Origin: http://127.0.0.1:${publicPort}\r\n` +
             'Upgrade: websocket\r\n' +
             'Connection: Upgrade\r\n' +
             'Sec-WebSocket-Version: 13\r\n' +
@@ -477,6 +493,7 @@ describe('static-server', () => {
           method: 'POST',
           path: '/api/fs/upload',
           headers: {
+            Origin: handle.localUrl,
             'content-type': 'application/octet-stream',
             'content-length': BODY_LEN,
           },

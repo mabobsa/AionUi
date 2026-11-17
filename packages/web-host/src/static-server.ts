@@ -2,10 +2,10 @@
  * WebUI static server.
  *
  * Serves out/renderer/ as the SPA and reverse-proxies /api/*, /ws, /api/stt/stream,
- * /login and /logout to aioncore. All auth goes to backend's aionui-auth crate;
+ * /login and /logout to aioncore. WebUI requests are gated by aionui-auth sessions;
  * /login and /logout are aionui-auth's top-level paths, the rest live under
  * /api/auth/*. /ws and /api/stt/stream are WebSocket/stream upgrades spliced at
- * TCP level; /api/stt/stream is the STT streaming endpoint.
+ * TCP level after session verification; /api/stt/stream is the STT streaming endpoint.
  *
  * Design: Node native http + serve-handler. No Express. No business routes.
  */
@@ -15,6 +15,8 @@ import { networkInterfaces } from 'node:os';
 import net, { type Socket } from 'node:net';
 import serveHandler from 'serve-handler';
 import type { WebHostRequestHandler } from './types';
+import { authorizeRequest, requestPath } from './webui-security/sessionGate';
+import { forwardUpgrade } from './webui-security/socketUpgrade';
 import {
   createProxyHeaders,
   type TcpConnectionObserver,
@@ -40,10 +42,6 @@ export type StaticServerHandle = {
 };
 
 const DEFAULT_PORT = 25808;
-const BLOCKED_INTERNAL_API_PREFIXES = [
-  '/api/internal/external-conversation-launches',
-  '/api/internal/external-conversation-dispatches',
-];
 const MINDNPROGRESS_NAVIGATION_API_PREFIX = '/api/integrations/mindnprogress/conversations/';
 
 type HttpProxyTarget = {
@@ -210,10 +208,8 @@ function spliceToTcpEndpoint(
  *  - `http`     → internal HTTP server for API proxying or static/frontend HTTP
  *  - `null`     → need more bytes
  *
- * We only check the request-line; `Upgrade: websocket` is not strictly
- * required — the backend will reject a non-upgrade GET on these paths on its own.
- * Keeping the rule simple means we can decide after the first ~50 bytes
- * instead of waiting for the full header block.
+ * Backend upgrades wait for complete headers so the session and Origin can be
+ * checked before contacting the backend. Ordinary HTTP uses Node's parser.
  */
 type TcpRoute = 'backend' | 'frontend' | 'http';
 
@@ -222,6 +218,7 @@ function peekTcpRoute(buf: Buffer, hasFrontendTarget: boolean): TcpRoute | null 
   if (newlineIdx < 0) return null;
   const firstLine = buf.slice(0, newlineIdx).toString('ascii');
   if (/^GET\s+\/(?:ws|api\/stt\/stream)(?:\?[^\s]*)?\s+HTTP\/1\.[01]\r?$/.test(firstLine)) {
+    if (buf.indexOf('\r\n\r\n') < 0) return null;
     return 'backend';
   }
   if (!hasFrontendTarget) return 'http';
@@ -229,6 +226,7 @@ function peekTcpRoute(buf: Buffer, hasFrontendTarget: boolean): TcpRoute | null 
   const headerEnd = buf.indexOf('\r\n\r\n');
   if (headerEnd < 0 && buf.length < PEEK_LIMIT_BYTES) return null;
   const headers = buf.slice(0, headerEnd >= 0 ? headerEnd : undefined).toString('ascii');
+  if (/^GET\s+\/api(?:\/|\?)/.test(firstLine) && /(?:^|\r?\n)upgrade:/i.test(headers)) return 'backend';
   return /(?:^|\r?\n)upgrade:\s*websocket\s*(?:\r?\n|$)/i.test(headers) ? 'frontend' : 'http';
 }
 
@@ -242,7 +240,7 @@ export async function startStaticServer(opts: StaticServerOptions): Promise<Stat
 
   // The HTTP server listens only on loopback — user traffic hits the outer
   // net.Server first. We route to this server for everything except WS
-  // upgrades and STT stream upgrades, which go straight to the backend via a raw TCP splice.
+  // upgrades and STT stream upgrades, which use the authenticated upgrade relay.
   //
   // Why two listeners instead of using `http.Server`'s native `upgrade` event:
   // bun 1.3's http-compat layer does not faithfully forward writes on the
@@ -256,11 +254,22 @@ export async function startStaticServer(opts: StaticServerOptions): Promise<Stat
         return;
       }
 
-      const pathname = new URL(req.url, 'http://webui.local').pathname;
+      let pathname: string;
+      try {
+        pathname = requestPath(req.url);
+      } catch {
+        res.writeHead(400).end();
+        return;
+      }
       const clientAddress = clientAddresses.resolve(req.socket.remotePort);
-      if (BLOCKED_INTERNAL_API_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
-        res.writeHead(404, { 'content-type': 'application/json' });
-        res.end(JSON.stringify({ error: 'NOT_FOUND' }));
+      const denied = await authorizeRequest(req.method, pathname, req.headers, opts.backendPort);
+      if (denied) {
+        res.writeHead(denied, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+        res.end(
+          JSON.stringify({
+            error: denied === 401 ? 'UNAUTHORIZED' : denied === 403 ? 'FORBIDDEN' : 'BACKEND_UNREACHABLE',
+          })
+        );
         return;
       }
 
@@ -269,7 +278,11 @@ export async function startStaticServer(opts: StaticServerOptions): Promise<Stat
       // /api/* — reverse proxy to backend (includes /api/auth/*).
       // /login and /logout are aionui-auth's top-level auth endpoints: proxy them too
       // so WebUI browser clients reach the backend without a path-rewrite.
-      if (req.url.startsWith('/api/') || req.url.startsWith('/api?') || req.url === '/login' || req.url === '/logout') {
+      if (
+        pathname === '/api' ||
+        pathname.startsWith('/api/') ||
+        ['/login', '/logout', '/qr-login'].includes(pathname)
+      ) {
         const navigationClientAddress = pathname.startsWith(MINDNPROGRESS_NAVIGATION_API_PREFIX)
           ? clientAddress
           : undefined;
@@ -310,10 +323,9 @@ export async function startStaticServer(opts: StaticServerOptions): Promise<Stat
     throw new Error('internal HTTP server failed to bind to a port');
   }
 
-  // User-facing listener: inspect the first line of every TCP connection and
-  // route to either the backend (for /ws and /api/stt/stream upgrades) or the internal HTTP
-  // server (everything else). Both routes use raw TCP splice — no reliance
-  // on http.Server's upgrade event.
+  // User-facing listener: backend upgrades go through the session gate and only
+  // become a duplex stream after 101. Other traffic uses the internal HTTP server
+  // or development frontend. No reliance on the inbound HTTP upgrade socket.
   const tcp_server = net.createServer((client: Socket) => {
     const clientAddress = client.remoteAddress;
     let peeked = Buffer.alloc(0);
@@ -330,13 +342,13 @@ export async function startStaticServer(opts: StaticServerOptions): Promise<Stat
       const decision = peekTcpRoute(peeked, frontendTarget !== null);
       if (decision === null && peeked.length < PEEK_LIMIT_BYTES) return;
       cleanup();
+      if (decision === 'backend') {
+        void forwardUpgrade(client, peeked, opts.backendPort);
+        return;
+      }
       const target =
-        decision === 'backend'
-          ? backendTarget
-          : decision === 'frontend' && frontendTarget
-            ? frontendTarget
-            : { hostname: '127.0.0.1', port: internalPort };
-      const throughInternalHttp = decision !== 'backend' && !(decision === 'frontend' && frontendTarget);
+        decision === 'frontend' && frontendTarget ? frontendTarget : { hostname: '127.0.0.1', port: internalPort };
+      const throughInternalHttp = !(decision === 'frontend' && frontendTarget);
       const connectionObserver = throughInternalHttp ? clientAddresses.observe(clientAddress) : undefined;
       spliceToTcpEndpoint(client, target, peeked, connectionObserver);
     };

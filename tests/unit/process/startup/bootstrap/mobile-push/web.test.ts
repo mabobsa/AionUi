@@ -12,7 +12,7 @@ const invoke = vi.fn(async (_id: string, _request: unknown) => ({
   value: { configured: true, enabled: false },
 }));
 type Reply = { data: { result: { ok: boolean; error?: string }; csrfToken: string } };
-const headers = (account = 'a') => ({ Cookie: `session=${account}`, Connection: 'close' });
+const headers = (account = 'a') => ({ Cookie: `session=${account}`, Connection: 'close', Origin: host.localUrl });
 const status = async (account = 'a') => {
   const result = await fetch(host.localUrl + '/api/mobile-push', { headers: headers(account) });
   return { status: result.status, body: (await result.json()) as Reply };
@@ -33,6 +33,10 @@ beforeEach(async () => {
   backend = createServer((request, response) => {
     const account = /session=([ab])/.exec(request.headers.cookie || '')?.[1];
     response.setHeader('Content-Type', 'application/json');
+    if (request.url === '/api/auth/webui-session') {
+      response.writeHead(account ? 204 : 401).end();
+      return;
+    }
     if (request.url === '/api/auth/user') {
       response.writeHead(account ? authStatus : 401);
       response.end(JSON.stringify(account ? { success: true, user: { id: `login-${account}` } } : { success: false }));

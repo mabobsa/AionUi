@@ -15,6 +15,10 @@ describe('trusted client address relay', () => {
 
   it('replaces a spoofed internal address header with the public client socket address', async () => {
     backend = http.createServer((req, res) => {
+      if (req.url === '/api/auth/webui-session') {
+        res.writeHead(204).end();
+        return;
+      }
       res.writeHead(200, { 'content-type': 'application/json' });
       res.end(
         JSON.stringify({
