@@ -2,6 +2,7 @@ import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { startStaticServer, type StaticServerHandle } from '../static-server';
 import WebSocket from 'ws';
+import { nonCanonicalTargets, rawRequest } from './requestTargetFixtures';
 
 const waitPort = (child: ChildProcessWithoutNullStreams): Promise<number> =>
   new Promise((resolve, reject) => {
@@ -96,6 +97,26 @@ describe.skipIf(!process.env.AIONUI_WEBUI_AUTH_FIXTURE).each(['node', 'bun'])(
         socket.on('error', reject);
       });
       expect(reply).toBe('probe');
+    });
+    it.each(nonCanonicalTargets.filter((target) => !target.startsWith('/ws') && !target.startsWith('/api/stt/')))(
+      'blocks raw wildcard target %s which Axum would accept',
+      async (target) => {
+        const directPort = Number(new URL(direct).port);
+        // Establish the backend behavior first: Axum does NOT collapse this tail.
+        expect(await rawRequest(directPort, target)).toMatch(/^HTTP\/1\.1 200 /);
+        const hits = () =>
+          fetch(direct + '/fixture/wildcard-hits', { headers: { Connection: 'close' } }).then((r) => r.text());
+        const before = await hits();
+        const replies = await Promise.all([rawRequest(web.port, target), rawRequest(web.port, target, true)]);
+        expect(replies.every((reply) => reply.startsWith('HTTP/1.1 400 '))).toBe(true);
+        expect(await hits()).toBe(before);
+      }
+    );
+    it('preserves a canonical encoded asset path and query after authentication', async () => {
+      const target = '/api/assets/logos/%ED%95%9C%EA%B8%80.svg?next=..%2f..%2Flogin&x=1&x=2';
+      const response = await rawRequest(web.port, target, false, cookie);
+      expect(response).toMatch(/^HTTP\/1\.1 200 /);
+      expect(response).toContain(target);
     });
   }
 );

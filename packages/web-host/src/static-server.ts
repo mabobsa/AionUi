@@ -211,12 +211,20 @@ function spliceToTcpEndpoint(
  * Backend upgrades wait for complete headers so the session and Origin can be
  * checked before contacting the backend. Ordinary HTTP uses Node's parser.
  */
-type TcpRoute = 'backend' | 'frontend' | 'http';
+type TcpRoute = 'backend' | 'frontend' | 'http' | 'invalid';
 
 function peekTcpRoute(buf: Buffer, hasFrontendTarget: boolean): TcpRoute | null {
   const newlineIdx = buf.indexOf(0x0a); // \n
   if (newlineIdx < 0) return null;
   const firstLine = buf.slice(0, newlineIdx).toString('ascii');
+  const target = /^\S+\s+(\S+)\s+HTTP\/1\.[01]\r?$/.exec(firstLine)?.[1];
+  if (target) {
+    try {
+      requestPath(target);
+    } catch {
+      return 'invalid';
+    }
+  }
   if (/^GET\s+\/(?:ws|api\/stt\/stream)(?:\?[^\s]*)?\s+HTTP\/1\.[01]\r?$/.test(firstLine)) {
     if (buf.indexOf('\r\n\r\n') < 0) return null;
     return 'backend';
@@ -342,6 +350,12 @@ export async function startStaticServer(opts: StaticServerOptions): Promise<Stat
       const decision = peekTcpRoute(peeked, frontendTarget !== null);
       if (decision === null && peeked.length < PEEK_LIMIT_BYTES) return;
       cleanup();
+      if (decision === 'invalid') {
+        client.end('HTTP/1.1 400 Bad Request\r\nConnection: close\r\nContent-Length: 0\r\n\r\n', () =>
+          client.destroy()
+        );
+        return;
+      }
       if (decision === 'backend') {
         void forwardUpgrade(client, peeked, opts.backendPort);
         return;

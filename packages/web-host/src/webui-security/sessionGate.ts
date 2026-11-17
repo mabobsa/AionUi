@@ -8,21 +8,27 @@ const PUBLIC_ROUTES = new Set([
   'POST /api/auth/refresh',
 ]);
 
-/** Keep classification and forwarding on the same origin-form URL. */
+/** Validate the raw origin-form path without URL normalization. Return the exact
+ * path bytes forwarded to Core; decoding is only used to reject ambiguous segments.
+ * In particular, a wildcard tail must never collapse into a public auth route.
+ */
 export function requestPath(raw: string): string {
   if (!raw.startsWith('/') || raw.startsWith('//') || raw.includes('\\') || raw.includes('#')) {
     throw new Error('Invalid request target');
   }
-  const url = new URL(raw, 'http://webui.local');
-  const decoded = decodeURIComponent(url.pathname);
-  if (
-    decoded.startsWith('//') ||
-    decoded.includes('\\') ||
-    decoded.includes('%') ||
-    [...decoded].some((char) => char.charCodeAt(0) <= 32)
-  )
-    throw new Error('Invalid path');
-  return new URL(decoded, 'http://webui.local').pathname;
+  const pathname = raw.split('?', 1)[0];
+  for (const segment of pathname.split('/')) {
+    const decoded = decodeURIComponent(segment);
+    if (
+      decoded === '.' ||
+      decoded === '..' ||
+      /[\\/%?#]/.test(decoded) ||
+      [...decoded].some((char) => char.charCodeAt(0) <= 32 || char.charCodeAt(0) === 127)
+    ) {
+      throw new Error('Invalid path');
+    }
+  }
+  return pathname;
 }
 
 /** Browser writes and upgrades must originate at this WebUI, including its port.
@@ -72,7 +78,13 @@ export async function authorizeRequest(
   backendPort: number
 ): Promise<number> {
   // No browser exceptions for internal routes. Includes auth/cron internal APIs.
-  if (pathname.split('/').includes('internal') || pathname === '/api/webui' || pathname.startsWith('/api/webui/')) {
+  // Decode only for conservative denial, never to select a public exception.
+  const deniedPath = decodeURIComponent(pathname);
+  if (
+    deniedPath.split('/').includes('internal') ||
+    deniedPath === '/api/webui' ||
+    deniedPath.startsWith('/api/webui/')
+  ) {
     return 403;
   }
   const protectedPath = pathname === '/api' || pathname.startsWith('/api/') || pathname === '/ws';

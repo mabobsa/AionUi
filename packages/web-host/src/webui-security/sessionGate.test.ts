@@ -123,6 +123,10 @@ describe('WebUI session boundary', () => {
     ).toBe(401);
     expect((await fetch(web.localUrl + '/api/auth/future')).status).toBe(401);
   });
+  it.each(['/api/%61uth/status', '/api/auth/%73tatus'])('does not decode %s into a public exception', async (path) => {
+    expect((await fetch(web.localUrl + path)).status).toBe(401);
+    expect(calls).toEqual([]);
+  });
   it('allows logged-in API, navigation and desktop push handlers', async () => {
     for (const path of [
       '/api/conversations',
@@ -172,6 +176,15 @@ describe('WebUI session boundary', () => {
     );
     expect(reply).toContain('401');
     expect(calls).toEqual(['/api/conversations']);
+  });
+  it('rejects dot segments after a public request on the same connection', async () => {
+    const reply = await raw(
+      web.port,
+      'GET /api/auth/status HTTP/1.1\r\nHost: localhost\r\n\r\n' +
+        'GET /api/ppt-proxy/4176/x/../../../auth/status HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n'
+    );
+    expect(reply).toContain('400 Bad Request');
+    expect(calls).toEqual(['/api/auth/status']);
   });
   it.each(['/ws', '/api/stt/stream'])('rejects anonymous upgrade %s and its pipelined payload', async (path) => {
     const reply = await raw(
