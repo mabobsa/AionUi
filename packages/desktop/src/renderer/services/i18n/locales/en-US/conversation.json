@@ -598,7 +598,16 @@
     "output": "Output",
     "thought": "Thinking",
     "cachedRead": "Cache read",
-    "cachedWrite": "Cache write"
+    "cachedWrite": "Cache write",
+    "actions": "Context usage and compaction",
+    "compactNow": "Compact now",
+    "compactRunning": "Compacting conversation",
+    "compactComplete": "Compaction complete",
+    "compactWaiting": "Compaction complete · awaiting usage update",
+    "compactUnconfirmed": "Compaction could not be confirmed. Check the conversation response.",
+    "compactFailed": "Could not process the compaction request. Please try again.",
+    "compactBusy": "Compaction is available when the AI finishes working.",
+    "compactHint": "Summarize the conversation to reduce context for the next request."
   },
   "skill_generator": {
     "title": "Generate Skill/Rule",

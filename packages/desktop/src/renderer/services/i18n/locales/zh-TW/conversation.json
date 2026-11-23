@@ -598,7 +598,16 @@
     "output": "輸出",
     "thought": "思考",
     "cachedRead": "快取讀取",
-    "cachedWrite": "快取寫入"
+    "cachedWrite": "快取寫入",
+    "actions": "上下文用量與壓縮",
+    "compactNow": "立即壓縮",
+    "compactRunning": "正在壓縮對話",
+    "compactComplete": "壓縮完成",
+    "compactWaiting": "壓縮完成 · 等待用量更新",
+    "compactUnconfirmed": "無法確認壓縮完成，請查看對話回覆。",
+    "compactFailed": "無法處理壓縮請求，請重試。",
+    "compactBusy": "AI 完成目前工作後即可壓縮。",
+    "compactHint": "摘要對話，減少下次請求的上下文。"
   },
   "skill_generator": {
     "title": "Generate Skill/Rule",

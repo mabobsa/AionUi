@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Popover } from '@arco-design/web-react';
+import { Button, Popover } from '@arco-design/web-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -21,6 +21,10 @@ interface ContextUsageIndicatorProps {
   context_limit: number;
   className?: string;
   size?: number;
+  footer?: React.ReactNode;
+  activityLabel?: string;
+  busy?: boolean;
+  awaitingUsage?: boolean;
 }
 
 const ContextUsageIndicator: React.FC<ContextUsageIndicatorProps> = ({
@@ -28,6 +32,10 @@ const ContextUsageIndicator: React.FC<ContextUsageIndicatorProps> = ({
   context_limit,
   className = '',
   size = 20,
+  footer,
+  activityLabel,
+  busy = false,
+  awaitingUsage = false,
 }) => {
   const { t, i18n } = useTranslation();
   const locale = i18n.language;
@@ -35,7 +43,7 @@ const ContextUsageIndicator: React.FC<ContextUsageIndicatorProps> = ({
   const hasWindow = context_limit > 0;
   const freshness = tokenUsage?.freshness;
   const compaction = tokenUsage?.compaction;
-  const unconfirmed = freshness !== undefined && freshness.status !== 'current';
+  const unconfirmed = awaitingUsage || (freshness !== undefined && freshness.status !== 'current');
   const hasReading = (!freshness && !compaction) || (tokenUsage?.total_tokens ?? 0) > 0;
   const hasCompactionCount = compaction !== undefined && (compaction.history_complete || compaction.count > 0);
   const compactionLabel = hasCompactionCount
@@ -43,8 +51,9 @@ const ContextUsageIndicator: React.FC<ContextUsageIndicatorProps> = ({
         count: compaction.count,
       })
     : t('conversation.contextUsage.compactionUnknown', 'Compaction count unknown');
-  const freshnessLabel =
-    freshness?.status === 'pending'
+  const freshnessLabel = awaitingUsage
+    ? t('conversation.contextUsage.compactWaiting')
+    : freshness?.status === 'pending'
       ? t('conversation.contextUsage.pending', 'Confirming usage')
       : freshness?.status === 'unavailable'
         ? t('conversation.contextUsage.unavailable', 'Usage confirmation failed')
@@ -151,7 +160,9 @@ const ContextUsageIndicator: React.FC<ContextUsageIndicatorProps> = ({
           })}
         </div>
       )}
-      {freshnessLabel && <div className='text-12px text-t-secondary mt-4px'>{freshnessLabel}</div>}
+      {freshnessLabel && freshnessLabel !== activityLabel && (
+        <div className='text-12px text-t-secondary mt-4px'>{freshnessLabel}</div>
+      )}
       {unconfirmed && hasReading && (
         <div className='text-12px text-t-secondary mt-4px'>
           {t('conversation.contextUsage.previousReading', 'Showing the last confirmed reading')}
@@ -172,6 +183,7 @@ const ContextUsageIndicator: React.FC<ContextUsageIndicatorProps> = ({
       {breakdownParts.length > 0 && (
         <div className='text-12px text-t-secondary mt-4px'>{breakdownParts.join(' · ')}</div>
       )}
+      {footer}
     </>
   );
 
@@ -205,65 +217,78 @@ const ContextUsageIndicator: React.FC<ContextUsageIndicatorProps> = ({
     </div>
   );
 
-  return (
-    <Popover content={popoverContent} position='top' trigger='hover' className='context-usage-popover'>
-      <div
-        className={`context-usage-indicator cursor-pointer relative flex items-center justify-center ${className}`}
-        data-usage-status={freshness?.status}
-        aria-label={[freshnessLabel, compactionLabel].filter(Boolean).join(' · ')}
-        style={{ width: 32, height: 32 }}
-      >
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-          {/* 背景圆环 */}
+  const indicator = (
+    <div
+      className={`context-usage-indicator cursor-pointer relative flex items-center justify-center ${className}`}
+      data-usage-status={freshness?.status}
+      aria-label={[activityLabel, freshnessLabel, compactionLabel].filter(Boolean).join(' · ')}
+      aria-busy={busy}
+      style={{ width: 32, height: 32 }}
+    >
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        {/* 背景圆环 */}
+        <circle cx={size / 2} cy={size / 2} r={radius} fill='none' stroke={getTrackColor()} strokeWidth={strokeWidth} />
+        {/* 进度圆环 — only when the denominator is known; otherwise the hollow track alone signals "count available, window unknown" */}
+        {hasWindow && hasReading && (
           <circle
             cx={size / 2}
             cy={size / 2}
             r={radius}
             fill='none'
-            stroke={getTrackColor()}
+            stroke={getStrokeColor()}
             strokeWidth={strokeWidth}
+            strokeLinecap='round'
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeDashoffset}
+            transform={`rotate(-90 ${size / 2} ${size / 2})`}
+            style={{ transition: 'stroke-dashoffset 0.3s ease, stroke 0.3s ease', opacity: unconfirmed ? 0.35 : 1 }}
           />
-          {/* 进度圆环 — only when the denominator is known; otherwise the hollow track alone signals "count available, window unknown" */}
-          {hasWindow && hasReading && (
-            <circle
-              cx={size / 2}
-              cy={size / 2}
-              r={radius}
-              fill='none'
-              stroke={getStrokeColor()}
-              strokeWidth={strokeWidth}
-              strokeLinecap='round'
-              strokeDasharray={circumference}
-              strokeDashoffset={strokeDashoffset}
-              transform={`rotate(-90 ${size / 2} ${size / 2})`}
-              style={{ transition: 'stroke-dashoffset 0.3s ease, stroke 0.3s ease', opacity: unconfirmed ? 0.35 : 1 }}
-            />
-          )}
-          {hasCompactionCount && (
-            <text
-              className='context-compaction-count font-medium text-t-secondary tabular-nums'
-              x={size / 2}
-              y={size / 2}
-              dy='0.35em'
-              textAnchor='middle'
-              fill='currentColor'
-              style={{ fontSize: compaction.count > 99 ? 8 : 10 }}
-              aria-hidden
-            >
-              {compaction.count > 99 ? '99+' : compaction.count}
-            </text>
-          )}
-        </svg>
-        {unconfirmed && (
-          <span
-            className='context-usage-status absolute text-10px text-t-secondary flex items-center justify-center'
-            style={{ right: 0, top: 0, width: 12, height: 12, borderRadius: '50%', background: 'var(--color-bg-1)' }}
+        )}
+        {hasCompactionCount && (
+          <text
+            className='context-compaction-count font-medium text-t-secondary tabular-nums'
+            x={size / 2}
+            y={size / 2}
+            dy='0.35em'
+            textAnchor='middle'
+            fill='currentColor'
+            style={{ fontSize: compaction.count > 99 ? 8 : 10 }}
             aria-hidden
           >
-            {freshness?.status === 'pending' ? '…' : '!'}
-          </span>
+            {compaction.count > 99 ? '99+' : compaction.count}
+          </text>
         )}
-      </div>
+      </svg>
+      {(unconfirmed || busy) && (
+        <span
+          className='context-usage-status absolute text-10px text-t-secondary flex items-center justify-center'
+          style={{ right: 0, top: 0, width: 12, height: 12, borderRadius: '50%', background: 'var(--color-bg-1)' }}
+          aria-hidden
+        >
+          {busy || awaitingUsage || freshness?.status === 'pending' ? '…' : '!'}
+        </span>
+      )}
+    </div>
+  );
+
+  return (
+    <Popover
+      content={popoverContent}
+      position='top'
+      trigger={footer ? ['hover', 'click'] : 'hover'}
+      className='context-usage-popover'
+    >
+      {footer ? (
+        <Button
+          type='text'
+          className='!p-0 !w-32px !h-32px'
+          aria-label={activityLabel || t('conversation.contextUsage.actions')}
+        >
+          {indicator}
+        </Button>
+      ) : (
+        indicator
+      )}
     </Popover>
   );
 };

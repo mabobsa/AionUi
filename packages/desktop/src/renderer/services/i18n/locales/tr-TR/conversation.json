@@ -583,7 +583,16 @@
     "output": "Çıktı",
     "thought": "Düşünme",
     "cachedRead": "Önbellek okuma",
-    "cachedWrite": "Önbellek yazma"
+    "cachedWrite": "Önbellek yazma",
+    "actions": "Bağlam kullanımı ve sıkıştırma",
+    "compactNow": "Şimdi sıkıştır",
+    "compactRunning": "Konuşma sıkıştırılıyor",
+    "compactComplete": "Sıkıştırma tamamlandı",
+    "compactWaiting": "Sıkıştırma tamamlandı · kullanım güncellemesi bekleniyor",
+    "compactUnconfirmed": "Sıkıştırma doğrulanamadı. Konuşmadaki yanıtı kontrol edin.",
+    "compactFailed": "Sıkıştırma isteği işlenemedi. Lütfen tekrar deneyin.",
+    "compactBusy": "AI çalışmasını bitirdiğinde sıkıştırma kullanılabilir.",
+    "compactHint": "Sonraki isteğin bağlamını azaltmak için konuşmayı özetleyin."
   },
   "skill_generator": {
     "title": "Yetenek/Kural Oluştur",

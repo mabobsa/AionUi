@@ -598,7 +598,16 @@
     "output": "출력",
     "thought": "사고",
     "cachedRead": "캐시 읽기",
-    "cachedWrite": "캐시 쓰기"
+    "cachedWrite": "캐시 쓰기",
+    "actions": "컨텍스트 사용량 및 압축",
+    "compactNow": "지금 압축",
+    "compactRunning": "대화 압축 중",
+    "compactComplete": "압축 완료",
+    "compactWaiting": "압축 완료 · 사용량 갱신 대기",
+    "compactUnconfirmed": "압축 완료를 확인하지 못했습니다. 대화 응답을 확인해주세요.",
+    "compactFailed": "압축 요청을 처리하지 못했습니다. 다시 시도해주세요.",
+    "compactBusy": "AI 작업이 끝나면 압축할 수 있습니다.",
+    "compactHint": "대화를 요약해 다음 요청의 컨텍스트를 줄입니다."
   },
   "skill_generator": {
     "title": "스킬/규칙 생성",

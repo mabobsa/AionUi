@@ -599,7 +599,16 @@
     "output": "Ausgabe",
     "thought": "Denken",
     "cachedRead": "Cache-Lesen",
-    "cachedWrite": "Cache-Schreiben"
+    "cachedWrite": "Cache-Schreiben",
+    "actions": "Kontextnutzung und Komprimierung",
+    "compactNow": "Jetzt komprimieren",
+    "compactRunning": "Unterhaltung wird komprimiert",
+    "compactComplete": "Komprimierung abgeschlossen",
+    "compactWaiting": "Komprimierung abgeschlossen · Nutzungsaktualisierung ausstehend",
+    "compactUnconfirmed": "Die Komprimierung konnte nicht bestätigt werden. Prüfen Sie die Antwort im Gespräch.",
+    "compactFailed": "Die Komprimierungsanfrage konnte nicht verarbeitet werden. Bitte erneut versuchen.",
+    "compactBusy": "Die Komprimierung ist verfügbar, sobald die KI ihre Arbeit beendet hat.",
+    "compactHint": "Fasst die Unterhaltung zusammen, um den Kontext der nächsten Anfrage zu verkleinern."
   },
   "skill_generator": {
     "title": "Skill/Regel generieren",

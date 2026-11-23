@@ -598,7 +598,16 @@
     "output": "出力",
     "thought": "思考",
     "cachedRead": "キャッシュ読み取り",
-    "cachedWrite": "キャッシュ書き込み"
+    "cachedWrite": "キャッシュ書き込み",
+    "actions": "コンテキスト使用量と圧縮",
+    "compactNow": "今すぐ圧縮",
+    "compactRunning": "会話を圧縮中",
+    "compactComplete": "圧縮完了",
+    "compactWaiting": "圧縮完了 · 使用量の更新待ち",
+    "compactUnconfirmed": "圧縮の完了を確認できませんでした。会話の応答を確認してください。",
+    "compactFailed": "圧縮リクエストを処理できませんでした。もう一度お試しください。",
+    "compactBusy": "AI の作業が終わると圧縮できます。",
+    "compactHint": "会話を要約し、次のリクエストのコンテキストを減らします。"
   },
   "skill_generator": {
     "title": "Generate Skill/Rule",

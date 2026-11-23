@@ -18,6 +18,7 @@ import {
 
 const {
   sendMessageInvokeMock,
+  getUsageMock,
   addOrUpdateMessageMock,
   resetStateMock,
   emitterEmitMock,
@@ -41,6 +42,7 @@ const {
   useMobileConversationMcpEntriesMock,
 } = vi.hoisted(() => ({
   sendMessageInvokeMock: vi.fn(),
+  getUsageMock: vi.fn(),
   addOrUpdateMessageMock: vi.fn(),
   resetStateMock: vi.fn(),
   emitterEmitMock: vi.fn(),
@@ -90,11 +92,13 @@ const {
 vi.mock('@/common', () => ({
   ipcBridge: {
     acpConversation: {
+      responseStream: { on: vi.fn(() => () => {}) },
       sendMessage: {
         invoke: sendMessageInvokeMock,
       },
     },
     conversation: {
+      getUsage: { invoke: getUsageMock },
       stop: {
         invoke: stopInvokeMock,
       },
@@ -262,9 +266,6 @@ vi.mock('@/renderer/hooks/file/useOpenFileSelector', () => ({
     onSlashBuiltinCommand: vi.fn(),
   }),
 }));
-vi.mock('@/renderer/hooks/ui/useLatestRef', () => ({
-  useLatestRef: <T,>(value: T) => ({ current: value }),
-}));
 vi.mock('@/renderer/pages/conversation/hooks/useMobileConversationMcpEntries', () => ({
   useMobileConversationMcpEntries: useMobileConversationMcpEntriesMock,
 }));
@@ -329,7 +330,12 @@ vi.mock('@arco-design/web-react', () => ({
     warning: messageWarningMock,
   },
   Tag: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
-  Popover: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  Popover: ({ children, content }: { children?: React.ReactNode; content?: React.ReactNode }) => (
+    <>
+      {children}
+      {content}
+    </>
+  ),
   Button: ({
     children,
     onClick,
@@ -364,6 +370,7 @@ const makeMessageState = (): UseAcpMessageReturn => ({
 describe('AcpSendBox', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getUsageMock.mockResolvedValue({ used: 50_000, size: 1_000_000, _meta: {} });
     isMobileMock.current = false;
     mobileActionSheetEntries.current = [];
     runtimeViewMock.hydrated = true;
@@ -385,6 +392,47 @@ describe('AcpSendBox', () => {
       reload: vi.fn(),
       setConfigOption: vi.fn(),
     });
+  });
+
+  it('sends native compaction without the current draft, attachments or selected conversation references', async () => {
+    draftContentRef.current = '작성 중인 초안';
+    sendMessageInvokeMock.mockResolvedValue({ turn_id: 'compact-turn', msg_id: 'compact-message' });
+    render(
+      <AcpSendBox
+        conversation_id='conv-1'
+        backend='claude'
+        messageState={{
+          ...makeMessageState(),
+          running: false,
+          tokenUsage: { total_tokens: 50_000 },
+          context_limit: 1_000_000,
+        }}
+      />
+    );
+    await act(async () => screen.getByRole('button', { name: 'pick-session' }).click());
+    await act(async () => screen.getByRole('button', { name: 'conversation.contextUsage.compactNow' }).click());
+    await waitFor(() =>
+      expect(sendMessageInvokeMock).toHaveBeenCalledWith({
+        input: '/compact',
+        conversation_id: 'conv-1',
+        files: [],
+        sessions: undefined,
+      })
+    );
+    expect(clearFilesMock).not.toHaveBeenCalled();
+    expect(draftMutateMock).not.toHaveBeenCalled();
+    expect(sendBoxPropsSpy.mock.lastCall?.[0].selectedSessions).toEqual([{ id: 'conv_target' }]);
+  });
+
+  it('does not offer Claude compaction for another backend', () => {
+    render(
+      <AcpSendBox
+        conversation_id='conv-1'
+        backend='codex'
+        messageState={{ ...makeMessageState(), tokenUsage: { total_tokens: 50_000 } }}
+      />
+    );
+    expect(screen.queryByRole('button', { name: 'conversation.contextUsage.compactNow' })).not.toBeInTheDocument();
   });
 
   it('resets ACP loading state when sendMessage fails before any stream error arrives', async () => {

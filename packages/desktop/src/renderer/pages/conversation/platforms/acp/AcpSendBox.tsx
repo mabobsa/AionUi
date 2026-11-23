@@ -57,6 +57,7 @@ import { buildSendFailureError } from './buildSendFailureError';
 import { useAcpInitialMessage } from './useAcpInitialMessage';
 import type { UseAcpMessageReturn } from './useAcpMessage';
 import { useClaudeModeSelection } from './claudePermissions';
+import ContextCompaction from './ContextCompaction';
 
 const configErrorMessageKey = (error: unknown) => {
   const errorKind = classifyConfigSetError(error);
@@ -304,7 +305,10 @@ const AcpSendBox: React.FC<{
   });
 
   const executeCommand = useCallback(
-    async ({ input, files, sessions }: Pick<ConversationCommandQueueItem, 'input' | 'files' | 'sessions'>) => {
+    async (
+      { input, files, sessions }: Pick<ConversationCommandQueueItem, 'input' | 'files' | 'sessions'>,
+      onAccepted?: (turnId?: string) => void
+    ) => {
       // Plain user text; the backend resolves each ChatFileRef and injects the
       // [[AION_FILES]] marker at the send edge (no front-end path/marker building).
       try {
@@ -312,6 +316,7 @@ const AcpSendBox: React.FC<{
         void checkAndUpdateTitle(conversation_id, input);
         if (teamSendMessage) {
           await teamSendMessage({ input, files });
+          onAccepted?.();
           emitter.emit('chat.history.refresh');
           if (files.length > 0) {
             emitter.emit('acp.workspace.refresh');
@@ -330,6 +335,7 @@ const AcpSendBox: React.FC<{
           sessions,
         });
         markSendAccepted(result.turn_id, result.runtime, result.msg_id);
+        onAccepted?.(result.turn_id);
         emitter.emit('chat.history.refresh');
       } catch (error: unknown) {
         const errorMsg =
@@ -966,7 +972,26 @@ Please check your local CLI tool authentication status`,
                 {t('team.interruptAndSend')}
               </Button>
             )}
-            {tokenUsage ? <ContextUsageIndicator tokenUsage={tokenUsage} context_limit={context_limit} /> : undefined}
+            {tokenUsage ? (
+              backend === 'claude' ? (
+                <ContextCompaction
+                  key={conversation_id}
+                  conversationId={conversation_id}
+                  tokenUsage={tokenUsage}
+                  contextLimit={context_limit}
+                  disabled={
+                    !commandQueueRuntimeGate.hydrated ||
+                    isBusy ||
+                    aiProcessing ||
+                    Boolean(teamRuntime?.loading) ||
+                    isQueueInteractionLocked
+                  }
+                  send={(onAccepted) => executeCommand({ input: '/compact', files: [] }, onAccepted)}
+                />
+              ) : (
+                <ContextUsageIndicator tokenUsage={tokenUsage} context_limit={context_limit} />
+              )
+            ) : undefined}
           </>
         }
         onAddToDraft={handleAddToQueue}

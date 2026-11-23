@@ -599,7 +599,16 @@
     "output": "Salida",
     "thought": "Razonamiento",
     "cachedRead": "Lectura de caché",
-    "cachedWrite": "Escritura de caché"
+    "cachedWrite": "Escritura de caché",
+    "actions": "Uso y compactación del contexto",
+    "compactNow": "Compactar ahora",
+    "compactRunning": "Compactando conversación",
+    "compactComplete": "Compactación completada",
+    "compactWaiting": "Compactación completada · esperando actualización del uso",
+    "compactUnconfirmed": "No se pudo confirmar la compactación. Revisa la respuesta en la conversación.",
+    "compactFailed": "No se pudo procesar la solicitud de compactación. Inténtalo de nuevo.",
+    "compactBusy": "La compactación estará disponible cuando la IA termine de trabajar.",
+    "compactHint": "Resume la conversación para reducir el contexto de la siguiente solicitud."
   },
   "skill_generator": {
     "title": "Generar habilidad/regla",

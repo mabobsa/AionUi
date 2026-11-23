@@ -598,7 +598,16 @@
     "output": "Sortie",
     "thought": "Réflexion",
     "cachedRead": "Lecture du cache",
-    "cachedWrite": "Écriture du cache"
+    "cachedWrite": "Écriture du cache",
+    "actions": "Utilisation et compression du contexte",
+    "compactNow": "Compresser maintenant",
+    "compactRunning": "Compression de la conversation",
+    "compactComplete": "Compression terminée",
+    "compactWaiting": "Compression terminée · mise à jour de l’utilisation en attente",
+    "compactUnconfirmed": "La compression n’a pas pu être confirmée. Vérifiez la réponse dans la conversation.",
+    "compactFailed": "La demande de compression n’a pas pu être traitée. Réessayez.",
+    "compactBusy": "La compression est disponible lorsque l’IA a terminé son travail.",
+    "compactHint": "Résumer la conversation pour réduire le contexte de la prochaine requête."
   },
   "skill_generator": {
     "title": "Générer une compétence/règle",
