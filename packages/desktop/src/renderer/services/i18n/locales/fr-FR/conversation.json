@@ -826,6 +826,11 @@
     "greeting": "Bonjour ! Dites-moi ce dont vous avez besoin et je commence."
   },
   "crossSession": {
+    "mainMachine": "Principale",
+    "subMachine": "Secondaire",
+    "remoteMachine": "Machine distante",
+    "openInWeb": "Ouvrir la conversation dans le navigateur",
+    "remoteAddressUnavailable": "L’adresse web de la machine expéditrice est indisponible",
     "mentionAgain": "Mentionner la conversation {{name}} dans la zone de saisie",
     "mentionAgainHint": "Cliquez pour mentionner cette conversation dans la zone de saisie",
     "mentionUnavailable": "Cette conversation ne peut plus être mentionnée.",

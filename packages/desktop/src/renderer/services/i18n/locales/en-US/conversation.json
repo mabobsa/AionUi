@@ -826,6 +826,11 @@
     "greeting": "Hi! Tell me what you need and I'll get started."
   },
   "crossSession": {
+    "mainMachine": "Main",
+    "subMachine": "Sub",
+    "remoteMachine": "Remote machine",
+    "openInWeb": "Open conversation in browser",
+    "remoteAddressUnavailable": "The sender machine’s web address is unavailable",
     "mentionAgain": "Mention conversation {{name}} in the message box",
     "mentionAgainHint": "Click to mention this conversation in the message box",
     "mentionUnavailable": "That conversation can no longer be mentioned.",

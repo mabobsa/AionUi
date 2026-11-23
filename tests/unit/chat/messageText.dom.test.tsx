@@ -792,6 +792,73 @@ describe('MessageText session message navigation', () => {
       'The delegated work is complete.',
     ].join('\n');
 
+  const remoteDeliveryContent = (source: unknown) =>
+    deliveryContent('sender-123', 'Sender').replace(
+      '[[AION_SESSION_MESSAGE]]',
+      `[[AION_SESSION_MESSAGE]]\nsource: ${JSON.stringify(source)}`
+    );
+
+  it.each([
+    ['main', 'main', '메인 PC'],
+    ['sub', 'mac', 'MacBook'],
+    ['sub', 'lab', '실험 PC'],
+  ])('shows the %s machine (%s) and opens its web conversation', (role, id, name) => {
+    const externalUrl = `https://${id}.example/#/conversation/sender-123`;
+    renderSessionMessage(remoteDeliveryContent({ machineRole: role, machineId: id, machineName: name, externalUrl }));
+    expect(screen.getByTitle(id)).toHaveTextContent(`conversation.crossSession.${role}Machine · ${name}`);
+    fireEvent.click(screen.getByRole('button', { name: 'From conversation Sender' }));
+    expect(openExternalUrl).toHaveBeenCalledWith(externalUrl);
+    expect(forkMocks.navigate).not.toHaveBeenCalled();
+  });
+
+  it('does not highlight a local conversation with the same ID as a remote session sender', () => {
+    renderSessionMessage(
+      remoteDeliveryContent({
+        machineRole: 'sub',
+        machineName: 'MacBook',
+        externalUrl: 'https://mac.example/#/conversation/sender-123',
+      })
+    );
+    const badge = screen.getByRole('button', { name: 'From conversation Sender' });
+    fireEvent.mouseEnter(badge);
+    fireEvent.focus(badge);
+    expect(screen.getByTestId('highlight-sender-123')).toHaveTextContent('none');
+  });
+
+  it.each([null, 'javascript:alert(1)', 'https://mac.example/#/conversation/wrong-id'])(
+    'disables navigation when the remote session URL is unavailable or unsafe (%s)',
+    (externalUrl) => {
+      renderSessionMessage(remoteDeliveryContent({ machineName: 'MacBook', externalUrl }));
+      const badge = screen.getByRole('button', { name: 'From conversation Sender' });
+      expect(badge).toBeDisabled();
+      fireEvent.click(badge);
+      expect(openExternalUrl).not.toHaveBeenCalled();
+      expect(forkMocks.navigate).not.toHaveBeenCalled();
+    }
+  );
+
+  it('shows the legacy machine name without navigating to an unrelated local conversation', () => {
+    renderSessionMessage(
+      deliveryContent(
+        'sender-123',
+        'Sender',
+        "/work on another machine (MacBook); don't use relative paths, don't assume readable"
+      )
+    );
+    expect(screen.getByText('conversation.crossSession.remoteMachine · MacBook')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'From conversation Sender' })).toBeDisabled();
+  });
+
+  it.each(['{Enter}', ' '])('opens a remote session source in the browser with the %s key', async (key) => {
+    const user = userEvent.setup();
+    const externalUrl = 'https://mac.example/#/conversation/sender-123';
+    renderSessionMessage(remoteDeliveryContent({ machineRole: 'sub', machineName: 'MacBook', externalUrl }));
+    screen.getByRole('button', { name: 'From conversation Sender' }).focus();
+    await user.keyboard(key);
+    expect(openExternalUrl).toHaveBeenCalledWith(externalUrl);
+    expect(forkMocks.navigate).not.toHaveBeenCalled();
+  });
+
   it.each([
     ['session', deliveryContent()],
     ['delegation', mnpContent({ kind: 'delegation', conversationId: 'sender-123' })],

@@ -828,6 +828,11 @@
     "greeting": "Merhaba! Ne istediğinizi söyleyin, hemen başlayayım."
   },
   "crossSession": {
+    "mainMachine": "Ana",
+    "subMachine": "Alt",
+    "remoteMachine": "Uzak makine",
+    "openInWeb": "Sohbeti tarayıcıda aç",
+    "remoteAddressUnavailable": "Gönderen makinenin web adresi kullanılamıyor",
     "mentionAgain": "{{name}} sohbetini mesaj alanında an",
     "mentionAgainHint": "Bu sohbeti mesaj alanında anmak için tıklayın",
     "mentionUnavailable": "Bu sohbet artık anılamıyor.",

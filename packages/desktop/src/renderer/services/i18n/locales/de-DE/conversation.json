@@ -827,6 +827,11 @@
     "greeting": "Hallo! Sag mir, was du brauchst, und ich lege los."
   },
   "crossSession": {
+    "mainMachine": "Hauptrechner",
+    "subMachine": "Nebenrechner",
+    "remoteMachine": "Remote-Rechner",
+    "openInWeb": "Gespräch im Browser öffnen",
+    "remoteAddressUnavailable": "Die Webadresse des sendenden Rechners ist nicht verfügbar",
     "mentionAgain": "Unterhaltung {{name}} im Eingabefeld erwähnen",
     "mentionAgainHint": "Klicken, um diese Unterhaltung im Eingabefeld zu erwähnen",
     "mentionUnavailable": "Diese Unterhaltung kann nicht mehr erwähnt werden.",

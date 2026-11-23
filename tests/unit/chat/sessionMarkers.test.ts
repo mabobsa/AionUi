@@ -165,7 +165,70 @@ describe('parseConversationSourceBlock', () => {
   });
 });
 
+const remoteContent = (metadata: unknown, body = '메시지 본문') =>
+  [
+    '[[AION_SESSION_MESSAGE]]',
+    `source: ${JSON.stringify(metadata)}`,
+    'from: 발신 대화\tsender-1',
+    "workspace: /work on another machine (MacBook); don't use relative paths, don't assume readable",
+    'reply_to: sender-1',
+    '[[/AION_SESSION_MESSAGE]]',
+    body,
+  ].join('\n');
+
 describe('parseSessionMessageBlock', () => {
+  it.each([
+    ['main', 'main', '메인 PC'],
+    ['sub', 'mac', 'MacBook'],
+    ['sub', 'lab', '실험 PC'],
+  ])('preserves the %s machine identity and sender web URL (%s)', (role, id, name) => {
+    const externalUrl = `https://${id}.example/#/conversation/sender-1`;
+    const parsed = parseSessionMessageBlock(
+      remoteContent({ machineRole: role, machineId: id, machineName: name, externalUrl })
+    );
+    expect(parsed.source).toMatchObject({
+      machine: { id, name, role },
+      externalUrl,
+      fromId: 'sender-1',
+      replyTo: 'sender-1',
+    });
+    expect(parsed.text).toBe('메시지 본문');
+  });
+
+  it.each([
+    null,
+    'javascript:alert(1)',
+    'aionui://conversation/sender-1',
+    'https://user:password@example.com/#/conversation/sender-1',
+    'https://example.com/?token=secret#/conversation/sender-1',
+    'https://example.com/#/conversation/other-id',
+    '/conversation/sender-1',
+  ])('keeps a remote source non-local when its URL is missing or unsafe: %s', (externalUrl) => {
+    const parsed = parseSessionMessageBlock(remoteContent({ machineName: 'MacBook', externalUrl }));
+    expect(parsed.source?.externalUrl).toBeNull();
+    expect(parsed.text).toBe('메시지 본문');
+  });
+
+  it.each([null, [], 'broken'])('does not turn malformed remote metadata into local navigation: %j', (metadata) => {
+    expect(parseSessionMessageBlock(remoteContent(metadata)).source?.externalUrl).toBeNull();
+  });
+
+  it('retains marker text inside a JSON machine label and handles Windows newlines', () => {
+    const name = 'MacBook [[/AION_SESSION_MESSAGE]]';
+    const parsed = parseSessionMessageBlock(remoteContent({ machineName: name }).replaceAll('\n', '\r\n'));
+    expect(parsed.source?.machine?.name).toBe(name);
+    expect(parsed.text).toBe('메시지 본문');
+  });
+
+  it('recognizes legacy cross-machine messages without guessing their role or address', () => {
+    const content = remoteContent({})
+      .split('\n')
+      .filter((line) => !line.startsWith('source: '))
+      .join('\n');
+    expect(parseSessionMessageBlock(content).source).toMatchObject({ machine: { name: 'MacBook' }, externalUrl: null });
+    expect(parseSessionMessageBlock(content).source?.machine?.role).toBeUndefined();
+  });
+
   it('extracts the source and strips the block', () => {
     const content = [
       '[[AION_SESSION_MESSAGE]]',

@@ -826,6 +826,11 @@
     "greeting": "こんにちは！ご要望を教えてください。すぐに取りかかります。"
   },
   "crossSession": {
+    "mainMachine": "メイン",
+    "subMachine": "サブ",
+    "remoteMachine": "リモート端末",
+    "openInWeb": "ブラウザーで会話を開く",
+    "remoteAddressUnavailable": "送信元端末のウェブアドレスを確認できません",
     "mentionAgain": "入力欄で会話 {{name}} にメンション",
     "mentionAgainHint": "クリックしてこの会話を入力欄でメンション",
     "mentionUnavailable": "この会話はメンションできなくなりました",

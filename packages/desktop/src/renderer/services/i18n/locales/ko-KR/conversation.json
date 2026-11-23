@@ -826,6 +826,11 @@
     "greeting": "안녕하세요! 필요한 것을 말씀해 주시면 바로 시작하겠습니다."
   },
   "crossSession": {
+    "mainMachine": "메인",
+    "subMachine": "서브",
+    "remoteMachine": "원격 머신",
+    "openInWeb": "웹에서 대화 열기",
+    "remoteAddressUnavailable": "발신 머신의 웹 주소를 확인할 수 없습니다",
     "mentionAgain": "입력창에서 대화 {{name}} 멘션",
     "mentionAgainHint": "클릭하여 이 대화를 입력창에서 멘션",
     "mentionUnavailable": "해당 대화는 더 이상 멘션할 수 없습니다",

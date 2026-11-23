@@ -826,6 +826,11 @@
     "greeting": "你好！說說你的需求，我這就開始。"
   },
   "crossSession": {
+    "mainMachine": "主機",
+    "subMachine": "子機",
+    "remoteMachine": "遠端裝置",
+    "openInWeb": "在瀏覽器中開啟對話",
+    "remoteAddressUnavailable": "無法取得傳送方裝置的網頁位址",
     "mentionAgain": "在輸入框中提及對話 {{name}}",
     "mentionAgainHint": "點擊以在輸入框中提及此對話",
     "mentionUnavailable": "該對話已無法提及",

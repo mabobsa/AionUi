@@ -361,16 +361,35 @@ const MessageText: React.FC<{
         )}
         {deliverySource && (
           <div
-            className={classNames('mb-4px flex items-center gap-4px text-12px text-t-secondary', {
+            className={classNames('mb-4px flex flex-wrap justify-end items-center gap-4px text-12px text-t-secondary', {
               'self-end': isUserMessage,
             })}
           >
+            {deliverySource.machine && (
+              <span className='px-4px rounded-4px bg-fill-2' title={deliverySource.machine.id}>
+                {t(
+                  deliverySource.machine.role === 'main'
+                    ? 'conversation.crossSession.mainMachine'
+                    : deliverySource.machine.role === 'sub'
+                      ? 'conversation.crossSession.subMachine'
+                      : 'conversation.crossSession.remoteMachine'
+                )}
+                {deliverySource.machine.name && ` · ${deliverySource.machine.name}`}
+              </span>
+            )}
             <Button
               type='text'
               size='mini'
               className='!h-auto !p-0 !text-12px !text-t-secondary'
               {...sourcePreview}
               disabled={deliverySource.externalUrl === null}
+              title={
+                deliverySource.externalUrl === null
+                  ? t('conversation.crossSession.remoteAddressUnavailable')
+                  : deliverySource.externalUrl
+                    ? t('conversation.crossSession.openInWeb')
+                    : undefined
+              }
               onClick={() => {
                 if (deliverySource.externalUrl) {
                   void openExternalUrl(deliverySource.externalUrl).catch(console.error);

@@ -24,7 +24,52 @@ export type SessionDeliverySource = {
   replyTo: string;
   // Undefined means local; null means a remote source without a usable URL.
   externalUrl?: string | null;
+  machine?: { id?: string; name: string; role?: 'main' | 'sub' };
 };
+
+/** Only open the sender's web conversation, never a protocol handler or a different ID. */
+function conversationWebUrl(value: unknown, conversationId: string): string | null {
+  if (typeof value !== 'string') return null;
+  try {
+    const url = new URL(value);
+    if (
+      !['http:', 'https:'].includes(url.protocol) ||
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash !== `#/conversation/${encodeURIComponent(conversationId)}`
+    )
+      return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function parseRemoteSource(
+  value: string,
+  conversationId: string
+): Pick<SessionDeliverySource, 'machine' | 'externalUrl'> {
+  try {
+    const source: unknown = JSON.parse(value);
+    if (source && typeof source === 'object' && !Array.isArray(source)) {
+      const fields = source as Record<string, unknown>;
+      const id = typeof fields.machineId === 'string' ? fields.machineId.trim() : '';
+      const name = typeof fields.machineName === 'string' ? fields.machineName.trim() : '';
+      return {
+        externalUrl: conversationWebUrl(fields.externalUrl, conversationId),
+        machine: {
+          ...(id ? { id } : {}),
+          name: name || id,
+          ...(fields.machineRole === 'main' || fields.machineRole === 'sub' ? { role: fields.machineRole } : {}),
+        },
+      };
+    }
+  } catch {
+    // An unreadable remote source must not fall back to a possibly colliding local ID.
+  }
+  return { externalUrl: null };
+}
 
 /**
  * Locate a marker-delimited block and return the text with it removed.
@@ -40,8 +85,12 @@ function extractBlock(
 ): { body: string[]; text: string } | null {
   const startIndex = content.indexOf(startMarker);
   if (startIndex === -1) return null;
-  const endIndex = content.indexOf(endMarker, startIndex + startMarker.length);
-  if (endIndex === -1) return null;
+  // Marker text inside a JSON label is not the closing delimiter.
+  const closing = new RegExp(`^${endMarker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\r?$`, 'm').exec(
+    content.slice(startIndex + startMarker.length)
+  );
+  if (!closing) return null;
+  const endIndex = startIndex + startMarker.length + closing.index;
 
   const inner = content.slice(startIndex + startMarker.length, endIndex);
   const before = content.slice(0, startIndex);
@@ -92,6 +141,7 @@ export function parseSessionMessageBlock(content: string): { text: string; sourc
   let fromId = '';
   let workspace = '';
   let replyTo = '';
+  let remoteSource: string | undefined;
   for (const line of block.body) {
     if (line.startsWith('from: ')) {
       const [name, id] = line.slice('from: '.length).split('\t');
@@ -103,6 +153,8 @@ export function parseSessionMessageBlock(content: string): { text: string; sourc
       // The value is followed by a tab and the short reply hint meant for the
       // agent; the UI only needs the address.
       replyTo = line.slice('reply_to: '.length).split('\t')[0] ?? '';
+    } else if (line.startsWith('source: ')) {
+      remoteSource = line.slice('source: '.length);
     }
   }
 
@@ -112,7 +164,17 @@ export function parseSessionMessageBlock(content: string): { text: string; sourc
     return { text: content, source: null };
   }
 
-  return { text: block.text, source: { fromName, fromId, workspace, replyTo } };
+  // Older Core versions only persisted the machine label in the workspace warning.
+  const legacyMachine = / on another machine \((.*)\); don't use relative paths, don't assume readable$/.exec(
+    workspace
+  );
+  const remote =
+    remoteSource !== undefined
+      ? parseRemoteSource(remoteSource, fromId)
+      : legacyMachine
+        ? { externalUrl: null, machine: { name: legacyMachine[1] } }
+        : {};
+  return { text: block.text, source: { fromName, fromId, workspace, replyTo, ...remote } };
 }
 
 /** Parse the outer sender of a session message or an MnP delegation/report. */
@@ -143,16 +205,8 @@ export function parseConversationSourceBlock(content: string): { text: string; s
     if (source.externalUrl === null) {
       externalUrl = null;
     } else if (source.externalUrl !== undefined) {
-      if (typeof source.externalUrl !== 'string') return unchanged;
-      const url = new URL(source.externalUrl);
-      if (
-        !['http:', 'https:'].includes(url.protocol) ||
-        url.username ||
-        url.password ||
-        url.hash !== `#/conversation/${encodeURIComponent(fromId)}`
-      )
-        return unchanged;
-      externalUrl = url.toString();
+      externalUrl = conversationWebUrl(source.externalUrl, fromId);
+      if (!externalUrl) return unchanged;
     }
     return {
       text: content.slice(block[0].length).trim(),

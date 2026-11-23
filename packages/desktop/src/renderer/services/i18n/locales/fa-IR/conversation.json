@@ -826,6 +826,11 @@
     "greeting": "سلام! بگویید چه نیاز دارید تا شروع کنم."
   },
   "crossSession": {
+    "mainMachine": "اصلی",
+    "subMachine": "فرعی",
+    "remoteMachine": "دستگاه راه دور",
+    "openInWeb": "باز کردن گفتگو در مرورگر",
+    "remoteAddressUnavailable": "نشانی وب دستگاه فرستنده در دسترس نیست",
     "mentionAgain": "اشاره به گفتگوی {{name}} در کادر پیام",
     "mentionAgainHint": "برای اشاره به این گفتگو در کادر پیام کلیک کنید",
     "mentionUnavailable": "دیگر نمی‌توان به آن گفتگو اشاره کرد.",

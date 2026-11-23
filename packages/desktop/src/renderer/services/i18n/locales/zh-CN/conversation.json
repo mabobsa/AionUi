@@ -826,6 +826,11 @@
     "greeting": "你好！说说你的需求，我这就开始。"
   },
   "crossSession": {
+    "mainMachine": "主机",
+    "subMachine": "子机",
+    "remoteMachine": "远程设备",
+    "openInWeb": "在浏览器中打开对话",
+    "remoteAddressUnavailable": "无法获取发送方设备的网页地址",
     "mentionAgain": "在输入框中提及会话 {{name}}",
     "mentionAgainHint": "点击以在输入框中提及此会话",
     "mentionUnavailable": "该会话已无法提及",
