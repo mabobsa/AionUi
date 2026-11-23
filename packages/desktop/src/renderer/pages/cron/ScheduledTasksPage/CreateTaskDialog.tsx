@@ -28,6 +28,9 @@ import { resolveAssistantAvatar } from '@renderer/utils/model/assistantAvatar';
 import { resolveAssistantName } from '@renderer/utils/model/assistantDisplay';
 import { resolveCronAgentConfig } from './resolveCronAgentConfig';
 import { assistantRuntimeKey, isAionrsAssistant } from '@/common/types/agent/assistantTypes';
+import { DEFAULT_CLAUDE_ACCOUNT_ID } from '@/common/types/platform/claudeAccount';
+import { selectClaudeAccounts } from '@renderer/pages/conversation/platforms/acp/claudeAccounts/useClaudeAccounts';
+import { ClaudeAccountBadge } from '@renderer/pages/conversation/platforms/acp/claudeAccounts/ClaudeAccountBadge';
 
 const FormItem = Form.Item;
 const TextArea = Input.TextArea;
@@ -244,6 +247,7 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const { presetAssistants } = useConversationAssistants();
   const managedAgentRuntimeCatalog = useManagedAgentRuntimeCatalog();
+  const claudeAccounts = selectClaudeAccounts(managedAgentRuntimeCatalog);
   const { providers, getAvailableModels } = useModelProviderList();
   const [frequency, setFrequency] = useState<FrequencyType>('manual');
   const [time, setTime] = useState('09:00');
@@ -261,6 +265,7 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
   const [config_options, setConfigOptions] = useState<Record<string, string> | undefined>(undefined);
   const [workspace, setWorkspace] = useState<string | undefined>(undefined);
   const [selectedAssistantId, setSelectedAssistantId] = useState<string | undefined>(undefined);
+  const [claudeAccountId, setClaudeAccountId] = useState<string | undefined>(undefined);
 
   // Reset transient state whenever the dialog opens. Assistant resolution
   // for edit mode runs in a separate effect — keeping it here would re-fire
@@ -278,6 +283,7 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
       setExecutionMode(editJob.target.execution_mode || 'existing');
       setQueueEnabled(editJob.state.queue_enabled);
       setSelectedAssistantId(agentKey);
+      setClaudeAccountId(editJob.metadata.agent_config?.claude_account_id);
       setAdvancedOpen(
         Boolean(
           editJob.metadata.agent_config?.model_id ||
@@ -308,6 +314,7 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
       setConfigOptions(undefined);
       setWorkspace(undefined);
       setSelectedAssistantId(undefined);
+      setClaudeAccountId(undefined);
       setTeamOwnershipStatus('standalone');
     }
   }, [visible, editJob, form]);
@@ -514,6 +521,7 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
       setModelId(undefined);
       setConfigOptions(undefined);
       // Workspace remains unchanged (agent-agnostic)
+      setClaudeAccountId(undefined);
     },
     [form]
   );
@@ -548,6 +556,7 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
               }
             : undefined,
           model_id,
+          claude_account_id: resolvedBackend === 'claude' ? claudeAccountId : undefined,
           config_options,
           workspace,
           localeKey,
@@ -697,6 +706,24 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
               </p>
             )}
           </FormItem>
+
+          {canEditAgentConfig && resolvedBackend === 'claude' && claudeAccounts && (
+            <FormItem label={t('guid.claudeAccount.label')}>
+              <Select
+                data-testid='cron-claude-account-select'
+                aria-label={t('guid.claudeAccount.label')}
+                value={claudeAccountId ?? DEFAULT_CLAUDE_ACCOUNT_ID}
+                disabled={!canEditAgentConfig}
+                onChange={setClaudeAccountId}
+              >
+                {claudeAccounts.map((account) => (
+                  <Option key={account.id} value={account.id}>
+                    <ClaudeAccountBadge account={account} variant='tag' />
+                  </Option>
+                ))}
+              </Select>
+            </FormItem>
+          )}
 
           <FormItem label={t('cron.page.form.executionMode')}>
             <Radio.Group

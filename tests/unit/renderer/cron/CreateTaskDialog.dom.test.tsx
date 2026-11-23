@@ -11,8 +11,14 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Assistant } from '@/common/types/agent/assistantTypes';
 import type { ICronJob } from '@/common/adapter/ipcBridge';
 import type { TChatConversation } from '@/common/config/storage';
+import type { ManagedAgent } from '@/renderer/utils/model/agentTypes';
 
 let currentAssistants: Assistant[] = [];
+let currentManagedAgents: ManagedAgent[] = [];
+
+vi.mock('@/renderer/hooks/agent/useManagedAgents', () => ({
+  useManagedAgentRuntimeCatalog: () => currentManagedAgents,
+}));
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -107,15 +113,12 @@ vi.mock('@renderer/utils/model/agentTypeSupportPolicy', () => ({
   resolveSupportedConversationType: () => 'acp',
 }));
 
-vi.mock('@renderer/pages/cron/ScheduledTasksPage/resolveCronAgentConfig', () => ({
-  resolveCronAgentConfig: vi.fn(() => ({
-    agent_config: {
-      assistant_id: 'assistant-1',
-      name: '问好助手',
-      mode: 'default',
-    },
-  })),
-}));
+vi.mock('@renderer/pages/cron/ScheduledTasksPage/resolveCronAgentConfig', async () => {
+  const actual = await vi.importActual<
+    typeof import('@/renderer/pages/cron/ScheduledTasksPage/resolveCronAgentConfig')
+  >('@renderer/pages/cron/ScheduledTasksPage/resolveCronAgentConfig');
+  return { ...actual, resolveCronAgentConfig: vi.fn(actual.resolveCronAgentConfig) };
+});
 
 import { ipcBridge } from '@/common';
 import CreateTaskDialog from '@/renderer/pages/cron/ScheduledTasksPage/CreateTaskDialog';
@@ -141,6 +144,7 @@ describe('CreateTaskDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     currentAssistants = assistants();
+    currentManagedAgents = [];
     vi.mocked(ipcBridge.cron.addJob.invoke).mockResolvedValue(job());
     vi.mocked(ipcBridge.cron.updateJob.invoke).mockResolvedValue(job());
     vi.mocked(ipcBridge.cron.createJob.invoke).mockResolvedValue(job());
@@ -152,6 +156,106 @@ describe('CreateTaskDialog', () => {
 
     expect(await screen.findByText('cron.page.form.name')).toBeInTheDocument();
     expect(screen.queryByText('cron.page.form.description')).not.toBeInTheDocument();
+  });
+
+  it.each([0, 1])('keeps Claude account selection absent with %i advertised accounts', async (count) => {
+    currentAssistants = [claudeAssistant()];
+    currentManagedAgents = claudeCatalog(count);
+    render(<CreateTaskDialog visible onClose={() => {}} editJob={job()} />);
+
+    expect(screen.queryByTestId('cron-claude-account-select')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByTestId('modal-ok'));
+    await waitFor(() => expect(ipcBridge.cron.updateJob.invoke).toHaveBeenCalledTimes(1));
+    expect(
+      vi.mocked(ipcBridge.cron.updateJob.invoke).mock.calls[0][0].updates.metadata?.agent_config
+    ).not.toHaveProperty('claude_account_id');
+  });
+
+  it('does not show Claude accounts for a Codex assistant even with multiple accounts', () => {
+    currentManagedAgents = claudeCatalog(2);
+    render(<CreateTaskDialog visible onClose={() => {}} editJob={job()} />);
+    expect(screen.queryByTestId('cron-claude-account-select')).not.toBeInTheDocument();
+  });
+
+  it('creates a task with the selected second Claude account', async () => {
+    const user = userEvent.setup();
+    currentAssistants = [claudeAssistant()];
+    currentManagedAgents = claudeCatalog(2);
+    render(<CreateTaskDialog visible onClose={() => {}} />);
+    await user.type(screen.getByPlaceholderText('cron.page.form.namePlaceholder'), 'Account task');
+    await user.type(screen.getByPlaceholderText('cron.page.form.promptPlaceholder'), 'Say hello');
+    await user.click(screen.getByTestId('cron-assistant-select'));
+    fireEvent.click(await screen.findByText('Claude'));
+    await user.click(await screen.findByTestId('cron-claude-account-select'));
+    fireEvent.click(await screen.findByText('개인 Max'));
+    await user.click(screen.getByTestId('modal-ok'));
+
+    await waitFor(() => expect(ipcBridge.cron.addJob.invoke).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(ipcBridge.cron.addJob.invoke).mock.calls[0][0].agent_config?.claude_account_id).toBe('max');
+  });
+
+  it('restores the saved account in edit mode and can switch back to default', async () => {
+    const user = userEvent.setup();
+    currentAssistants = [claudeAssistant()];
+    currentManagedAgents = claudeCatalog(2);
+    const editJob = job();
+    editJob.metadata.agent_config!.claude_account_id = 'max';
+    render(<CreateTaskDialog visible onClose={() => {}} editJob={editJob} />);
+    expect(screen.getByTestId('cron-claude-account-select')).toHaveTextContent('개인 Max');
+    await user.click(screen.getByTestId('cron-claude-account-select'));
+    fireEvent.click(await screen.findByText('회사 Team'));
+    await user.click(screen.getByTestId('modal-ok'));
+
+    await waitFor(() => expect(ipcBridge.cron.updateJob.invoke).toHaveBeenCalledTimes(1));
+    expect(
+      vi.mocked(ipcBridge.cron.updateJob.invoke).mock.calls[0][0].updates.metadata?.agent_config
+    ).not.toHaveProperty('claude_account_id');
+  });
+
+  it('does not carry a saved Claude account into another assistant', async () => {
+    const user = userEvent.setup();
+    currentAssistants = [claudeAssistant(), bareAssistant()];
+    currentManagedAgents = claudeCatalog(2);
+    const editJob = job();
+    editJob.metadata.agent_config!.claude_account_id = 'max';
+    render(<CreateTaskDialog visible onClose={() => {}} editJob={editJob} />);
+    await user.click(screen.getByTestId('cron-assistant-select'));
+    fireEvent.click(await screen.findByText('代码助手'));
+    expect(screen.queryByTestId('cron-claude-account-select')).not.toBeInTheDocument();
+    await user.click(screen.getByTestId('modal-ok'));
+
+    await waitFor(() => expect(ipcBridge.cron.updateJob.invoke).toHaveBeenCalledTimes(1));
+    expect(
+      vi.mocked(ipcBridge.cron.updateJob.invoke).mock.calls[0][0].updates.metadata?.agent_config
+    ).not.toHaveProperty('claude_account_id');
+  });
+
+  it('preserves a saved account when the catalog is temporarily unavailable', async () => {
+    currentAssistants = [claudeAssistant()];
+    const editJob = job();
+    editJob.metadata.agent_config!.claude_account_id = 'max';
+    render(<CreateTaskDialog visible onClose={() => {}} editJob={editJob} />);
+    await userEvent.click(screen.getByTestId('modal-ok'));
+
+    await waitFor(() => expect(ipcBridge.cron.updateJob.invoke).toHaveBeenCalledTimes(1));
+    expect(
+      vi.mocked(ipcBridge.cron.updateJob.invoke).mock.calls[0][0].updates.metadata?.agent_config?.claude_account_id
+    ).toBe('max');
+  });
+
+  it('keeps ongoing conversation account selection locked', async () => {
+    currentAssistants = [claudeAssistant()];
+    currentManagedAgents = claudeCatalog(2);
+    const editJob = ongoingConversationJob();
+    editJob.metadata.agent_config!.claude_account_id = 'max';
+    render(<CreateTaskDialog visible onClose={() => {}} editJob={editJob} />);
+    expect(screen.queryByTestId('cron-claude-account-select')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByTestId('modal-ok'));
+
+    await waitFor(() => expect(ipcBridge.cron.updateJob.invoke).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(ipcBridge.cron.updateJob.invoke).mock.calls[0][0].updates.metadata).not.toHaveProperty(
+      'agent_config'
+    );
   });
 
   it('offers custom frequency when creating a task', async () => {
@@ -503,4 +607,26 @@ function bareAssistant(): Assistant {
     prompts_i18n: {},
     models: [],
   } as Assistant;
+}
+
+function claudeAssistant(): Assistant {
+  return {
+    ...assistants()[0],
+    name: 'Claude',
+    agent_id: 'agent-claude',
+    agent: { type: 'acp', source: 'builtin', acp_backend: 'claude' },
+  };
+}
+
+function claudeCatalog(count: number): ManagedAgent[] {
+  return [
+    {
+      id: 'agent-claude',
+      backend: 'claude',
+      claude_accounts: [
+        { id: 'default', number: 1, label: '회사 Team' },
+        { id: 'max', number: 2, label: '개인 Max' },
+      ].slice(0, count),
+    } as ManagedAgent,
+  ];
 }

@@ -5,7 +5,8 @@
  */
 
 import type { ICronAgentConfigWrite } from '@/common/adapter/ipcBridge';
-import { isAionrsAssistant, type Assistant } from '@/common/types/agent/assistantTypes';
+import { assistantRuntimeKey, isAionrsAssistant, type Assistant } from '@/common/types/agent/assistantTypes';
+import { claudeAccountExtra } from '@renderer/pages/conversation/platforms/acp/claudeAccounts/useClaudeAccounts';
 import { resolveAssistantName } from '@renderer/utils/model/assistantDisplay';
 
 type SelectedAionrsProvider = {
@@ -18,6 +19,7 @@ type ResolveCronAgentConfigInput = {
   presetAssistants: Assistant[];
   selectedAionrsProvider?: SelectedAionrsProvider;
   model_id?: string;
+  claude_account_id?: string;
   config_options?: Record<string, string>;
   workspace?: string;
   localeKey?: string;
@@ -79,6 +81,7 @@ export function resolveCronAgentConfig(input: ResolveCronAgentConfigInput): Reso
       model_id,
       config_options,
       workspace,
+      ...(assistantRuntimeKey(assistant) === 'claude' ? claudeAccountExtra(input.claude_account_id) : {}),
     };
   }
 

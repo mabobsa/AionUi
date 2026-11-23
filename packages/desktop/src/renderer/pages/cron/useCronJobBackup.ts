@@ -63,6 +63,7 @@ export const toCronAgentConfigWrite = (config: ICronAgentConfigRead | undefined)
   if (!config) return undefined;
   return {
     name: config.name,
+    claude_account_id: config.claude_account_id,
     assistant_id: config.assistant_id ?? config.custom_agent_id,
     mode: config.mode,
     model_id: config.model_id,

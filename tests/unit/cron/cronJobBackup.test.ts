@@ -61,6 +61,12 @@ describe('cron job backup format', () => {
 });
 
 describe('cron job restore mapping', () => {
+  it('preserves Claude account selection when restoring and overwriting jobs', () => {
+    const job = makeJob();
+    job.metadata.agent_config!.claude_account_id = 'max';
+    expect(toCronJobCreateParams(job).agent_config?.claude_account_id).toBe('max');
+    expect(toCronJobUpdateParams(job, job).metadata?.agent_config?.claude_account_id).toBe('max');
+  });
   it('strips read-only agent config fields the backend rejects', () => {
     expect(toCronAgentConfigWrite(makeJob().metadata.agent_config)).toEqual({
       name: 'Claude',

@@ -1887,6 +1887,7 @@ export interface ICronJob {
 
 export interface ICronAgentConfigRead {
   name: string;
+  claude_account_id?: string;
   cli_path?: string;
   is_preset?: boolean;
   assistant_id?: string;
@@ -1907,6 +1908,7 @@ export interface ICronProviderModel {
 
 export interface ICronAgentConfigWrite {
   name: string;
+  claude_account_id?: string;
   assistant_id?: string;
   mode?: string;
   model_id?: string;
