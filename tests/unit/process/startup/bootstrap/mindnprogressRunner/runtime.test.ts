@@ -52,6 +52,73 @@ async function runClaimedOperations(
 
 describe('MindNProgress Runner runtime', () => {
   it.each([
+    { method: 'POST', pathname: '/api/conversations/chat-1/runtime/ensure' },
+    { method: 'GET', pathname: '/api/conversations/chat-1/runtime-config' },
+    { method: 'PUT', pathname: '/api/conversations/chat-1/config-options/model', body: { value: 'gpt-6-astra' } },
+    {
+      method: 'PUT',
+      pathname: '/api/conversations/chat-1/config-options/reasoning%2Feffort',
+      body: { value: 'xhigh' },
+    },
+    {
+      method: 'PUT',
+      pathname: '/api/conversations/chat-1/config-options/provider%3Amodel',
+      body: { value: 'model-name' },
+    },
+  ])('allows a narrowly scoped policy preparation request: $pathname', (request) => {
+    expect(normalizeRunnerOperationRequest(request)).toMatchObject(request);
+  });
+
+  it.each([
+    { method: 'GET', pathname: '/api/conversations/chat-1/runtime/ensure' },
+    { method: 'POST', pathname: '/api/conversations/chat-1/runtime-config' },
+    { method: 'PUT', pathname: '/api/conversations/chat-1/config-options' },
+    { method: 'DELETE', pathname: '/api/conversations/chat-1/config-options/model' },
+    { method: 'POST', pathname: '/api/conversations/chat-1/runtime/ensure?force=true' },
+    { method: 'POST', pathname: '/api/conversations/chat-1/runtime/ensure?' },
+    { method: 'POST', pathname: '/api/conversations/chat-1/runtime/ensure', body: {} },
+    { method: 'GET', pathname: '/api/conversations/chat-1/runtime-config', body: null },
+    { method: 'POST', pathname: '/api/conversations/chat%2D1/runtime/ensure' },
+    { method: 'POST', pathname: '/api/conversations/chat-1/other/../runtime/ensure' },
+    { method: 'POST', pathname: '/api/conversations/chat-1/%2e/runtime/ensure' },
+    { method: 'PUT', pathname: '/api/conversations/chat-1/config-options/model', body: { value: 'x', mode: 'unsafe' } },
+    { method: 'PUT', pathname: '/api/conversations/chat-1/config-options/model', body: { value: 1 } },
+    { method: 'PUT', pathname: '/api/conversations/chat-1/config-options/model', body: { value: '' } },
+    { method: 'PUT', pathname: '/api/conversations/chat-1/config-options/model', body: { value: 'x\n' } },
+    ...[
+      'reasoning/effort',
+      '%252F',
+      '%',
+      '%FF',
+      '%2E%2E',
+      'effort%2F..',
+      'model%3Fx=y',
+      'model%23x',
+      'model%5Cx',
+      'model/other',
+      '',
+    ].map((option) => ({
+      method: 'PUT',
+      pathname: `/api/conversations/chat-1/config-options/${option}`,
+      body: { value: 'xhigh' },
+    })),
+  ])('rejects malformed or broader policy access: $method $pathname', (request) => {
+    expect(() => normalizeRunnerOperationRequest(request)).toThrow(RunnerConfigError);
+  });
+
+  it('forwards policy requests but reports invalid policy bodies without calling Core', async () => {
+    const valid = { ...operation(), request: { method: 'POST', pathname: '/api/conversations/chat-1/runtime/ensure' } };
+    const invalid = { ...operation('operation_invalid'), request: { ...valid.request, body: { force: true } } };
+    const { callAionUi, reportResult } = await runClaimedOperations([valid, invalid]);
+    expect(callAionUi).toHaveBeenCalledTimes(1);
+    expect(reportResult).toHaveBeenCalledWith(
+      invalid.operationId,
+      { ok: false, status: null, code: 'RUNNER_OPERATION_REJECTED', message: 'Runner operation is not allowed.' },
+      invalid.resultToken
+    );
+  });
+
+  it.each([
     ['GET', '/api/sidebar/conversation/conversation-1/archive-state'],
     ['POST', '/api/sidebar/conversation/conversation-1/archive'],
   ])('allows verified conversation archiving: %s %s', (method, pathname) => {

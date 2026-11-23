@@ -254,6 +254,36 @@ function isAllowedLocalRequest(method: string, url: URL): boolean {
   return false;
 }
 
+// Only policy preparation endpoints are added here. Raw paths must be canonical so
+// URL normalization cannot turn traversal, encoded IDs or queries into permission.
+function isAllowedRuntimePolicyRequest(method: string, pathname: string, url: URL, body: unknown): boolean {
+  if (pathname !== url.pathname || url.search || url.hash) return false;
+  const match = pathname.match(
+    new RegExp(
+      `^/api/conversations/${AIONUI_ENTITY_ID_PATTERN}/(runtime/ensure|runtime-config|config-options/([^/]+))$`
+    )
+  );
+  if (!match) return false;
+  if (match[1] === 'runtime/ensure') return method === 'POST' && body === undefined;
+  if (match[1] === 'runtime-config') return method === 'GET' && body === undefined;
+  if (method !== 'PUT' || !isRecord(body) || Object.keys(body).length !== 1 || !Object.hasOwn(body, 'value'))
+    return false;
+  if (typeof body.value !== 'string' || !body.value || body.value.length > 2048 || /[\x00-\x1f\x7f]/.test(body.value))
+    return false;
+  try {
+    const option = decodeURIComponent(match[2]);
+    return (
+      option.length > 0 &&
+      option.length <= 160 &&
+      /^[\p{L}\p{N}_.:/-]+$/u.test(option) &&
+      option.split('/').every((part) => part !== '' && part !== '.' && part !== '..') &&
+      encodeURIComponent(option) === match[2]
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function normalizeRunnerOperationRequest(value: unknown): RunnerOperation['request'] {
   if (!isRecord(value)) throw new RunnerConfigError('Runner operation request is invalid.');
   const method = text(value.method).toUpperCase();
@@ -268,7 +298,10 @@ export function normalizeRunnerOperationRequest(value: unknown): RunnerOperation
   } catch {
     throw new RunnerConfigError('Runner operation path is invalid.');
   }
-  if (url.origin !== RUNNER_LOCAL_ORIGIN || !isAllowedLocalRequest(method, url)) {
+  if (
+    url.origin !== RUNNER_LOCAL_ORIGIN ||
+    !(isAllowedLocalRequest(method, url) || isAllowedRuntimePolicyRequest(method, pathname, url, value.body))
+  ) {
     throw new RunnerConfigError('Runner operation is not allowed.');
   }
 
