@@ -11,6 +11,9 @@ import { SWRConfig } from 'swr';
 import type { ManagedAgent } from '@/renderer/utils/model/agentTypes';
 
 let mockAgents: ManagedAgent[] = [];
+const { getArchiveState } = vi.hoisted(() => ({
+  getArchiveState: vi.fn().mockResolvedValue({ conversation_id: 'c1', exists: true, archived_at: null }),
+}));
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
@@ -26,7 +29,11 @@ vi.mock('@/renderer/services/FileService', () => ({
 vi.mock('@/common', () => ({
   ipcBridge: {
     dialog: { showOpen: { invoke: vi.fn().mockResolvedValue([]) } },
-    conversation: { get: { invoke: vi.fn(async () => maxConversation) } },
+    conversation: {
+      get: { invoke: vi.fn(async () => maxConversation) },
+      listChanged: { on: vi.fn(() => () => {}) },
+    },
+    sidebar: { getConversationArchiveState: { invoke: getArchiveState } },
   },
 }));
 vi.mock('@/renderer/hooks/agent/usePresetAssistantInfo', () => ({ usePresetAssistantInfo: () => ({ info: null }) }));
@@ -91,6 +98,7 @@ const MobileAccountStart = ({
 
 afterEach(() => {
   mockAgents = [];
+  getArchiveState.mockReset().mockResolvedValue({ conversation_id: 'c1', exists: true, archived_at: null });
 });
 
 describe('ConversationClaudeAccountBadge', () => {
@@ -135,6 +143,22 @@ describe('ConversationClaudeAccountBadge', () => {
     expect(badge).toHaveTextContent('2');
     expect(screen.getByText('모바일 대화')).toBeVisible();
     expect(screen.queryByText('conversation.claudeAccount.badgeTooltip')).not.toBeInTheDocument();
+  });
+
+  it('shows archive status next to the mobile conversation title and account number', async () => {
+    mockAgents = [claudeRow(twoAccounts)];
+    getArchiveState.mockResolvedValue({ conversation_id: 'c1', exists: true, archived_at: 10 });
+    render(
+      <SWRConfig value={{ provider: () => new Map() }}>
+        <MobileConversationBrand conversation_id='c1' fallbackTitle='모바일 대화' />
+      </SWRConfig>
+    );
+
+    expect(await screen.findByTestId('conversation-archive-badge')).toHaveTextContent(
+      'conversation.history.archiveSuccess'
+    );
+    expect(screen.getByTestId('claude-account-badge')).toHaveTextContent('2');
+    expect(screen.getByText('모바일 대화')).toBeVisible();
   });
 });
 

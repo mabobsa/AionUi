@@ -21,6 +21,13 @@
 
 import type { TChatConversation } from '@/common/config/storage';
 
+/** Authoritative archive state for one conversation, including direct-link navigation. */
+export type ConversationArchiveState = {
+  conversation_id: string;
+  exists: boolean;
+  archived_at: number | null;
+};
+
 /** Which section a group belongs to; the tag doubles as the group-head shape. */
 export type SidebarScope =
   | { type: 'pinned' }

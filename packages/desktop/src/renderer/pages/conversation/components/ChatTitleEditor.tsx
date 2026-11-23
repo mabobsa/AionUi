@@ -1,4 +1,5 @@
 import ConversationTitleMinimap from '@/renderer/pages/conversation/components/ConversationTitleMinimap';
+import ArchivedConversationBadge from './ChatLayout/ArchivedConversationBadge';
 import MindNProgressTitle from '@/renderer/pages/conversation/GroupedHistory/components/MindNProgressTitle';
 import { Input } from '@arco-design/web-react';
 import classNames from 'classnames';
@@ -67,6 +68,7 @@ const ChatTitleEditor: React.FC<ChatTitleEditorProps> = ({
     >
       {!editingTitle && leadingAction}
       {leading && <div className='shrink-0 flex items-center ps-8px'>{leading}</div>}
+      <ArchivedConversationBadge conversationId={conversation_id} className='ms-8px' />
       {editingTitle && canRenameTitle ? (
         <div className='min-w-0 flex-1 px-8px py-5px'>
           <Input

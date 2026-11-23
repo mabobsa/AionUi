@@ -2605,6 +2605,10 @@ export const team = {
 };
 
 export const sidebar = {
+  getConversationArchiveState: httpGet<
+    import('@/common/types/sidebar').ConversationArchiveState,
+    { conversation_id: string }
+  >((p) => `/api/sidebar/conversation/${encodeURIComponent(p.conversation_id)}/archive-state`),
   getArchiveRetention: httpGet<import('@/common/types/sidebar').ArchiveRetentionResponse, void>(
     '/api/sidebar/archive-retention'
   ),

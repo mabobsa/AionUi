@@ -13,6 +13,7 @@ import {
   useClaudeAccounts,
 } from '@/renderer/pages/conversation/platforms/acp/claudeAccounts';
 import { resolveConversationBackend } from '@/renderer/pages/conversation/utils/conversationAssistantIdentity';
+import ArchivedConversationBadge from '@/renderer/pages/conversation/components/ChatLayout/ArchivedConversationBadge';
 import classNames from 'classnames';
 import React from 'react';
 import useSWR from 'swr';
@@ -54,6 +55,7 @@ const MobileConversationBrand: React.FC<MobileConversationBrandProps> = ({ conve
           {claudeAccount && <ClaudeAccountBadge account={claudeAccount} tooltipEnabled={false} />}
         </span>
       )}
+      <ArchivedConversationBadge conversationId={conversation_id} />
       <span className='app-titlebar__brand-text'>{title}</span>
     </span>
   );

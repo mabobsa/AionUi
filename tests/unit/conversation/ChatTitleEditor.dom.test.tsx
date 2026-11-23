@@ -5,8 +5,39 @@
  */
 
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { SWRConfig } from 'swr';
+import type { ConversationArchiveState } from '@/common/types/sidebar';
+import { emitter } from '@/renderer/utils/emitter';
+
+const { getArchiveState, conversationListeners } = vi.hoisted(() => ({
+  getArchiveState: vi.fn<(params: { conversation_id: string }) => Promise<ConversationArchiveState>>(),
+  conversationListeners: new Set<(event: { conversation_id: string }) => void>(),
+}));
+
+vi.mock('@/common', async () => {
+  const actual = await vi.importActual<typeof import('@/common')>('@/common');
+  return {
+    ...actual,
+    ipcBridge: {
+      ...actual.ipcBridge,
+      sidebar: {
+        ...actual.ipcBridge.sidebar,
+        getConversationArchiveState: { invoke: getArchiveState },
+      },
+      conversation: {
+        ...actual.ipcBridge.conversation,
+        listChanged: {
+          on: (listener: (event: { conversation_id: string }) => void) => {
+            conversationListeners.add(listener);
+            return () => conversationListeners.delete(listener);
+          },
+        },
+      },
+    },
+  };
+});
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -21,6 +52,11 @@ vi.mock('@/renderer/pages/conversation/components/ConversationTitleMinimap', () 
 }));
 
 import ChatTitleEditor from '@/renderer/pages/conversation/components/ChatTitleEditor';
+
+beforeEach(() => {
+  getArchiveState.mockReset().mockResolvedValue({ conversation_id: 'conv-1', exists: true, archived_at: null });
+  conversationListeners.clear();
+});
 
 const renderEditor = (overrides: Partial<React.ComponentProps<typeof ChatTitleEditor>> = {}) => {
   const setEditingTitle = vi.fn();
@@ -37,8 +73,11 @@ const renderEditor = (overrides: Partial<React.ComponentProps<typeof ChatTitleEd
     conversation_id: 'conv-1',
     ...overrides,
   };
-  render(<ChatTitleEditor {...props} />);
-  return { setEditingTitle };
+  const cache = new Map();
+  const view = render(<ChatTitleEditor {...props} />, {
+    wrapper: ({ children }) => <SWRConfig value={{ provider: () => cache }}>{children}</SWRConfig>,
+  });
+  return { ...view, props, setEditingTitle };
 };
 
 describe('ChatTitleEditor with an empty conversation title', () => {
@@ -89,5 +128,84 @@ describe('ChatTitleEditor with a named conversation', () => {
 
     // The live MnP role label is nested inside the title's inherited warning color.
     expect(screen.getByText('Old title').closest('.text-16px')).toHaveClass('!text-warning-6');
+  });
+});
+
+describe('archived conversation title status', () => {
+  it.each([0, 1730000000000])('shows archive status beside the original title for archive time %i', async (time) => {
+    getArchiveState.mockResolvedValue({ conversation_id: 'conv-1', exists: true, archived_at: time });
+    const { setEditingTitle } = renderEditor({ title: '일일 보고' });
+
+    const badge = await screen.findByTestId('conversation-archive-badge');
+    expect(badge).toHaveTextContent('conversation.history.archiveSuccess');
+    expect(screen.getByTestId('chat-title-editor-trigger').textContent).toBe('일일 보고');
+    fireEvent.click(badge);
+    expect(setEditingTitle).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { exists: true, archived_at: null },
+    { exists: false, archived_at: null },
+  ])('does not mark an active or missing conversation as archived: %j', async (state) => {
+    getArchiveState.mockResolvedValue({ conversation_id: 'conv-1', ...state });
+    renderEditor({ title: '일일 보고' });
+    await waitFor(() => expect(getArchiveState).toHaveBeenCalledWith({ conversation_id: 'conv-1' }));
+    expect(screen.queryByTestId('conversation-archive-badge')).not.toBeInTheDocument();
+  });
+
+  it('removes the badge when the open conversation is restored', async () => {
+    getArchiveState.mockResolvedValue({ conversation_id: 'conv-1', exists: true, archived_at: 10 });
+    renderEditor({ title: '일일 보고' });
+    await screen.findByTestId('conversation-archive-badge');
+    getArchiveState.mockResolvedValue({ conversation_id: 'conv-1', exists: true, archived_at: null });
+
+    act(() => conversationListeners.forEach((listener) => listener({ conversation_id: 'conv-1' })));
+    await waitFor(() => expect(screen.queryByTestId('conversation-archive-badge')).not.toBeInTheDocument());
+  });
+
+  it('refreshes on history changes and ignores another conversation update', async () => {
+    renderEditor();
+    await waitFor(() => expect(getArchiveState).toHaveBeenCalledTimes(1));
+    getArchiveState.mockResolvedValue({ conversation_id: 'conv-1', exists: true, archived_at: 10 });
+
+    act(() => conversationListeners.forEach((listener) => listener({ conversation_id: 'other' })));
+    expect(getArchiveState).toHaveBeenCalledTimes(1);
+    act(() => {
+      emitter.emit('chat.history.refresh');
+    });
+    expect(await screen.findByTestId('conversation-archive-badge')).toBeVisible();
+  });
+
+  it('does not apply a late archive response after switching conversations', async () => {
+    let resolveFirst!: (state: ConversationArchiveState) => void;
+    const first = new Promise<ConversationArchiveState>((resolve) => {
+      resolveFirst = resolve;
+    });
+    getArchiveState.mockImplementation(({ conversation_id }) =>
+      conversation_id === 'conv-1' ? first : Promise.resolve({ conversation_id, exists: true, archived_at: null })
+    );
+    const { rerender, props } = renderEditor({ title: '이전 대화' });
+    rerender(<ChatTitleEditor {...props} title='현재 대화' conversation_id='conv-2' />);
+    await waitFor(() => expect(getArchiveState).toHaveBeenCalledWith({ conversation_id: 'conv-2' }));
+    await act(async () => {
+      resolveFirst({ conversation_id: 'conv-1', exists: true, archived_at: 10 });
+    });
+    expect(screen.queryByTestId('conversation-archive-badge')).not.toBeInTheDocument();
+    expect(screen.getByTestId('chat-title-editor-trigger')).toHaveTextContent('현재 대화');
+  });
+
+  it('keeps the title usable when archive lookup fails', async () => {
+    getArchiveState.mockRejectedValue(new Error('Unavailable'));
+    const { setEditingTitle } = renderEditor({ title: '일일 보고' });
+    await waitFor(() => expect(getArchiveState).toHaveBeenCalledTimes(1));
+    expect(screen.queryByTestId('conversation-archive-badge')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('chat-title-editor-trigger'));
+    expect(setEditingTitle).toHaveBeenCalledWith(true);
+  });
+
+  it('does not request archive status without a conversation id', () => {
+    renderEditor({ conversation_id: undefined });
+    expect(getArchiveState).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('conversation-archive-badge')).not.toBeInTheDocument();
   });
 });
