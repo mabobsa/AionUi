@@ -6,13 +6,15 @@
 
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SWRConfig } from 'swr';
+import { Message } from '@arco-design/web-react';
 import type { ConversationArchiveState } from '@/common/types/sidebar';
 import { emitter } from '@/renderer/utils/emitter';
 
-const { getArchiveState, conversationListeners } = vi.hoisted(() => ({
+const { getArchiveState, unarchive, conversationListeners } = vi.hoisted(() => ({
   getArchiveState: vi.fn<(params: { conversation_id: string }) => Promise<ConversationArchiveState>>(),
+  unarchive: vi.fn<(params: { item_type: 'conversation'; item_id: string }) => Promise<void>>(),
   conversationListeners: new Set<(event: { conversation_id: string }) => void>(),
 }));
 
@@ -25,6 +27,7 @@ vi.mock('@/common', async () => {
       sidebar: {
         ...actual.ipcBridge.sidebar,
         getConversationArchiveState: { invoke: getArchiveState },
+        unarchive: { invoke: unarchive },
       },
       conversation: {
         ...actual.ipcBridge.conversation,
@@ -54,8 +57,18 @@ vi.mock('@/renderer/pages/conversation/components/ConversationTitleMinimap', () 
 import ChatTitleEditor from '@/renderer/pages/conversation/components/ChatTitleEditor';
 
 beforeEach(() => {
+  // Static toast roots use the React adapter installed by main.tsx. This test
+  // exercises the real context menu and verifies toast calls without that root.
+  vi.spyOn(Message, 'success').mockReturnValue(() => {});
+  vi.spyOn(Message, 'error').mockReturnValue(() => {});
   getArchiveState.mockReset().mockResolvedValue({ conversation_id: 'conv-1', exists: true, archived_at: null });
+  unarchive.mockReset().mockResolvedValue(undefined);
   conversationListeners.clear();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  Message.clear();
 });
 
 const renderEditor = (overrides: Partial<React.ComponentProps<typeof ChatTitleEditor>> = {}) => {
@@ -132,6 +145,108 @@ describe('ChatTitleEditor with a named conversation', () => {
 });
 
 describe('archived conversation title status', () => {
+  it('opens the restore menu on right click and refreshes history after restoring', async () => {
+    getArchiveState.mockResolvedValue({ conversation_id: 'conv-1', exists: true, archived_at: 10 });
+    unarchive.mockImplementation(async () => {
+      getArchiveState.mockResolvedValue({ conversation_id: 'conv-1', exists: true, archived_at: null });
+    });
+    const refresh = vi.spyOn(emitter, 'emit');
+    const { setEditingTitle } = renderEditor({ title: '일일 보고' });
+    const badge = await screen.findByTestId('conversation-archive-badge');
+    fireEvent.click(badge);
+    expect(screen.queryByText('settings.archived.restore')).not.toBeInTheDocument();
+    fireEvent.contextMenu(badge);
+    fireEvent.click(await screen.findByText('settings.archived.restore'));
+
+    await waitFor(() => expect(unarchive).toHaveBeenCalledWith({ item_type: 'conversation', item_id: 'conv-1' }));
+    await waitFor(() => expect(screen.queryByTestId('conversation-archive-badge')).not.toBeInTheDocument());
+    expect(refresh).toHaveBeenCalledWith('chat.history.refresh');
+    expect(setEditingTitle).not.toHaveBeenCalled();
+  });
+
+  it('keeps the badge and permits retry when restoring fails', async () => {
+    getArchiveState.mockResolvedValue({ conversation_id: 'conv-1', exists: true, archived_at: 10 });
+    unarchive.mockRejectedValueOnce(new Error('Unavailable'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const errorMessage = vi.spyOn(Message, 'error');
+    renderEditor();
+    const badge = await screen.findByTestId('conversation-archive-badge');
+    fireEvent.contextMenu(badge);
+    fireEvent.click(await screen.findByText('settings.archived.restore'));
+    await waitFor(() => expect(errorMessage).toHaveBeenCalledWith('settings.archived.restoreFailed'));
+    expect(badge).toBeVisible();
+
+    unarchive.mockImplementation(async () => {
+      getArchiveState.mockResolvedValue({ conversation_id: 'conv-1', exists: true, archived_at: null });
+    });
+    fireEvent.contextMenu(badge);
+    fireEvent.click(await screen.findByText('settings.archived.restore'));
+    await waitFor(() => expect(unarchive).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByTestId('conversation-archive-badge')).not.toBeInTheDocument());
+  });
+
+  it('clears a successfully restored badge even when the follow-up read fails', async () => {
+    getArchiveState.mockResolvedValue({ conversation_id: 'conv-1', exists: true, archived_at: 10 });
+    unarchive.mockImplementation(async () => {
+      getArchiveState.mockRejectedValue(new Error('Revalidation unavailable'));
+    });
+    const errorMessage = vi.spyOn(Message, 'error');
+    renderEditor();
+    fireEvent.contextMenu(await screen.findByTestId('conversation-archive-badge'));
+    fireEvent.click(await screen.findByText('settings.archived.restore'));
+    await waitFor(() => expect(screen.queryByTestId('conversation-archive-badge')).not.toBeInTheDocument());
+    expect(errorMessage).not.toHaveBeenCalled();
+  });
+
+  it('does not submit duplicate requests while restoration is pending', async () => {
+    getArchiveState.mockResolvedValue({ conversation_id: 'conv-1', exists: true, archived_at: 10 });
+    let finishRestore!: () => void;
+    unarchive.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finishRestore = resolve;
+      })
+    );
+    renderEditor();
+    const badge = await screen.findByTestId('conversation-archive-badge');
+    fireEvent.contextMenu(badge);
+    const item = await screen.findByText('settings.archived.restore');
+    fireEvent.click(item);
+    fireEvent.click(item);
+    expect(unarchive).toHaveBeenCalledTimes(1);
+    expect(badge).toHaveAttribute('aria-busy', 'true');
+    getArchiveState.mockResolvedValue({ conversation_id: 'conv-1', exists: true, archived_at: null });
+    await act(async () => {
+      finishRestore();
+    });
+    await waitFor(() => expect(screen.queryByTestId('conversation-archive-badge')).not.toBeInTheDocument());
+  });
+
+  it('does not clear another conversation badge when an earlier restore completes after navigation', async () => {
+    getArchiveState.mockImplementation(async ({ conversation_id }) => ({
+      conversation_id,
+      exists: true,
+      archived_at: 10,
+    }));
+    let finishRestore!: () => void;
+    unarchive.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finishRestore = resolve;
+      })
+    );
+    const { rerender, props } = renderEditor();
+    fireEvent.contextMenu(await screen.findByTestId('conversation-archive-badge'));
+    fireEvent.click(await screen.findByText('settings.archived.restore'));
+    rerender(<ChatTitleEditor {...props} conversation_id='conv-2' title='다른 보관 대화' />);
+    await waitFor(() => expect(getArchiveState).toHaveBeenCalledWith({ conversation_id: 'conv-2' }));
+    await act(async () => {
+      finishRestore();
+    });
+
+    expect(unarchive).toHaveBeenCalledWith({ item_type: 'conversation', item_id: 'conv-1' });
+    expect(screen.getByTestId('conversation-archive-badge')).toBeVisible();
+    expect(screen.getByTestId('chat-title-editor-trigger')).toHaveTextContent('다른 보관 대화');
+  });
+
   it.each([0, 1730000000000])('shows archive status beside the original title for archive time %i', async (time) => {
     getArchiveState.mockResolvedValue({ conversation_id: 'conv-1', exists: true, archived_at: time });
     const { setEditingTitle } = renderEditor({ title: '일일 보고' });

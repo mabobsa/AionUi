@@ -1,10 +1,13 @@
 import { ipcBridge } from '@/common';
-import { addEventListener } from '@/renderer/utils/emitter';
+import { addEventListener, emitter } from '@/renderer/utils/emitter';
 import { useEffect } from 'react';
-import useSWR from 'swr';
+import useSWR, { useSWRConfig } from 'swr';
 
 /** Reads archive state without depending on the active sidebar's paged contents. */
-export const useConversationArchiveState = (conversationId?: string): boolean => {
+export const useConversationArchiveState = (
+  conversationId?: string
+): { archived: boolean; restore: () => Promise<void> } => {
+  const { mutate: mutateCache } = useSWRConfig();
   const { data, mutate } = useSWR(
     conversationId ? ['conversation-archive-state', conversationId] : null,
     () => ipcBridge.sidebar.getConversationArchiveState.invoke({ conversation_id: conversationId! }),
@@ -32,5 +35,21 @@ export const useConversationArchiveState = (conversationId?: string): boolean =>
     };
   }, [conversationId, mutate]);
 
-  return Boolean(data?.exists && data.conversation_id === conversationId && data.archived_at != null);
+  const restore = async (): Promise<void> => {
+    if (!conversationId) return;
+    await ipcBridge.sidebar.unarchive.invoke({ item_type: 'conversation', item_id: conversationId });
+    // Update the requested conversation even if navigation changed while restoring.
+    // A successful restore must also clear the badge when the follow-up read fails.
+    await mutateCache(
+      ['conversation-archive-state', conversationId],
+      { conversation_id: conversationId, exists: true, archived_at: null },
+      { revalidate: false }
+    );
+    emitter.emit('chat.history.refresh');
+  };
+
+  return {
+    archived: Boolean(data?.exists && data.conversation_id === conversationId && data.archived_at != null),
+    restore,
+  };
 };
