@@ -19,7 +19,7 @@ type WindowMock = {
 };
 
 function createWindow(focused = false): WindowMock {
-  let focusListener = (): void => {};
+  let focusListener: (() => void) | undefined;
   const flashFrame = vi.fn();
   const setOverlayIcon = vi.fn();
   const window = {
@@ -31,7 +31,7 @@ function createWindow(focused = false): WindowMock {
     },
     setOverlayIcon,
   } as unknown as BrowserWindow;
-  return { window, flashFrame, focus: () => focusListener(), setOverlayIcon };
+  return { window, flashFrame, focus: () => focusListener?.(), setOverlayIcon };
 }
 
 describe('taskbar badge service', () => {
@@ -48,7 +48,24 @@ describe('taskbar badge service', () => {
     vi.restoreAllMocks();
   });
 
-  it('mirrors the badge count and flashes until the window gains focus', async () => {
+  it('updates and clears the macOS Dock badge without requesting attention', async () => {
+    vi.spyOn(process, 'platform', 'get').mockReturnValue('darwin');
+    const { applyTaskbarBadge, setTaskbarBadgeWindow } = await import('@/process/services/taskbarBadge');
+    const windowMock = createWindow();
+    setTaskbarBadgeWindow(windowMock.window);
+
+    applyTaskbarBadge(2);
+    vi.advanceTimersByTime(1400);
+    expect(appMock.badgeCount).toBe(2);
+
+    windowMock.focus();
+    applyTaskbarBadge(0);
+    expect(appMock.badgeCount).toBe(0);
+    expect(windowMock.flashFrame).not.toHaveBeenCalled();
+  });
+
+  it('mirrors the Windows badge count and flashes until the window gains focus', async () => {
+    vi.spyOn(process, 'platform', 'get').mockReturnValue('win32');
     const { applyTaskbarBadge, setTaskbarBadgeWindow } = await import('@/process/services/taskbarBadge');
     const windowMock = createWindow();
     setTaskbarBadgeWindow(windowMock.window);

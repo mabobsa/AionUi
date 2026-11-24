@@ -11,9 +11,7 @@ import { renderTaskbarBadgeIcon } from './taskbarBadge';
 import { useEffect } from 'react';
 
 /**
- * Mirrors the count of conversations with an unread "completed" (blue dot) state
- * onto the OS taskbar/dock icon — a numeric overlay plus continuous flashing
- * until the window is focused (handled in the main process).
+ * Sends the unread completion count to the main process for the taskbar or Dock badge.
  *
  * Rendered as a null component so store updates re-render only this node, not
  * the whole Layout tree.

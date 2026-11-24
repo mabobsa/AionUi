@@ -38,18 +38,21 @@ const startTaskbarFlashing = (): void => {
 };
 
 export const setTaskbarBadgeWindow = (win: BrowserWindow): void => {
+  if (process.platform === 'darwin') return;
+
   mainWindowRef = win;
   win.on('focus', stopTaskbarFlashing);
 };
 
 /**
- * Mirror unread completion state to the platform taskbar and request attention
- * until the user focuses the main window.
+ * Mirror unread completion state to the taskbar or Dock. On macOS the Dock
+ * badge is sufficient because flashing the window makes the Dock icon bounce.
  */
 export const applyTaskbarBadge = (count: number, iconDataUrl?: string): void => {
-  lastBadgeCount = count;
   app.badgeCount = count;
+  if (process.platform === 'darwin') return;
 
+  lastBadgeCount = count;
   const win = mainWindowRef;
   if (!win || win.isDestroyed()) return;
 
