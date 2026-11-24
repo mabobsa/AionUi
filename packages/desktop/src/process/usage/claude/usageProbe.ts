@@ -11,7 +11,8 @@ import { delimiter, extname, join } from 'node:path';
 import { spawn, type IPty } from 'node-pty';
 import { parseClaudeUsageOutput, stripClaudeUsageTerminalOutput } from './usageParser';
 
-const DEFAULT_SUCCESS_TTL_MS = 120_000;
+// Must not exceed the publisher's success interval, or every other refresh reads the cache.
+const DEFAULT_SUCCESS_TTL_MS = 60_000;
 const DEFAULT_FAILURE_TTL_MS = 30_000;
 const COMMAND_RETRY_DELAY_MS = 10_000;
 const MAX_COMMAND_RETRIES = 2;

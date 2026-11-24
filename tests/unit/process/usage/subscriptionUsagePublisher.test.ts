@@ -205,7 +205,7 @@ describe('SubscriptionUsagePublisher background refresh', () => {
     publisher.stop();
   });
 
-  it('waits two minutes between completed background refreshes', async () => {
+  it('waits one minute between completed background refreshes', async () => {
     vi.useFakeTimers();
     const capture = captureSnapshots();
     const getCodexUsage = vi.fn(async () => codexUsage);
@@ -218,6 +218,32 @@ describe('SubscriptionUsagePublisher background refresh', () => {
       listConversations: async () => [conversation],
       onProcessExit: () => {},
       writeSnapshot: capture.writeSnapshot,
+    });
+
+    publisher.start();
+    await vi.advanceTimersByTimeAsync(0);
+    await flushPromises();
+    expect(getCodexUsage).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(59_999);
+    expect(getCodexUsage).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(getCodexUsage).toHaveBeenCalledTimes(2);
+    publisher.stop();
+  });
+
+  it('keeps retrying a failed Codex read every two minutes', async () => {
+    vi.useFakeTimers();
+    const getCodexUsage = vi.fn(async () => null);
+    const publisher = new SubscriptionUsagePublisher({
+      clearSnapshot: () => {},
+      getClaudeUsage: async () => claudeUsage,
+      getCodexUsage,
+      initialRefreshDelayMs: 0,
+      isDirectory: () => true,
+      listConversations: async () => [conversation],
+      onProcessExit: () => {},
+      writeSnapshot: captureSnapshots().writeSnapshot,
     });
 
     publisher.start();
@@ -378,12 +404,12 @@ describe('SubscriptionUsagePublisher Claude accounts', () => {
     const { publisher } = createPublisher({ accountsList: accounts, getClaudeUsage });
     publisher.start();
     await vi.advanceTimersByTimeAsync(240_000);
-    expect(getClaudeUsage.mock.calls.filter(([, id]) => !id)).toHaveLength(3);
+    expect(getClaudeUsage.mock.calls.filter(([, id]) => !id)).toHaveLength(5);
     expect(getClaudeUsage.mock.calls.filter(([, id]) => id === 'max')).toHaveLength(1);
     publisher.stop();
     slow.resolve(maxUsage);
     await vi.advanceTimersByTimeAsync(240_000);
-    expect(getClaudeUsage).toHaveBeenCalledTimes(4);
+    expect(getClaudeUsage).toHaveBeenCalledTimes(6);
   });
 
   it('retries a failed account after thirty seconds while preserving its last successful reading', async () => {
@@ -396,7 +422,7 @@ describe('SubscriptionUsagePublisher Claude accounts', () => {
     });
     const { publisher, capture } = createPublisher({ accountsList: accounts, getClaudeUsage });
     publisher.start();
-    await vi.advanceTimersByTimeAsync(120_000);
+    await vi.advanceTimersByTimeAsync(60_000);
     expect(capture.snapshots.at(-1)?.claudeAccounts?.[1]).toMatchObject({
       state: 'ready',
       session: { usedPercent: 7 },

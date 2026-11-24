@@ -282,7 +282,7 @@ describe('ClaudeUsageProbe', () => {
     }
   });
 
-  it('caches successful usage for two minutes', async () => {
+  it('caches successful usage for one minute', async () => {
     let now = new Date(2026, 6, 31, 7, 0, 0).getTime();
     const firstTerminal = new FakePty();
     const secondTerminal = new FakePty();
@@ -299,7 +299,7 @@ describe('ClaudeUsageProbe', () => {
     firstTerminal.emitExit();
     await expect(first).resolves.toMatchObject({ session: { utilization: 25 } });
 
-    now += 119_999;
+    now += 59_999;
     await expect(probe.getUsage(process.cwd())).resolves.toMatchObject({ session: { utilization: 25 } });
     expect(spawnPty).toHaveBeenCalledTimes(1);
 

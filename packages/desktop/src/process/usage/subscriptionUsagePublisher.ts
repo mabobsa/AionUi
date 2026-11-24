@@ -30,8 +30,9 @@ import { clearSubscriptionUsageSnapshot, writeSubscriptionUsageSnapshot } from '
 
 const DEFAULT_LOADING_RETRY_MS = 2_000;
 const DEFAULT_INITIAL_REFRESH_DELAY_MS = 2_000;
-const DEFAULT_REFRESH_INTERVAL_MS = 120_000;
+const DEFAULT_REFRESH_INTERVAL_MS = 60_000;
 const CLAUDE_FAILURE_RETRY_MS = 30_000;
+const CODEX_FAILURE_RETRY_MS = 120_000;
 const CONVERSATION_LOOKUP_LIMIT = 10_000;
 
 export type SubscriptionUsageConversation = {
@@ -433,7 +434,7 @@ export class SubscriptionUsagePublisher {
 
       this.#markCodexLoading();
       const jobs = new Map<string, RefreshJob>([
-        ['codex', { read: () => this.readCodexUsage(), failureDelayMs: this.#refreshIntervalMs }],
+        ['codex', { read: () => this.readCodexUsage(), failureDelayMs: CODEX_FAILURE_RETRY_MS }],
       ]);
       const workspace = workspaceConversation?.workspace?.trim();
       if (workspace) {
