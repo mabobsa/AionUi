@@ -38,6 +38,8 @@ export type MessagePaginationState = {
   hasMoreAfter: boolean;
   isLoadingBefore: boolean;
   isLoadingAnchor: boolean;
+  /** Fork: the last older-page request failed; the list offers a retry. */
+  loadBeforeFailed?: boolean;
 };
 
 const EMPTY_MESSAGE_PAGINATION_STATE: MessagePaginationState = {
@@ -879,13 +881,23 @@ export const useLoadPreviousMessagePage = (conversationId?: string) => {
   const pagination = useMessagePaginationState();
   const setPagination = useUpdateMessagePaginationState();
   const prependHistoryPage = usePrependHistoryPage();
+  // Fork: scroll, wheel, retry and automatic loads can fire before the
+  // isLoadingBefore render lands; only the first one may request the cursor.
+  const inFlight = useRef(false);
 
   return useCallback(async () => {
-    if (!conversationId || !pagination.oldestCursor || !pagination.hasMoreBefore || pagination.isLoadingBefore) {
+    if (
+      inFlight.current ||
+      !conversationId ||
+      !pagination.oldestCursor ||
+      !pagination.hasMoreBefore ||
+      pagination.isLoadingBefore
+    ) {
       return false;
     }
 
-    setPagination((current) => ({ ...current, isLoadingBefore: true }));
+    inFlight.current = true;
+    setPagination((current) => ({ ...current, isLoadingBefore: true, loadBeforeFailed: false }));
     try {
       const page = await loadConversationMessagePage(conversationId, {
         limit: DEFAULT_MESSAGE_PAGE_LIMIT,
@@ -905,8 +917,10 @@ export const useLoadPreviousMessagePage = (conversationId?: string) => {
       return true;
     } catch (error) {
       console.error('[useLoadPreviousMessagePage] Failed to load previous messages:', error);
-      setPagination((current) => ({ ...current, isLoadingBefore: false }));
+      setPagination((current) => ({ ...current, isLoadingBefore: false, loadBeforeFailed: true }));
       return false;
+    } finally {
+      inFlight.current = false;
     }
   }, [
     conversationId,

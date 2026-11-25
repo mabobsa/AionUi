@@ -38,6 +38,8 @@
   "downloadFailed": "下載失敗",
   "imageLoadFailed": "圖片載入失敗",
   "scrollToBottom": "滾動到底部",
+  "olderMessagesLoading": "正在載入更早的訊息…",
+  "olderMessagesLoadFailed": "無法載入更早的訊息。",
   "anchorRail": {
     "label": "對話訊息錨點",
     "tickAria": "跳轉到第 {{index}} 則訊息",

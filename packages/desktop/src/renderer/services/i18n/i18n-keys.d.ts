@@ -1372,6 +1372,8 @@ export type I18nKey =
   | 'messages.mindnprogress.titleSyncSuccess'
   | 'messages.mindnprogress.titleSyncTooltip'
   | 'messages.noOptionsAvailable'
+  | 'messages.olderMessagesLoadFailed'
+  | 'messages.olderMessagesLoading'
   | 'messages.openLinkFailed'
   | 'messages.option'
   | 'messages.permissionRequest'

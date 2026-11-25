@@ -38,6 +38,8 @@
   "downloadFailed": "Error en la descarga",
   "imageLoadFailed": "Error al cargar la imagen",
   "scrollToBottom": "Ir al final",
+  "olderMessagesLoading": "Cargando mensajes anteriores…",
+  "olderMessagesLoadFailed": "No se pudieron cargar los mensajes anteriores.",
   "anchorRail": {
     "label": "Anclas de mensajes de la conversación",
     "tickAria": "Ir al mensaje {{index}}",

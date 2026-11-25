@@ -38,6 +38,8 @@
   "downloadFailed": "Échec du téléchargement",
   "imageLoadFailed": "Échec du chargement de l'image",
   "scrollToBottom": "Défiler vers le bas",
+  "olderMessagesLoading": "Chargement des messages précédents…",
+  "olderMessagesLoadFailed": "Impossible de charger les messages précédents.",
   "anchorRail": {
     "label": "Ancres des messages de la conversation",
     "tickAria": "Aller au message {{index}}",

@@ -38,6 +38,8 @@
   "downloadFailed": "İndirme başarısız",
   "imageLoadFailed": "Görüntü yüklenemedi",
   "scrollToBottom": "Aşağı kaydır",
+  "olderMessagesLoading": "Önceki mesajlar yükleniyor…",
+  "olderMessagesLoadFailed": "Önceki mesajlar yüklenemedi.",
   "anchorRail": {
     "label": "Sohbet mesajı bağlantı noktaları",
     "tickAria": "{{index}}. mesaja git",

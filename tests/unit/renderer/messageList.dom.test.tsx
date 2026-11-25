@@ -14,6 +14,7 @@ import {
   MessageListProvider,
   MessagePaginationProvider,
   useUpdateMessageList,
+  type MessagePaginationState,
 } from '@/renderer/pages/conversation/Messages/hooks';
 import MessageList from '@/renderer/pages/conversation/Messages/MessageList';
 import { useFillMessageViewport } from '@/renderer/pages/conversation/hooks/useFillMessageViewport';
@@ -41,6 +42,18 @@ vi.mock('@arco-design/web-react', () => ({
   Image: {
     PreviewGroup: ({ children }: PropsWithChildren) => <>{children}</>,
   },
+  Button: ({ children, onClick }: PropsWithChildren<{ onClick?: () => void }>) => (
+    <button type='button' onClick={onClick}>
+      {children}
+    </button>
+  ),
+  Spin: () => <span data-testid='spin' />,
+}));
+
+const { loadConversationMessagePageMock } = vi.hoisted(() => ({ loadConversationMessagePageMock: vi.fn() }));
+vi.mock('@/renderer/utils/chat/messagePagination', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/renderer/utils/chat/messagePagination')>()),
+  loadConversationMessagePage: loadConversationMessagePageMock,
 }));
 
 vi.mock('@/renderer/hooks/context/ConversationContext', () => ({
@@ -247,12 +260,15 @@ function Wrapper({
   children,
   messages = [createTextMessage()],
   loading = false,
-}: PropsWithChildren<{ messages?: TMessage[]; loading?: boolean }>): JSX.Element {
+  pagination = { hasMoreBefore: false, hasMoreAfter: false, isLoadingBefore: false, isLoadingAnchor: false },
+}: PropsWithChildren<{
+  messages?: TMessage[];
+  loading?: boolean;
+  pagination?: MessagePaginationState;
+}>): JSX.Element {
   return (
     <MessageListLoadingProvider value={loading}>
-      <MessagePaginationProvider
-        value={{ hasMoreBefore: false, hasMoreAfter: false, isLoadingBefore: false, isLoadingAnchor: false }}
-      >
+      <MessagePaginationProvider value={pagination}>
         <MessageListProvider value={messages}>{children}</MessageListProvider>
       </MessagePaginationProvider>
     </MessageListLoadingProvider>
@@ -715,6 +731,87 @@ describe('MessageList', () => {
   });
 });
 
+/** An older page whose rows add no visible height (e.g. tool calls folded into the top summary). */
+const olderPage = (oldestCursor: string, hasMoreBefore: boolean) => ({
+  items: [],
+  oldest_cursor: oldestCursor,
+  newest_cursor: null,
+  has_more_before: hasMoreBefore,
+  has_more_after: false,
+});
+
+describe('MessageList older history', () => {
+  const olderPagination: MessagePaginationState = {
+    oldestCursor: 'cursor-1',
+    hasMoreBefore: true,
+    hasMoreAfter: false,
+    isLoadingBefore: false,
+    isLoadingAnchor: false,
+  };
+  const renderOlderHistory = () =>
+    render(<MessageList />, {
+      wrapper: ({ children }) => <Wrapper pagination={olderPagination}>{children}</Wrapper>,
+    });
+
+  beforeEach(() => {
+    mockIsProcessing = false;
+    useTeamPermissionMock.mockReturnValue(null);
+    loadConversationMessagePageMock.mockReset();
+  });
+
+  it('keeps loading while the reader stays at the top and pages add no height', async () => {
+    // Pages of tool calls fold into the top summary: the height and scrollTop stay put.
+    loadConversationMessagePageMock
+      .mockResolvedValueOnce(olderPage('cursor-2', true))
+      .mockResolvedValueOnce(olderPage('cursor-3', false));
+    renderOlderHistory();
+
+    fireEvent.wheel(screen.getByTestId('message-list-scroller'), { deltaY: -120 });
+
+    await waitFor(() => expect(loadConversationMessagePageMock).toHaveBeenCalledTimes(2));
+    expect(loadConversationMessagePageMock.mock.calls.map(([, options]) => options.before)).toEqual([
+      'cursor-1',
+      'cursor-2',
+    ]);
+    await act(async () => {
+      await nextAnimationFrame();
+      await nextAnimationFrame();
+    });
+    expect(loadConversationMessagePageMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not load older history at the top until the reader scrolls there', async () => {
+    renderOlderHistory();
+    await act(async () => {
+      await nextAnimationFrame();
+      await nextAnimationFrame();
+    });
+    expect(loadConversationMessagePageMock).not.toHaveBeenCalled();
+  });
+
+  it('shows a delayed loading status and a retry after a failed load', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    let rejectLoad: ((error: Error) => void) | undefined;
+    loadConversationMessagePageMock
+      .mockImplementationOnce(() => new Promise((_resolve, reject) => (rejectLoad = reject)))
+      .mockResolvedValueOnce(olderPage('cursor-2', false));
+    renderOlderHistory();
+
+    fireEvent.wheel(screen.getByTestId('message-list-scroller'), { deltaY: -120 });
+    await waitFor(() => expect(loadConversationMessagePageMock).toHaveBeenCalledTimes(1));
+    expect(screen.queryByTestId('message-history-load-status')).not.toBeInTheDocument();
+    expect(await screen.findByText('messages.olderMessagesLoading')).toBeInTheDocument();
+
+    await act(async () => rejectLoad?.(new Error('offline')));
+    expect(await screen.findByText('messages.olderMessagesLoadFailed')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }));
+    await waitFor(() => expect(loadConversationMessagePageMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByTestId('message-history-load-status')).not.toBeInTheDocument());
+    consoleError.mockRestore();
+  });
+});
+
 const nextAnimationFrame = (): Promise<void> =>
   new Promise((resolve) => {
     requestAnimationFrame(() => resolve());
@@ -874,5 +971,65 @@ describe('useFillMessageViewport', () => {
     });
 
     expect(loadPreviousPage).not.toHaveBeenCalled();
+  });
+
+  it('keeps loading a scrollable list while the reader waits at the top', async () => {
+    const elements = createViewportElements(900, 600);
+    const loadPreviousPage = vi.fn().mockResolvedValue(true);
+    const { rerender } = renderHook(
+      ({ oldestCursor }) =>
+        useFillMessageViewport({
+          conversationId: 'conversation-1',
+          ...elements,
+          oldestCursor,
+          hasMoreBefore: true,
+          isLoadingBefore: false,
+          renderedItemCount: 20,
+          loadPreviousPage,
+          isReaderAtTop: () => true,
+        }),
+      { initialProps: { oldestCursor: 'cursor-1' } }
+    );
+    await waitFor(() => expect(loadPreviousPage).toHaveBeenCalledTimes(1));
+
+    // The page folded into the top summary: no height change, still at the top.
+    rerender({ oldestCursor: 'cursor-2' });
+    await waitFor(() => expect(loadPreviousPage).toHaveBeenCalledTimes(2));
+  });
+
+  it('stops once a page moves the reader below the top area', async () => {
+    const elements = createViewportElements(900, 600);
+    let resolveLoad: ((loaded: boolean) => void) | undefined;
+    const loadPreviousPage = vi.fn(() => new Promise<boolean>((resolve) => (resolveLoad = resolve)));
+    const { rerender } = renderHook(
+      ({ oldestCursor }) =>
+        useFillMessageViewport({
+          conversationId: 'conversation-1',
+          ...elements,
+          oldestCursor,
+          hasMoreBefore: true,
+          isLoadingBefore: false,
+          renderedItemCount: 20,
+          loadPreviousPage,
+          isReaderAtTop: () => true,
+        }),
+      { initialProps: { oldestCursor: 'cursor-1' } }
+    );
+    await waitFor(() => expect(loadPreviousPage).toHaveBeenCalledTimes(1));
+
+    elements.scroller.scrollHeight = 1200;
+    elements.content.scrollHeight = 1200;
+    await act(async () => {
+      resolveLoad?.(true);
+      await nextAnimationFrame();
+    });
+    expect(elements.scroller.scrollTop).toBe(300);
+
+    rerender({ oldestCursor: 'cursor-2' });
+    await act(async () => {
+      await nextAnimationFrame();
+      await nextAnimationFrame();
+    });
+    expect(loadPreviousPage).toHaveBeenCalledTimes(1);
   });
 });

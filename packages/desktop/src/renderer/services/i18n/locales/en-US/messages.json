@@ -38,6 +38,8 @@
   "downloadFailed": "Failed to download",
   "imageLoadFailed": "Failed to load image",
   "scrollToBottom": "Scroll to bottom",
+  "olderMessagesLoading": "Loading earlier messages…",
+  "olderMessagesLoadFailed": "Couldn't load earlier messages.",
   "anchorRail": {
     "label": "Conversation message anchors",
     "tickAria": "Jump to message {{index}}",

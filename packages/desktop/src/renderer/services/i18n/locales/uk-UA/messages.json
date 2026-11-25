@@ -39,6 +39,8 @@
   "downloadFailed": "Не вдалося завантажити",
   "imageLoadFailed": "Не вдалося завантажити зображення",
   "scrollToBottom": "Прокрутити донизу",
+  "olderMessagesLoading": "Завантаження попередніх повідомлень…",
+  "olderMessagesLoadFailed": "Не вдалося завантажити попередні повідомлення.",
   "anchorRail": {
     "label": "Якорі повідомлень розмови",
     "tickAria": "Перейти до повідомлення {{index}}",

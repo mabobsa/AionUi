@@ -38,6 +38,8 @@
   "downloadFailed": "دانلود ناموفق بود",
   "imageLoadFailed": "بارگذاری تصویر ناموفق بود",
   "scrollToBottom": "اسکرول به انتها",
+  "olderMessagesLoading": "در حال بارگذاری پیام‌های قبلی…",
+  "olderMessagesLoadFailed": "بارگذاری پیام‌های قبلی ممکن نشد.",
   "anchorRail": {
     "label": "لنگرهای پیام‌های گفتگو",
     "tickAria": "رفتن به پیام {{index}}",

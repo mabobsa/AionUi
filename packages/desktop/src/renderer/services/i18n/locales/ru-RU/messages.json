@@ -40,6 +40,8 @@
   "downloadFailed": "Не удалось скачать",
   "imageLoadFailed": "Не удалось загрузить изображение",
   "scrollToBottom": "Прокрутить вниз",
+  "olderMessagesLoading": "Загрузка предыдущих сообщений…",
+  "olderMessagesLoadFailed": "Не удалось загрузить предыдущие сообщения.",
   "anchorRail": {
     "label": "Якоря сообщений диалога",
     "tickAria": "Перейти к сообщению {{index}}",

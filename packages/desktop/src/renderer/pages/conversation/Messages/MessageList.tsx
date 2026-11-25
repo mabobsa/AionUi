@@ -7,7 +7,11 @@
 import type { IConversationArtifact } from '@/common/adapter/ipcBridge';
 import type { IMessageAcpToolCall, IMessageToolCall, IMessageToolGroup, TMessage } from '@/common/chat/chatLib';
 import { useConversationContextSafe } from '@/renderer/hooks/context/ConversationContext';
-import { useFillMessageViewport } from '@/renderer/pages/conversation/hooks/useFillMessageViewport';
+import {
+  PREVIOUS_PAGE_TRIGGER_PX,
+  useFillMessageViewport,
+} from '@/renderer/pages/conversation/hooks/useFillMessageViewport';
+import MessageHistoryLoadStatus from '@/renderer/pages/conversation/runtime/MessageHistoryLoadStatus';
 import {
   consumeMessageTargetNavigation,
   useMessageTargetScroll,
@@ -595,6 +599,11 @@ const MessageList: React.FC<{ className?: string; emptySlot?: React.ReactNode }>
     [handleContentRef]
   );
 
+  // Fork: set only by the reader's own scroll or wheel, never by opening the
+  // conversation, so a list that starts at scrollTop 0 does not load on its own.
+  const readerAtTopRef = useRef(false);
+  const isReaderAtTop = useCallback(() => readerAtTopRef.current, []);
+
   useFillMessageViewport({
     conversationId: conversationContext?.conversation_id,
     scrollerRef: scrollerElementRef,
@@ -605,15 +614,13 @@ const MessageList: React.FC<{ className?: string; emptySlot?: React.ReactNode }>
     renderedItemCount: processedList.length,
     loadPreviousPage: loadPreviousMessagePage,
     isScrollLocked,
+    isReaderAtTop,
+    loadFailed: pagination.loadBeforeFailed === true,
   });
 
-  const handleMessageListScroll = useCallback(
-    (event: React.UIEvent<HTMLDivElement>) => {
-      handleScroll(event);
-      const scroller = event.currentTarget;
-      if (isScrollLocked() || !pagination.hasMoreBefore || pagination.isLoadingBefore || scroller.scrollTop > 160) {
-        return;
-      }
+  const requestPreviousPage = useCallback(
+    (scroller: HTMLDivElement) => {
+      if (isScrollLocked() || !pagination.hasMoreBefore || pagination.isLoadingBefore) return;
 
       const previousHeight = contentElementRef.current?.scrollHeight ?? 0;
       void loadPreviousMessagePage().then((loaded) => {
@@ -625,8 +632,37 @@ const MessageList: React.FC<{ className?: string; emptySlot?: React.ReactNode }>
         });
       });
     },
-    [handleScroll, isScrollLocked, loadPreviousMessagePage, pagination.hasMoreBefore, pagination.isLoadingBefore]
+    [isScrollLocked, loadPreviousMessagePage, pagination.hasMoreBefore, pagination.isLoadingBefore]
   );
+
+  const handleMessageListScroll = useCallback(
+    (event: React.UIEvent<HTMLDivElement>) => {
+      handleScroll(event);
+      const scroller = event.currentTarget;
+      readerAtTopRef.current = scroller.scrollTop <= PREVIOUS_PAGE_TRIGGER_PX;
+      if (readerAtTopRef.current) requestPreviousPage(scroller);
+    },
+    [handleScroll, requestPreviousPage]
+  );
+
+  const handleMessageListWheel = useCallback(
+    (event: React.WheelEvent<HTMLDivElement>) => {
+      handleWheel(event);
+      const scroller = event.currentTarget;
+      // At the very top the browser emits no scroll event; scrolling up there
+      // is still the reader asking for older messages.
+      if (event.deltaY < 0 && scroller.scrollTop <= PREVIOUS_PAGE_TRIGGER_PX) {
+        readerAtTopRef.current = true;
+        requestPreviousPage(scroller);
+      }
+    },
+    [handleWheel, requestPreviousPage]
+  );
+
+  const retryPreviousPage = useCallback(() => {
+    const scroller = scrollerElementRef.current;
+    if (scroller) requestPreviousPage(scroller);
+  }, [requestPreviousPage]);
 
   useEffect(() => {
     if (!targetMessageId || isMessageListLoading || pagination.isLoadingAnchor || pagination.isLoadingBefore) {
@@ -825,7 +861,7 @@ const MessageList: React.FC<{ className?: string; emptySlot?: React.ReactNode }>
             style={{ overflowAnchor: 'none' }}
             onPointerDown={handlePointerDown}
             onScroll={handleMessageListScroll}
-            onWheel={handleWheel}
+            onWheel={handleMessageListWheel}
           >
             <div
               ref={setContentRef}
@@ -847,6 +883,12 @@ const MessageList: React.FC<{ className?: string; emptySlot?: React.ReactNode }>
           </div>
         </ImagePreviewContext.Provider>
       </Image.PreviewGroup>
+
+      <MessageHistoryLoadStatus
+        loading={pagination.isLoadingBefore}
+        failed={pagination.loadBeforeFailed}
+        onRetry={retryPreviousPage}
+      />
 
       {showScrollButton && (
         <>

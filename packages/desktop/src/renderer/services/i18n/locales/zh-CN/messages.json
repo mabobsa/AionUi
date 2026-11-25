@@ -38,6 +38,8 @@
   "downloadFailed": "下载失败",
   "imageLoadFailed": "图片加载失败",
   "scrollToBottom": "滚动到底部",
+  "olderMessagesLoading": "正在加载更早的消息…",
+  "olderMessagesLoadFailed": "无法加载更早的消息。",
   "anchorRail": {
     "label": "对话消息锚点",
     "tickAria": "跳转到第 {{index}} 条消息",

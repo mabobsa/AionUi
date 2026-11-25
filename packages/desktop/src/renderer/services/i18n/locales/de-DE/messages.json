@@ -38,6 +38,8 @@
   "downloadFailed": "Download fehlgeschlagen",
   "imageLoadFailed": "Bild konnte nicht geladen werden",
   "scrollToBottom": "Nach unten scrollen",
+  "olderMessagesLoading": "Frühere Nachrichten werden geladen…",
+  "olderMessagesLoadFailed": "Frühere Nachrichten konnten nicht geladen werden.",
   "anchorRail": {
     "label": "Anker für Unterhaltungsnachrichten",
     "tickAria": "Zu Nachricht {{index}} springen",

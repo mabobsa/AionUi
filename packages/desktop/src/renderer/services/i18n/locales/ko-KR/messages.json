@@ -38,6 +38,8 @@
   "downloadFailed": "다운로드 실패",
   "imageLoadFailed": "이미지 로드 실패",
   "scrollToBottom": "맨 아래로 스크롤",
+  "olderMessagesLoading": "이전 메시지를 불러오는 중…",
+  "olderMessagesLoadFailed": "이전 메시지를 불러오지 못했습니다.",
   "anchorRail": {
     "label": "대화 메시지 앵커",
     "tickAria": "{{index}}번째 메시지로 이동",
